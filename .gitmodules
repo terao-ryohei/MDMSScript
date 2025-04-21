@@ -1,0 +1,3 @@
+[submodule "submodules/mc-action-logger"]
+	path = submodules/mc-action-logger
+	url = git@github.com:terao-ryohei/MC-Action-Logger.git

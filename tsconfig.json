@@ -1,0 +1,20 @@
+{
+  "compilerOptions": {
+    "target": "ESNext",
+    "module": "ESNext",
+    "moduleResolution": "node",
+    "strict": true,
+    "outDir": "./dist/scripts",
+    "rootDir": ".",
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true,
+    "baseUrl": ".",
+    "paths": {
+      "@minecraft/*": ["node_modules/@minecraft/*"],
+      "@mc-action-logger/*": ["submodules/mc-action-logger/src/*"]
+    }
+  },
+  "include": ["src/**/*", "submodules/mc-action-logger/src/**/*"],
+  "exclude": ["node_modules"]
+}
