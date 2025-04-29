@@ -19,12 +19,12 @@ async function makeMcaddon() {
     const sourcePath = "./dist";
 
     if (WIN_OUTPUT_DIR) {
-      const outputPath = join(WIN_OUTPUT_DIR, "ActionLogger.mcaddon");
+      const outputPath = join(WIN_OUTPUT_DIR, "MDMSCraft.mcaddon");
       await zip(sourcePath, outputPath);
     }
 
     if (WIN_OUTPUT_DIR2) {
-      const outputPath = join(WIN_OUTPUT_DIR2, "ActionLogger.mcaddon");
+      const outputPath = join(WIN_OUTPUT_DIR2, "MDMSCraft.mcaddon");
       await zip(sourcePath, outputPath);
     }
 

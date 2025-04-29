@@ -19,12 +19,12 @@ async function makeZip() {
     const sourcePath = "./dist";
 
     if (WIN_OUTPUT_DIR) {
-      const outputPath = join(WIN_OUTPUT_DIR, "ActionLogger.zip");
+      const outputPath = join(WIN_OUTPUT_DIR, "MDMSCraft.zip");
       await zip(sourcePath, outputPath);
     }
 
     if (WIN_OUTPUT_DIR2) {
-      const outputPath2 = join(WIN_OUTPUT_DIR2, "ActionLogger.zip");
+      const outputPath2 = join(WIN_OUTPUT_DIR2, "MDMSCraft.zip");
       await zip(sourcePath, outputPath2);
     }
 
