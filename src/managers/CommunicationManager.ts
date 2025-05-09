@@ -1,9 +1,10 @@
-import { system } from "@minecraft/server";
 import type { ILoggerManager } from "./interfaces/ILoggerManager";
 import type { ICommunicationManager } from "./interfaces/ICommunicationManager";
-import type { RoleType, PlayerState, GameState } from "../types/GameTypes";
+import type { GameState } from "../types/GameTypes";
 import type { Evidence } from "../types/EvidenceTypes";
 import { MurderMysteryActions } from "../types/ActionTypes";
+import type { RoleType } from "../types/AdvancedFeatureTypes";
+import { GamePhase } from "src/constants/main";
 
 export class CommunicationManager implements ICommunicationManager {
   private gameState: GameState;
@@ -209,8 +210,8 @@ export class CommunicationManager implements ICommunicationManager {
 
     // 殺人者と共犯者は互いに会話可能
     if (
-      (fromRole === "murderer" && toRole === "accomplice") ||
-      (fromRole === "accomplice" && toRole === "murderer")
+      (fromRole === "killer" && toRole === "accomplice") ||
+      (fromRole === "accomplice" && toRole === "killer")
     ) {
       return true;
     }
@@ -232,8 +233,8 @@ export class CommunicationManager implements ICommunicationManager {
 
     // フェーズによる制限
     return (
-      this.gameState.phase === "discussion" ||
-      this.gameState.phase === "final_discussion"
+      this.gameState.phase === GamePhase.DISCUSSION ||
+      this.gameState.phase === GamePhase.FINAL_MEETING
     );
   }
 

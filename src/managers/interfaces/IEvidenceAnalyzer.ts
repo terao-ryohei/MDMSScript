@@ -1,5 +1,5 @@
+import type { RoleType } from "../../types/AdvancedFeatureTypes";
 import type { Evidence } from "../../types/EvidenceTypes";
-import type { RoleType } from "../../types/GameTypes";
 
 /**
  * 証拠分析機能を提供するインターフェース

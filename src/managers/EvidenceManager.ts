@@ -1,17 +1,12 @@
 import type {
   Evidence,
-  EvidenceType,
-  PhysicalEvidence,
-  TestimonyEvidence,
-  RoleSpecificEvidence,
-  ReliabilityFactor,
   EvidenceAnalysis,
   EvidenceChain,
   EvidenceRelation,
 } from "../types/EvidenceTypes";
 import type { GameManager } from "./GameManager";
 import { EvidenceAnalyzer } from "./EvidenceAnalyzer";
-import { system, world } from "@minecraft/server";
+import { world } from "@minecraft/server";
 
 /**
  * 証拠管理システム

@@ -1,4 +1,4 @@
-import type { GameTime } from "../../../submodules/mc-action-logger/src/types";
+import type { GameTime } from "../../../submodules/mc-action-logger/src/types/types";
 
 /**
  * LogManager用のアダプターインターフェース

@@ -105,7 +105,7 @@ export interface IAdvancedFeaturesManager {
 /**
  * 投票パターン分析の結果インターフェース
  */
-interface VotingPatternAnalysis {
+export interface VotingPatternAnalysis {
   patterns: {
     voterId: string;
     commonTargets: string[];

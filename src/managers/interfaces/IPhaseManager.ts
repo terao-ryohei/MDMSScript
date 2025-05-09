@@ -1,4 +1,4 @@
-import type { GamePhase } from "../../types/GameTypes";
+import type { GamePhase } from "src/constants/main";
 import type { ExtendedActionType } from "../../types/ActionTypes";
 
 /**
@@ -62,4 +62,15 @@ export interface IPhaseManager {
    * タイマーやイベントリスナーなどのクリーンアップを行います
    */
   dispose(): void;
+}
+
+/**
+ * フェーズごとの制限事項を定義
+ */
+export interface IPhaseRestrictions {
+  allowedActions: ExtendedActionType[];
+  allowedAreas?: { x: number; y: number; z: number; radius: number }[];
+  canVote: boolean;
+  canCollectEvidence: boolean;
+  canChat: boolean;
 }

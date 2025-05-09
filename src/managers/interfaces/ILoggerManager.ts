@@ -11,5 +11,5 @@ export interface ILoggerManager {
     type: string; // アクションの種類
     playerId: string; // アクションを実行したプレイヤーのID
     details: unknown; // アクションの詳細情報
-  }): Promise<void>;
+  }): void;
 }

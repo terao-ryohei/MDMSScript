@@ -1,251 +1,75 @@
-# AdvancedFeatureTypes.ts 詳細設計書
+# 高度機能型定義（AdvancedFeatureTypes）の設計
 
-## 1. 型定義の責務と概要
+## 概要
 
-### 1.1 ファイルの目的
-`AdvancedFeatureTypes.ts`は、マーダーミステリーゲームにおける高度な機能に関する型定義を提供します。主に以下の機能をカバーします：
+ゲーム内の高度な機能に関連する型定義を管理するモジュールです。役職、能力、証拠分析、および投票パターン分析などの機能に関する型を定義します。
 
-- 役職システムと特殊能力
-- 証拠の信頼性評価システム
-- プレイヤー行動分析システム
-- 投票パターン分析
-- アリバイ分析
+## 主要な変更点
 
-### 1.2 定義される型の概要
+### RoleTypeの統一化
 
-```mermaid
-graph TD
-    A[AdvancedFeatureTypes] --> B[役職システム]
-    A --> C[証拠システム]
-    A --> D[分析システム]
-    B --> B1[RoleType]
-    B --> B2[IRoleAbility]
-    B --> B3[AbilityTarget]
-    C --> C1[IEvidenceReliability]
-    C --> C2[EvidenceVerificationStatus]
-    D --> D1[IAnalyticsResult]
-    D --> D2[PlayerMovementPattern]
-    D --> D3[PlayerInteraction]
-    D --> D4[VoteData]
-    D --> D5[AlibiConflict]
-```
+- GameTypesからAdvancedFeatureTypesへRoleType enumを移動
+- 役職関連の型定義を一箇所に集中化
+- より論理的な型の組織化を実現
 
-### 1.3 使用される文脈
-- AdvancedFeaturesManagerによる高度な機能の実装
-- プレイヤーの役職と能力の管理
-- 証拠の信頼性評価と分析
-- プレイヤーの行動パターン分析
-- ゲーム進行の統計分析
+#### 移動の理由と利点
+1. 関心の分離
+   - 役職は高度機能（特殊能力など）と密接に関連
+   - GameTypesでは基本的なゲームの流れに関する型のみを管理
 
-## 2. 型定義の詳細
+2. 保守性の向上
+   - 役職関連の変更が必要な場合、一箇所での修正で済む
+   - 役職と特殊能力の関連性がコード上で明確
 
-### 2.1 役職システム
+3. 型の一貫性
+   - IRoleAbilityインターフェースとRoleTypeが同じファイルに存在
+   - 関連する型定義の参照が容易
 
-#### RoleType
-```typescript
-enum RoleType {
-  DETECTIVE = "detective",
-  KILLER = "killer",
-  ACCOMPLICE = "accomplice",
-  CITIZEN = "citizen"
-}
-```
-各役職の基本的な種類を定義します。
+### VotingPatternAnalysisインターフェースの配置
 
-#### IRoleAbility
-```typescript
-interface IRoleAbility {
-  roleType: RoleType;
-  useAbility(target: AbilityTarget): Promise<boolean>;
-  getCooldown(): number;
-  isAvailable(): boolean;
-}
-```
-役職ごとの特殊能力の実装インターフェース。
+- 投票パターン分析機能を高度機能として位置づけ
+- IAnalyticsResultインターフェースと関連付け
 
-#### AbilityTarget
-```typescript
-type AbilityTarget = {
-  targetType: "player" | "evidence" | "location";
-  targetId: string;
-  additionalData?: Record<string, unknown>;
-};
-```
-能力のターゲット指定に使用する型。
+#### 設計上の考慮事項
+1. 分析機能との統合
+   - プレイヤーの行動パターン分析
+   - 投票履歴の統計的分析
+   - 不審な投票パターンの検出
 
-### 2.2 証拠システム
+2. データの整合性
+   - 投票データとプレイヤーの行動データの相関分析
+   - 証拠の信頼性評価との連携
 
-#### IEvidenceReliability
-```typescript
-interface IEvidenceReliability {
-  score: number;          // 0-100の信頼性スコア
-  conflicts: string[];    // 矛盾する証拠のID
-  relevance: number;      // 0-100の関連性スコア
-  priority: number;       // 1-5の優先度
-  verificationStatus: EvidenceVerificationStatus;
-}
-```
+## インターフェース構成
 
-#### EvidenceVerificationStatus
-```typescript
-enum EvidenceVerificationStatus {
-  UNVERIFIED = "unverified",
-  VERIFIED = "verified",
-  SUSPICIOUS = "suspicious",
-  INVALID = "invalid"
-}
-```
+### 役職関連
+- `RoleType`: 基本的な役職を定義するenum
+- `IRoleAbility`: 役職固有の特殊能力を定義するインターフェース
+- `AbilityTarget`: 能力のターゲットを表す型
 
-### 2.3 分析システム
+### 分析関連
+- `IEvidenceReliability`: 証拠の信頼性を評価する指標
+- `IAnalyticsResult`: 総合的な分析結果を表現
+- `VotingPatternAnalysis`: 投票行動の分析結果を構造化
 
-#### IAnalyticsResult
-```typescript
-interface IAnalyticsResult {
-  playerBehavior: {
-    movements: PlayerMovementPattern[];
-    interactions: PlayerInteraction[];
-    votingHistory: VoteData[];
-  };
-  evidenceStats: {
-    totalEvidence: number;
-    verifiedEvidence: number;
-    suspiciousEvidence: number;
-    reliabilityAverage: number;
-  };
-  alibiAnalysis: {
-    consistencyScore: number;
-    conflicts: AlibiConflict[];
-  };
-}
-```
+## 依存関係
 
-## 3. 型の関係性
+- 他のモジュールはRoleTypeをこのモジュールから参照
+- 分析関連のインターフェースはAdvancedFeaturesManagerで使用
 
-### 3.1 型階層図
+## 影響範囲
 
-```mermaid
-classDiagram
-    class RoleType {
-        <<enumeration>>
-        DETECTIVE
-        KILLER
-        ACCOMPLICE
-        CITIZEN
-    }
-    
-    class IRoleAbility {
-        <<interface>>
-        +roleType: RoleType
-        +useAbility(target: AbilityTarget)
-        +getCooldown()
-        +isAvailable()
-    }
-    
-    class IEvidenceReliability {
-        <<interface>>
-        +score: number
-        +conflicts: string[]
-        +relevance: number
-        +priority: number
-        +verificationStatus: EvidenceVerificationStatus
-    }
-    
-    class IAnalyticsResult {
-        <<interface>>
-        +playerBehavior: PlayerBehavior
-        +evidenceStats: EvidenceStats
-        +alibiAnalysis: AlibiAnalysis
-    }
-    
-    IRoleAbility --> RoleType
-    IRoleAbility --> AbilityTarget
-    IEvidenceReliability --> EvidenceVerificationStatus
-    IAnalyticsResult --> PlayerMovementPattern
-    IAnalyticsResult --> PlayerInteraction
-    IAnalyticsResult --> VoteData
-    IAnalyticsResult --> AlibiConflict
-```
+1. GameTypesモジュール
+   - RoleType enumの参照元変更
+   - PlayerState, GameStateでの型参照の更新
 
-### 3.2 型の合成パターン
-- `IAnalyticsResult`は複数のサブ型を組み合わせて包括的な分析結果を表現
-- `AbilityTarget`は共用型を使用してターゲットの多様性を表現
-- `IEvidenceReliability`は証拠の品質を複数の指標で評価
+2. ManagerModules
+   - AdvancedFeaturesManagerでの型利用
+   - 分析機能の実装との整合性確保
 
-## 4. 使用方法
+## 検証項目
 
-### 4.1 AdvancedFeaturesManagerでの使用例
-```typescript
-class AdvancedFeaturesManager {
-  // 役職能力の管理
-  private roleAbilities: Map<RoleType, IRoleAbility>;
-  
-  // 証拠の信頼性管理
-  private evidenceReliability: Map<string, IEvidenceReliability>;
-  
-  // 分析結果の通知
-  private notifyAnalyticsUpdate(result: Partial<IAnalyticsResult>): void;
-}
-```
-
-### 4.2 プラグイン開発での使用例
-```typescript
-// カスタム役職能力の実装
-const detectiveAbility: IRoleAbility = {
-  roleType: RoleType.DETECTIVE,
-  async useAbility(target: AbilityTarget): Promise<boolean> {
-    if (target.targetType !== "evidence") return false;
-    // 証拠調査ロジック
-    return true;
-  },
-  getCooldown: () => 30000,
-  isAvailable: () => true
-};
-```
-
-## 5. 設計上の注意点
-
-### 5.1 型の安全性
-- 共用型とユニオン型を適切に使用して型安全性を確保
-- readonly修飾子を使用して不変性を保証
-- 必要に応じてGenericsを活用して型の再利用性を向上
-
-### 5.2 拡張性への考慮
-- 新しい役職や能力の追加が容易な設計
-- 分析システムの拡張が可能な柔軟な構造
-- プラグインシステムとの統合を考慮した設計
-
-### 5.3 バージョン管理とマイグレーション
-- 型の変更は下位互換性を維持
-- 破壊的変更を行う場合は適切なマイグレーションパスを提供
-- 型定義の変更履歴をドキュメント化
-
-## 6. テスト方針
-
-### 6.1 型チェックのテスト
-```typescript
-// 型の整合性テスト
-type AssertRoleType = RoleType extends string ? true : false;
-type AssertAbilityTarget = AbilityTarget extends { targetId: string } ? true : false;
-```
-
-### 6.2 実装テスト
-```typescript
-describe('RoleAbility', () => {
-  it('should implement all required methods', () => {
-    const ability: IRoleAbility = {
-      roleType: RoleType.DETECTIVE,
-      useAbility: async () => true,
-      getCooldown: () => 0,
-      isAvailable: () => true
-    };
-    expect(ability).toHaveProperty('useAbility');
-    expect(ability).toHaveProperty('getCooldown');
-    expect(ability).toHaveProperty('isAvailable');
-  });
-});
-```
-
-### 6.3 統合テスト
-- 異なる型の組み合わせテスト
-- エッジケースの検証
-- 非同期処理の型安全性確認
+- [ ] RoleType enumの移動による参照の更新確認
+- [ ] VotingPatternAnalysis関連機能の動作確認
+- [ ] 役職能力システムとの整合性チェック
+- [ ] 分析機能の正常動作確認

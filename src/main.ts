@@ -1,68 +1,95 @@
-import { system } from "@minecraft/server";
-import { ActionLoggerModule } from "../submodules/mc-action-logger/src/ActionLoggerModule";
-import {
-  ActionType,
-  ActionTypeFilter,
-  LogLevel,
-  TimeRangeFilter,
-} from "../submodules/mc-action-logger/src/types";
+import { system, world } from "@minecraft/server";
+import type { ItemUseAfterEvent } from "@minecraft/server";
+import { GameManager } from "./managers/GameManager";
+import { DEFAULT_CONFIG, GamePhase } from "./constants/main";
 
-// ActionLoggerModuleのインスタンスを作成
-const logger = ActionLoggerModule.getInstance();
+// GameManagerを最優先で初期化
+const gameManager = GameManager.getInstance();
 
-// カスタムフィルターの作成
-const actionFilter = new ActionTypeFilter([
-  ActionType.BLOCK_BROKEN,
-  ActionType.BLOCK_PLACED,
-  ActionType.PLAYER_HEALTH_CHANGE,
-]);
+// 時計使用イベントのハンドラ（GameManagerが排他的に制御）
+world.afterEvents.itemUse.subscribe(async (event: ItemUseAfterEvent) => {
+  const { itemStack } = event;
 
-const timeFilter = new TimeRangeFilter(
-  Date.now(),
-  Date.now() + 3600000, // 1時間
-);
+  if (itemStack.typeId === "minecraft:clock") {
+    try {
+      const playerCount = world.getAllPlayers().length;
 
-logger.initialize({
-  gameTime: {
-    initialTime: 3600000, // 1時間（ミリ秒）
-    timeScale: 2, // 2倍速
-    dayLength: 1200000, // 20分（ミリ秒）
-  },
-  filters: {
-    minLogLevel: LogLevel.ACTIVITY,
-    includedActionTypes: [ActionType.BLOCK_BROKEN, ActionType.BLOCK_PLACED],
-    excludedActionTypes: [
-      ActionType.MOVE, // 移動は記録しない
-      ActionType.JUMP, // ジャンプも記録しない
-    ],
-    customFilters: [actionFilter, timeFilter],
-  },
-  displayItems: {
-    showTimestamp: true,
-    showPlayerName: true,
-    showActionType: true,
-    showDetails: true,
-  },
-  startItems: [
-    {
-      itemId: "minecraft:clock",
-      displayName: "ゲーム開始アイテム",
-      canBeUsedByNonOp: true,
-    },
-  ],
+      // ゲーム開始設定
+      const startupConfig = {
+        ...DEFAULT_CONFIG,
+        playerCount,
+      };
+
+      // ゲーム開始
+      const result = await gameManager.startGame(startupConfig);
+
+      if (result.success) {
+        world.sendMessage("§a============================");
+        world.sendMessage("§l§6マーダーミステリーが開始されました！");
+        world.sendMessage(`§e現在のフェーズ: ${result.initialPhase}`);
+
+        const getPhaseTime = (phase: GamePhase): number => {
+          switch (phase) {
+            case GamePhase.PREPARATION:
+              return startupConfig.timeSettings.preparation;
+            case GamePhase.DAILY_LIFE:
+              return startupConfig.timeSettings.dailyLife;
+            case GamePhase.INVESTIGATION:
+              return startupConfig.timeSettings.investigation;
+            case GamePhase.DISCUSSION:
+              return startupConfig.timeSettings.discussion;
+            case GamePhase.PRIVATE_TALK:
+              return startupConfig.timeSettings.privateTalk;
+            case GamePhase.FINAL_MEETING:
+              return startupConfig.timeSettings.finalMeeting;
+            case GamePhase.REASONING:
+              return startupConfig.timeSettings.reasoning;
+            case GamePhase.VOTING:
+              return startupConfig.timeSettings.voting;
+            default:
+              return 0;
+          }
+        };
+
+        const phaseTime = getPhaseTime(result.initialPhase);
+        const minutes = Math.floor(phaseTime / 60);
+        const seconds = phaseTime % 60;
+        world.sendMessage(`§e制限時間: ${minutes}分${seconds}秒`);
+        world.sendMessage("§a============================");
+
+        // フェーズ変更をログに記録
+        gameManager.logSystemAction("PHASE_CHANGE", {
+          from: GamePhase.PREPARATION,
+          to: result.initialPhase,
+          timestamp: Date.now(),
+        });
+      } else {
+        world.sendMessage(`§c開始エラー: ${result.error}`);
+        gameManager.logSystemAction("GAME_START_ERROR", {
+          error: result.error,
+          context: "ゲーム開始処理でエラーが発生",
+          timestamp: Date.now(),
+        });
+      }
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : "不明なエラーが発生しました";
+      world.sendMessage(`§c予期せぬエラー: ${message}`);
+      gameManager.logSystemAction("GAME_START_ERROR", {
+        error: message,
+        stack: error instanceof Error ? error.stack : undefined,
+        timestamp: Date.now(),
+      });
+    }
+  }
 });
 
-// エクスポート設定の初期化
-logger.initializeExporter({
-  format: "json",
-  includeMetadata: true,
-  timestampFormat: "ISO",
-  outputPath: "./logs",
-});
-
-// クリーンアップ
+// シャットダウンイベントの制御（優先順位を明確化）
 system.afterEvents.scriptEventReceive.subscribe((event) => {
   if (event.id === "mdms:shutdown") {
-    logger.dispose();
+    gameManager.logSystemAction("GAME_SHUTDOWN", {
+      timestamp: Date.now(),
+    });
+    gameManager.dispose();
   }
 });

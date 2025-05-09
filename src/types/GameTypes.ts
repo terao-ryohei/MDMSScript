@@ -1,27 +1,6 @@
 import type { Evidence } from "./EvidenceTypes";
-
-/**
- * ゲームフェーズを表すenum
- */
-export enum GamePhase {
-  PREPARATION = "preparation",
-  DAILY_LIFE = "daily_life",
-  INVESTIGATION = "investigation",
-  DISCUSSION = "discussion",
-  REINVESTIGATION = "reinvestigation",
-  FINAL_DISCUSSION = "final_discussion",
-  VOTING = "voting",
-}
-
-/**
- * プレイヤーの役職を表すenum
- */
-export enum RoleType {
-  VILLAGER = "villager",
-  DETECTIVE = "detective",
-  MURDERER = "murderer",
-  ACCOMPLICE = "accomplice",
-}
+import type { RoleType } from "./AdvancedFeatureTypes";
+import type { GamePhase } from "src/constants/main";
 
 /**
  * プレイヤー状態を表すインターフェース
@@ -65,19 +44,24 @@ export interface GameState {
 /**
  * フェーズごとのタイミング設定を表すインターフェース
  */
-export interface PhaseTimings {
-  preparation: number;
-  investigation: number;
-  discussion: number;
-  reinvestigation: number;
-  finalDiscussion: number;
-  voting: number;
+/**
+ * 各フェーズの制限時間設定を定義するインターフェース
+ */
+interface PhaseTimings {
+  preparation: number; // 準備フェーズの制限時間
+  dailyLife: number; // 日常生活フェーズの制限時間
+  investigation: number; // 調査フェーズの制限時間
+  discussion: number; // 会議フェーズの制限時間
+  privateTalk: number; // 密談フェーズの制限時間
+  finalMeeting: number; // 最終会議フェーズの制限時間
+  reasoning: number; // 推理披露フェーズの制限時間
+  voting: number; // 投票フェーズの制限時間
 }
 
 /**
  * 証拠関連の設定を表すインターフェース
  */
-export interface EvidenceSettings {
+interface EvidenceSettings {
   maxPhysicalEvidence: number;
   maxTestimonies: number;
   reliabilityThreshold: number;
@@ -94,4 +78,27 @@ export interface GameConfig {
   roleDistribution: {
     [key in RoleType]?: number;
   };
+}
+
+/**
+ * ゲーム開始設定を表すインターフェース
+ */
+export interface GameStartupConfig {
+  playerCount: number;
+  timeSettings: PhaseTimings;
+  evidenceSettings: EvidenceSettings;
+  roleDistribution: {
+    [key in RoleType]?: number;
+  };
+}
+
+/**
+ * ゲーム開始結果を表すインターフェース
+ */
+export interface StartupResult {
+  success: boolean;
+  gameId: string;
+  startTime: number;
+  initialPhase: GamePhase;
+  error?: string;
 }

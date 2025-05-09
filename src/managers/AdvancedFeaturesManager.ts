@@ -1,4 +1,7 @@
-import type { IAdvancedFeaturesManager } from "./interfaces/IAdvancedFeaturesManager";
+import type {
+  IAdvancedFeaturesManager,
+  VotingPatternAnalysis,
+} from "./interfaces/IAdvancedFeaturesManager";
 import type { IGameManager } from "./interfaces/IGameManager";
 import type { ICommunicationManager } from "./interfaces/ICommunicationManager";
 import type { EvidenceManager } from "./EvidenceManager";
@@ -18,33 +21,15 @@ import {
 } from "../types/AdvancedFeatureTypes";
 import { EvidenceType } from "../types/EvidenceTypes";
 import type { Evidence } from "../types/EvidenceTypes";
-import { type PlayerState, RoleType as GameRoleType } from "../types/GameTypes";
-
-interface VotingPatternAnalysis {
-  patterns: {
-    voterId: string;
-    commonTargets: string[];
-    frequency: number;
-  }[];
-  trends: {
-    phase: number;
-    mostVotedPlayer: string;
-    voteCount: number;
-  }[];
-  suspiciousPatterns: {
-    players: string[];
-    patternType: string;
-    description: string;
-  }[];
-}
+import type { PlayerState } from "../types/GameTypes";
 
 // Map from game roles to ability roles
-const roleTypeMapping: Record<GameRoleType, RoleType> = {
-  [GameRoleType.DETECTIVE]: RoleType.DETECTIVE,
-  [GameRoleType.MURDERER]: RoleType.KILLER,
-  [GameRoleType.ACCOMPLICE]: RoleType.ACCOMPLICE,
-  [GameRoleType.VILLAGER]: RoleType.CITIZEN,
-} as const;
+const roleTypeMapping: { [key: string]: RoleType } = {
+  detective: RoleType.DETECTIVE,
+  murderer: RoleType.KILLER,
+  accomplice: RoleType.ACCOMPLICE,
+  villager: RoleType.CITIZEN,
+};
 
 export class AdvancedFeaturesManager implements IAdvancedFeaturesManager {
   private static _instance: AdvancedFeaturesManager | null = null;
@@ -175,7 +160,7 @@ export class AdvancedFeaturesManager implements IAdvancedFeaturesManager {
   public async evaluateEvidence(
     evidenceId: string,
   ): Promise<IEvidenceReliability> {
-    const evidence = await this.evidenceManager.getEvidence(evidenceId);
+    const evidence = this.evidenceManager.getEvidence(evidenceId);
     if (!evidence) {
       throw new Error(`Evidence not found: ${evidenceId}`);
     }
@@ -191,7 +176,7 @@ export class AdvancedFeaturesManager implements IAdvancedFeaturesManager {
       verificationStatus: EvidenceVerificationStatus.UNVERIFIED,
     };
 
-    const allEvidence = await this.evidenceManager.getPlayerEvidence("all");
+    const allEvidence = this.evidenceManager.getPlayerEvidence("all");
     const contextEvidenceIds = allEvidence
       .filter((e) => e.evidenceId !== evidenceId)
       .map((e) => e.evidenceId);
@@ -239,7 +224,7 @@ export class AdvancedFeaturesManager implements IAdvancedFeaturesManager {
   public async analyzeEvidenceStatistics(): Promise<
     IAnalyticsResult["evidenceStats"]
   > {
-    const allEvidence = await this.evidenceManager.getPlayerEvidence("all");
+    const allEvidence = this.evidenceManager.getPlayerEvidence("all");
     const stats: IAnalyticsResult["evidenceStats"] = {
       totalEvidence: allEvidence.length,
       verifiedEvidence: 0,
@@ -357,7 +342,7 @@ export class AdvancedFeaturesManager implements IAdvancedFeaturesManager {
     evidenceId: string,
     contextEvidenceIds: string[],
   ): Promise<number> {
-    const evidence = await this.evidenceManager.getEvidence(evidenceId);
+    const evidence = this.evidenceManager.getEvidence(evidenceId);
     if (!evidence) return 0;
 
     const contextEvidences = await Promise.all(

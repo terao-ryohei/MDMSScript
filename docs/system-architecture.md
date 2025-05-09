@@ -166,23 +166,147 @@ interface IPhaseManager {
 - フェーズタイミングのカスタマイズ
 - 証拠関連パラメータの調整
 
-## 8. 技術スタック
+## 8. UIシステム
+
+### 8.1 コンポーネント構成
+```typescript
+interface UIManager {
+  showTutorial(player: Player): Promise<void>;
+  showError(player: Player, message: string): Promise<void>;
+  showConfirmation(player: Player, message: string): Promise<boolean>;
+}
+```
+
+### 8.2 チュートリアルシステム
+```typescript
+interface TutorialPage {
+  title: string;
+  body: string[];  // 配列として管理し、join("\n")で結合
+}
+
+// シンプルな進行状態管理
+const tutorialProgress = new Map<string, boolean>();
+
+// チュートリアル表示関数
+async function showTutorial(player: Player): Promise<void> {
+  let currentPage = 0;
+  
+  // ページ遷移ループ
+  while (currentPage < TUTORIAL_PAGES.length) {
+    // ページ表示とナビゲーション
+    const form = new MessageFormData()
+      .title(page.title)
+      .body(page.body)
+      .button2("次へ")
+      .button1("前へ");
+
+    // キャンセル処理
+    // 進行状態管理
+    // エラーハンドリング
+  }
+  
+  // 完了記録
+  await gameManager.logSystemAction("TUTORIAL_COMPLETED", {
+    playerId: player.id,
+    timestamp: Date.now()
+  });
+}
+```
+
+### 8.3 UI状態管理
+```typescript
+// チュートリアルの進行状態
+interface TutorialState {
+  hasCompleted: boolean;      // チュートリアル完了状態
+  currentPage: number;        // 現在のページ位置
+  canSkip: boolean;          // スキップ可能かどうか
+}
+
+// フォーム管理
+const FormTypes = {
+  TUTORIAL: "tutorial",
+  ERROR: "error",
+  CONFIRM: "confirm",
+  NAVIGATION: "navigation"
+} as const;
+
+// フォーム表示管理
+interface FormManager {
+  showTutorialPage(player: Player, page: TutorialPage): Promise<void>;
+  showError(player: Player, error: Error): Promise<boolean>;
+  showConfirmation(player: Player, message: string): Promise<boolean>;
+}
+```
+
+### 8.4 エラーハンドリング
+```typescript
+// エラー処理フロー
+async function handleTutorialError(error: Error, player: Player): Promise<void> {
+  // エラーのログ記録
+  await gameManager.logSystemAction("TUTORIAL_ERROR", {
+    error: error.message
+  });
+
+  // プレイヤーへのエラー通知
+  const errorForm = new MessageFormData()
+    .title("エラー")
+    .body(`エラーが発生しました。\n${error.message}\n\n続行しますか？`)
+    .button2("続行")
+    .button1("中止");
+
+  const result = await errorForm.show(player);
+  if (result.canceled || result.selection === 1) {
+    throw new Error("ユーザーによるキャンセル");
+  }
+}
+
+// エラーリカバリー
+interface ErrorRecovery {
+  retryCount: number;
+  lastError: Error | null;
+  canRecover: boolean;
+}
+```
+
+### 8.5 実装の特徴
+- 非同期処理の適切な処理
+- エラー発生時の適切なフォールバック
+- ユーザー操作の柔軟なハンドリング
+- プログレス状態の永続化なし（セッションのみ）
+
+## 9. 技術スタック
 
 - **言語**: TypeScript
 - **プラットフォーム**: Minecraft Bedrock Edition
-- **フレームワーク**: Minecraft Scripting API
-- **外部依存**: ActionLoggerModule (サブモジュール)
+- **フレームワーク**:
+  - Minecraft Scripting API
+  - @minecraft/server
+  - @minecraft/server-ui
+- **外部依存**:
+  - ActionLoggerModule (サブモジュール)
+  - UIコンポーネントライブラリ
 
-## 9. 将来の拡張性
+## 10. 将来の拡張性
 
-### 9.1 予定されている機能
+### 10.1 予定されている機能
 - AIによる証拠分析の強化
 - リアルタイムプレイヤーフィードバック
 - 高度な証拠チェーン可視化
 - カスタムシナリオエディタ
+- チュートリアルのカスタマイズ機能
+- マルチ言語対応
 
-### 9.2 技術的負債への対応
+### 10.2 UI/UX改善計画
+- アニメーション効果の追加
+- カスタムフォントとスタイル
+- インタラクティブなヘルプシステム
+- プレイヤー進捗の視覚化
+- モバイル向け最適化
+
+### 10.3 技術的負債への対応
 - パフォーマンス最適化
 - コードカバレッジの向上
 - ドキュメンテーションの充実
 - テスト自動化の拡充
+- UIコンポーネントのモジュール化
+- エラーハンドリングの強化

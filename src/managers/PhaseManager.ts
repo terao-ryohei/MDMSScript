@@ -1,19 +1,40 @@
 import { system, world } from "@minecraft/server";
 import { MurderMysteryActions } from "../types/ActionTypes";
 import type { ExtendedActionType } from "../types/ActionTypes";
-import { GamePhase } from "../types/GameTypes";
-import type { IPhaseGameManager } from "./interfaces/IPhaseManager";
+import type {
+  IPhaseGameManager,
+  IPhaseRestrictions,
+} from "./interfaces/IPhaseManager";
+import { TimerManager } from "./TimerManager";
+import { GamePhase, PHASE_NAMES } from "src/constants/main";
 
 /**
- * フェーズごとの制限事項を定義
+ * フェーズマネージャーのエラー型
  */
-interface PhaseRestrictions {
-  allowedActions: ExtendedActionType[];
-  allowedAreas?: { x: number; y: number; z: number; radius: number }[];
-  canVote: boolean;
-  canCollectEvidence: boolean;
-  canChat: boolean;
+class PhaseManagerError extends Error {
+  constructor(
+    message: string,
+    public code: string,
+  ) {
+    super(message);
+    this.name = "PhaseManagerError";
+  }
 }
+
+/**
+ * フェーズ遷移の定義
+ */
+const VALID_PHASE_TRANSITIONS: Record<GamePhase, GamePhase[]> = {
+  [GamePhase.PREPARATION]: [GamePhase.DAILY_LIFE],
+  [GamePhase.DAILY_LIFE]: [GamePhase.INVESTIGATION],
+  [GamePhase.INVESTIGATION]: [GamePhase.DISCUSSION],
+  [GamePhase.DISCUSSION]: [GamePhase.PRIVATE_TALK],
+  [GamePhase.PRIVATE_TALK]: [GamePhase.FINAL_MEETING],
+  [GamePhase.FINAL_MEETING]: [GamePhase.REASONING],
+  [GamePhase.REASONING]: [GamePhase.VOTING],
+  [GamePhase.VOTING]: [GamePhase.ENDING],
+  [GamePhase.ENDING]: [],
+};
 
 /**
  * フェーズマネージャークラス
@@ -23,9 +44,9 @@ export class PhaseManager {
   private static instance: PhaseManager | null = null;
   private currentPhase: GamePhase;
   private phaseStartTime: number;
-  private phaseTimer: number | undefined;
+  private timerManager: TimerManager;
 
-  private readonly phaseRestrictions: Record<GamePhase, PhaseRestrictions> = {
+  private readonly phaseRestrictions: Record<GamePhase, IPhaseRestrictions> = {
     [GamePhase.PREPARATION]: {
       allowedActions: [MurderMysteryActions.TALK_TO_NPC],
       canVote: false,
@@ -63,7 +84,7 @@ export class PhaseManager {
       canCollectEvidence: false,
       canChat: true,
     },
-    [GamePhase.REINVESTIGATION]: {
+    [GamePhase.PRIVATE_TALK]: {
       allowedActions: [
         MurderMysteryActions.INVESTIGATE_SCENE,
         MurderMysteryActions.COLLECT_EVIDENCE,
@@ -74,10 +95,20 @@ export class PhaseManager {
       canCollectEvidence: true,
       canChat: true,
     },
-    [GamePhase.FINAL_DISCUSSION]: {
+    [GamePhase.FINAL_MEETING]: {
       allowedActions: [
         MurderMysteryActions.EVIDENCE_SHARE,
         MurderMysteryActions.TALK_TO_NPC,
+      ],
+      canVote: false,
+      canCollectEvidence: false,
+      canChat: true,
+    },
+    [GamePhase.REASONING]: {
+      allowedActions: [
+        MurderMysteryActions.EVIDENCE_SHARE,
+        MurderMysteryActions.TALK_TO_NPC,
+        MurderMysteryActions.PRESENT_EVIDENCE,
       ],
       canVote: false,
       canCollectEvidence: false,
@@ -89,11 +120,18 @@ export class PhaseManager {
       canCollectEvidence: false,
       canChat: false,
     },
+    [GamePhase.ENDING]: {
+      allowedActions: [MurderMysteryActions.TALK_TO_NPC],
+      canVote: false,
+      canCollectEvidence: false,
+      canChat: true,
+    },
   };
 
   private constructor(private readonly gameManager: IPhaseGameManager) {
     this.currentPhase = GamePhase.PREPARATION;
     this.phaseStartTime = system.currentTick;
+    this.timerManager = TimerManager.getInstance();
   }
 
   /**
@@ -117,41 +155,121 @@ export class PhaseManager {
    * フェーズの開始
    */
   public startPhase(phase: GamePhase, duration: number): void {
-    this.currentPhase = phase;
-    this.phaseStartTime = system.currentTick;
+    try {
+      // // フェーズ遷移の検証
+      // if (!this.validatePhaseTransition(phase)) {
+      //   throw new PhaseManagerError(
+      //     `無効なフェーズ遷移です: ${this.currentPhase} -> ${phase}`,
+      //     "INVALID_PHASE_TRANSITION",
+      //   );
+      // }
 
-    // フェーズ開始イベントをログに記録
-    this.gameManager.logSystemAction(MurderMysteryActions.PHASE_CHANGE, {
-      phase,
-      startTime: this.phaseStartTime,
-      duration,
-    });
+      // エッジケースの検証
+      if (duration <= 0) {
+        throw new PhaseManagerError(
+          "制限時間は0より大きい値である必要があります",
+          "INVALID_DURATION",
+        );
+      }
 
-    // フェーズタイマーの設定
-    if (this.phaseTimer !== undefined) {
-      system.clearRun(this.phaseTimer);
+      const oldPhase = this.currentPhase;
+
+      // 以前のフェーズのクリーンアップを確実に実行
+      try {
+        this.cleanupPhaseResources();
+      } catch (error) {
+        console.error(
+          "フェーズリソースのクリーンアップ中にエラーが発生しました:",
+          error,
+        );
+        // クリーンアップエラーでもフェーズ遷移は続行
+      }
+
+      this.currentPhase = phase;
+      this.phaseStartTime = system.currentTick;
+
+      // フェーズ開始イベントをログに記録
+      this.gameManager.logSystemAction(MurderMysteryActions.PHASE_CHANGE, {
+        oldPhase,
+        newPhase: phase,
+        startTime: this.phaseStartTime,
+        duration,
+        transitionNumber: VALID_PHASE_TRANSITIONS[oldPhase].length,
+        totalPhases: Object.keys(VALID_PHASE_TRANSITIONS).length - 1,
+      });
+
+      // タイマーの開始（遷移後に実行）
+      this.timerManager.startTimer(phase, duration);
+
+      // フェーズ変更通知
+      this.notifyPhaseChange(oldPhase, phase);
+
+      // フェーズ開始メッセージの送信
+      const currentPhaseNumber = VALID_PHASE_TRANSITIONS[oldPhase].length;
+      const totalPhases = Object.keys(VALID_PHASE_TRANSITIONS).length - 1;
+      world.sendMessage(
+        `§e${currentPhaseNumber}/${totalPhases}フェーズ目: ${PHASE_NAMES[phase]}フェーズが開始されました（制限時間: ${duration}秒）`,
+      );
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : "不明なエラーが発生しました";
+      world.sendMessage(`§cエラー: ${message}`);
+      this.gameManager.logSystemAction("ERROR", { error: message });
+      throw error;
     }
-
-    this.phaseTimer = system.runTimeout(() => {
-      this.onPhaseTimeout();
-    }, duration * 20); // Minecraft のtickに変換（20tick = 1秒）
-
-    // フェーズ開始メッセージの送信
-    world.sendMessage(
-      `${phase}フェーズが開始されました（制限時間: ${duration}秒）`,
-    );
   }
 
   /**
    * フェーズタイムアウト時の処理
    */
   private onPhaseTimeout(): void {
-    const event = {
-      type: "phase_timeout",
-      phase: this.currentPhase,
-      endTime: system.currentTick,
-    };
-    world.sendMessage(`${this.currentPhase}フェーズが終了しました`);
+    try {
+      const currentPhase = this.currentPhase;
+      const nextPhases = VALID_PHASE_TRANSITIONS[currentPhase];
+
+      // タイムアウト時のクリーンアップを確実に実行
+      this.cleanupPhaseResources();
+
+      const event = {
+        type: "phase_timeout",
+        phase: currentPhase,
+        endTime: system.currentTick,
+        nextPhase: nextPhases.length > 0 ? nextPhases[0] : null,
+        elapsedTime: this.getElapsedTime(),
+      };
+
+      this.gameManager.logSystemAction("PHASE_TIMEOUT", event);
+      world.sendMessage(`§e${PHASE_NAMES[currentPhase]}フェーズが終了しました`);
+
+      // 次のフェーズが存在する場合は自動遷移（遅延付き）
+      if (nextPhases.length > 0) {
+        system.runTimeout(() => {
+          try {
+            this.startPhase(
+              nextPhases[0],
+              this.getDefaultDuration(nextPhases[0]),
+            );
+          } catch (error) {
+            console.error("次フェーズへの遷移中にエラーが発生しました:", error);
+            this.gameManager.logSystemAction("ERROR", {
+              error:
+                error instanceof Error
+                  ? error.message
+                  : "不明なエラーが発生しました",
+              phase: currentPhase,
+              nextPhase: nextPhases[0],
+            });
+          }
+        }, 20); // 1秒の遅延を設定
+      }
+    } catch (error) {
+      const message =
+        error instanceof Error
+          ? error.message
+          : "タイムアウト処理中にエラーが発生しました";
+      world.sendMessage(`§cエラー: ${message}`);
+      this.gameManager.logSystemAction("ERROR", { error: message });
+    }
   }
 
   /**
@@ -194,9 +312,65 @@ export class PhaseManager {
    * リソースの解放
    */
   public dispose(): void {
-    if (this.phaseTimer !== undefined) {
-      system.clearRun(this.phaseTimer);
+    try {
+      this.cleanupPhaseResources();
+      this.timerManager.dispose();
+      PhaseManager.instance = null;
+    } catch (error) {
+      const message =
+        error instanceof Error
+          ? error.message
+          : "リソース解放中にエラーが発生しました";
+      this.gameManager.logSystemAction("ERROR", { error: message });
     }
-    PhaseManager.instance = null;
+  }
+
+  /**
+   * フェーズ遷移の検証
+   */
+  private validatePhaseTransition(newPhase: GamePhase): boolean {
+    if (this.currentPhase === newPhase) return false;
+    const validNextPhases = VALID_PHASE_TRANSITIONS[this.currentPhase];
+    return validNextPhases.includes(newPhase);
+  }
+
+  /**
+   * フェーズリソースのクリーンアップ
+   */
+  private cleanupPhaseResources(): void {
+    // 現在のフェーズに関連するリソースをクリーンアップ
+    this.timerManager.stopTimer();
+    // その他のクリーンアップ処理をここに追加
+  }
+
+  /**
+   * フェーズ変更の通知
+   */
+  private notifyPhaseChange(oldPhase: GamePhase, newPhase: GamePhase): void {
+    const event = {
+      type: "phase_change",
+      oldPhase,
+      newPhase,
+      timestamp: system.currentTick,
+    };
+    this.gameManager.logSystemAction("PHASE_NOTIFICATION", event);
+  }
+
+  /**
+   * フェーズごとのデフォルト制限時間を取得
+   */
+  private getDefaultDuration(phase: GamePhase): number {
+    const DEFAULT_DURATIONS: Record<GamePhase, number> = {
+      [GamePhase.PREPARATION]: 300, // 5分
+      [GamePhase.DAILY_LIFE]: 600, // 10分
+      [GamePhase.INVESTIGATION]: 480, // 8分
+      [GamePhase.DISCUSSION]: 420, // 7分
+      [GamePhase.PRIVATE_TALK]: 300, // 5分
+      [GamePhase.FINAL_MEETING]: 420, // 7分
+      [GamePhase.REASONING]: 300, // 5分
+      [GamePhase.VOTING]: 180, // 3分
+      [GamePhase.ENDING]: 300, // 5分
+    };
+    return DEFAULT_DURATIONS[phase];
   }
 }

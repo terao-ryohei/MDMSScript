@@ -3,13 +3,12 @@ import {
   type EvidenceRelation,
   type EvidenceChain,
   ReliabilityFactor,
-  type EvidenceRelationType,
   type EvidenceAnalysisConfig,
   type Evidence,
 } from "../types/EvidenceTypes";
 import type { IEvidenceAnalyzer } from "./interfaces/IEvidenceAnalyzer";
 import type { GameManager } from "./GameManager";
-import type { RoleType } from "../types/GameTypes";
+import type { RoleType } from "../types/AdvancedFeatureTypes";
 
 /**
  * 証拠分析システム
@@ -92,7 +91,7 @@ export class EvidenceAnalyzer implements IEvidenceAnalyzer {
     if (evidence.type === "testimony" && role === "detective") {
       relevance += 0.3;
     }
-    if (evidence.type === "physical" && role === "murderer") {
+    if (evidence.type === "physical" && role === "killer") {
       relevance += 0.4;
     }
 

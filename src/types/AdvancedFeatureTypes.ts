@@ -9,6 +9,17 @@ export enum RoleType {
 }
 
 /**
+ * 役職の文字列とRoleType enumのマッピング
+ * 文字列から対応するRoleType値への変換を提供する
+ */
+export const roleTypeMapping: Record<string, RoleType> = {
+  detective: RoleType.DETECTIVE,
+  murderer: RoleType.KILLER,
+  accomplice: RoleType.ACCOMPLICE,
+  villager: RoleType.CITIZEN,
+} as const;
+
+/**
  * 能力のターゲット型を定義する共用型
  */
 export type AbilityTarget = {
@@ -115,10 +126,22 @@ export interface AlibiConflict {
 }
 
 /**
- * 位置情報を定義するインターフェース
+ * 投票パターン分析の結果インターフェース
  */
-export interface Location {
-  x: number;
-  y: number;
-  z: number;
+export interface VotingPatternAnalysis {
+  patterns: {
+    voterId: string;
+    commonTargets: string[];
+    frequency: number;
+  }[];
+  trends: {
+    phase: number;
+    mostVotedPlayer: string;
+    voteCount: number;
+  }[];
+  suspiciousPatterns: {
+    players: string[];
+    patternType: string;
+    description: string;
+  }[];
 }

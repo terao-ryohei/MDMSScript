@@ -9,6 +9,7 @@ export enum MurderMysteryActions {
   ANALYZE_EVIDENCE = "analyze_evidence",
   EVIDENCE_SHARE = "evidence_share",
   VOTE_CAST = "vote_cast",
+  PRESENT_EVIDENCE = "present_evidence", // 推理披露フェーズで使用する証拠提示アクション
 
   // 役職固有のアクション
   PERFORM_MURDER = "perform_murder",
@@ -27,39 +28,3 @@ export enum MurderMysteryActions {
  * 全てのアクション種別（基本アクションと拡張アクションを含む）
  */
 export type ExtendedActionType = MurderMysteryActions | string;
-
-/**
- * アクション結果の種別
- */
-export enum ActionResultType {
-  SUCCESS = "success",
-  FAILURE = "failure",
-  PARTIAL = "partial",
-  ERROR = "error",
-}
-
-/**
- * アクション結果のインターフェース
- */
-export interface ActionResult {
-  type: ActionResultType;
-  success: boolean;
-  message?: string;
-  details?: Record<string, unknown>;
-}
-
-/**
- * アクションコンテキストのインターフェース
- */
-export interface ActionContext {
-  playerId: string;
-  phase: string;
-  timestamp: number;
-  location?: {
-    x: number;
-    y: number;
-    z: number;
-    dimension: string;
-  };
-  metadata?: Record<string, unknown>;
-}

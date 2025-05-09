@@ -1,4 +1,4 @@
-import type { RoleType, PlayerState } from "../../types/GameTypes";
+import type { RoleType } from "../../types/AdvancedFeatureTypes";
 import type { Evidence } from "../../types/EvidenceTypes";
 
 export interface ICommunicationManager {

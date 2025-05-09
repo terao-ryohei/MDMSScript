@@ -1,4 +1,4 @@
-import type { GameTime } from "../../../submodules/mc-action-logger/src/types";
+import type { GameTime } from "../../../submodules/mc-action-logger/src/types/types";
 import type { GameManager } from "../GameManager";
 import type { ILoggerManager } from "../interfaces/ILoggerManager";
 import { system } from "@minecraft/server";
