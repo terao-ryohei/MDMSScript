@@ -7,17 +7,20 @@ import {
   type Evidence,
 } from "../types/EvidenceTypes";
 import type { IEvidenceAnalyzer } from "./interfaces/IEvidenceAnalyzer";
-import type { GameManager } from "./GameManager";
+import { GameManager } from "./GameManager";
 import type { RoleType } from "../types/AdvancedFeatureTypes";
+import type { GameState } from "src/types/GameTypes";
 
 /**
  * 証拠分析システム
  * 証拠の信頼性評価と関連性分析を行います
  */
 export class EvidenceAnalyzer implements IEvidenceAnalyzer {
+  private static instance: EvidenceAnalyzer | null = null;
   private analyses: Map<string, EvidenceAnalysis> = new Map();
   private relations: Map<string, EvidenceRelation> = new Map();
   private chains: Map<string, EvidenceChain> = new Map();
+  private gameState: GameState;
 
   private readonly config: EvidenceAnalysisConfig = {
     minReliabilityThreshold: 0.3,
@@ -29,7 +32,16 @@ export class EvidenceAnalyzer implements IEvidenceAnalyzer {
     relationStrengthThreshold: 0.5,
   };
 
-  constructor(private readonly gameManager: GameManager) {}
+  constructor(gameState: GameState) {
+    this.gameState = gameState;
+  }
+
+  public static getInstance(gameState: GameState): EvidenceAnalyzer {
+    if (!EvidenceAnalyzer.instance) {
+      EvidenceAnalyzer.instance = new EvidenceAnalyzer(gameState);
+    }
+    return EvidenceAnalyzer.instance;
+  }
 
   // インターフェース実装
   public async analyzeEvidence(evidence: Evidence): Promise<number> {
@@ -42,9 +54,9 @@ export class EvidenceAnalyzer implements IEvidenceAnalyzer {
     evidenceId: string,
     analyzerId: string,
   ): Promise<EvidenceAnalysis> {
-    const evidence = this.gameManager
-      .getGameState()
-      .evidenceList.find((e) => e.evidenceId === evidenceId);
+    const evidence = this.gameState.evidenceList.find(
+      (e) => e.evidenceId === evidenceId,
+    );
 
     if (!evidence) {
       throw new Error(`Evidence not found: ${evidenceId}`);
@@ -80,9 +92,9 @@ export class EvidenceAnalyzer implements IEvidenceAnalyzer {
     let relevance = 0.5;
 
     if (evidence.discoveredBy) {
-      const discovererRole = this.gameManager.getPlayerRole(
-        evidence.discoveredBy,
-      );
+      const discovererRole = this.gameState.players.find(
+        (player) => player.playerId === evidence.discoveredBy,
+      )?.role;
       if (discovererRole === role) {
         relevance += 0.2;
       }
@@ -256,11 +268,7 @@ export class EvidenceAnalyzer implements IEvidenceAnalyzer {
     );
 
     return Array.from(relatedIds)
-      .map((id) =>
-        this.gameManager
-          .getGameState()
-          .evidenceList.find((e) => e.evidenceId === id),
-      )
+      .map((id) => this.gameState.evidenceList.find((e) => e.evidenceId === id))
       .filter((e): e is Evidence => e !== undefined);
   }
 
@@ -320,7 +328,7 @@ export class EvidenceAnalyzer implements IEvidenceAnalyzer {
 
     const relatedScores = await this.calculateRelationScores(
       evidence,
-      this.gameManager.getGameState().evidenceList,
+      this.gameState.evidenceList,
     );
     const corroborationScore =
       Array.from(relatedScores.values()).reduce(
@@ -364,7 +372,9 @@ export class EvidenceAnalyzer implements IEvidenceAnalyzer {
 
     let credibility = 0.5;
     if (evidence.discoveredBy) {
-      const role = this.gameManager.getPlayerRole(evidence.discoveredBy);
+      const role = this.gameState.players.find(
+        (player) => player.playerId === evidence.discoveredBy,
+      )?.role;
       if (role === "detective") credibility += 0.3;
     }
 

@@ -62,7 +62,7 @@ export class AdvancedFeaturesManager implements IAdvancedFeaturesManager {
         if (target.targetType !== "evidence") return false;
         return true;
       },
-      getCooldown: (): number => 30000,
+      getCoolDown: (): number => 30000,
       isAvailable: (): boolean => true,
     });
 
@@ -73,7 +73,7 @@ export class AdvancedFeaturesManager implements IAdvancedFeaturesManager {
         if (target.targetType !== "evidence") return false;
         return true;
       },
-      getCooldown: (): number => 60000,
+      getCoolDown: (): number => 60000,
       isAvailable: (): boolean => true,
     });
 
@@ -84,7 +84,7 @@ export class AdvancedFeaturesManager implements IAdvancedFeaturesManager {
         if (target.targetType !== "player") return false;
         return true;
       },
-      getCooldown: (): number => 45000,
+      getCoolDown: (): number => 45000,
       isAvailable: (): boolean => true,
     });
 
@@ -94,7 +94,7 @@ export class AdvancedFeaturesManager implements IAdvancedFeaturesManager {
       useAbility: async (_target: AbilityTarget): Promise<boolean> => {
         return false;
       },
-      getCooldown: (): number => 0,
+      getCoolDown: (): number => 0,
       isAvailable: (): boolean => false,
     });
   }
@@ -154,7 +154,7 @@ export class AdvancedFeaturesManager implements IAdvancedFeaturesManager {
 
     const mappedRole = roleTypeMapping[playerState.role];
     const ability = this.getRoleAbility(mappedRole);
-    return Date.now() - lastUsage >= ability.getCooldown();
+    return Date.now() - lastUsage >= ability.getCoolDown();
   }
 
   public async evaluateEvidence(

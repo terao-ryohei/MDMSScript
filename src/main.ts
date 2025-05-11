@@ -2,9 +2,13 @@ import { system, world } from "@minecraft/server";
 import type { ItemUseAfterEvent } from "@minecraft/server";
 import { GameManager } from "./managers/GameManager";
 import { DEFAULT_CONFIG, GamePhase } from "./constants/main";
+import { RoleUIManager } from "./managers/RoleUIManager";
 
 // GameManagerを最優先で初期化
 const gameManager = GameManager.getInstance();
+const roleUIManager = RoleUIManager.getInstance(gameManager);
+
+console.log("main initialized");
 
 // 時計使用イベントのハンドラ（GameManagerが排他的に制御）
 world.afterEvents.itemUse.subscribe(async (event: ItemUseAfterEvent) => {
@@ -81,6 +85,10 @@ world.afterEvents.itemUse.subscribe(async (event: ItemUseAfterEvent) => {
         timestamp: Date.now(),
       });
     }
+  }
+
+  if (itemStack.typeId === "minecraft:prismarine_shard") {
+    await roleUIManager.showRoleDetails(event.source.id);
   }
 });
 

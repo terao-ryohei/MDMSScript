@@ -1,5 +1,7 @@
 import type { GameTime } from "../../../submodules/mc-action-logger/src/types/types";
-import type { PlayerState } from "../../types/GameTypes";
+import type { PlayerState, GameState } from "../../types/GameTypes";
+import type { GamePhase } from "../../constants/main";
+import type { RoleType } from "../../types/AdvancedFeatureTypes";
 
 /**
  * チュートリアルの状態を表すインターフェース
@@ -22,16 +24,27 @@ export interface ITimerManager {
 
 /**
  * GameManagerのインターフェース
- * LogManagerで必要な最小限のインターフェースを定義
- */
-/**
- * GameManagerのインターフェース
- * LogManagerで必要な最小限のインターフェースを定義
  */
 export interface IGameManager {
-  getGameState(): IGameState;
+  getGameState(): GameState;
   getTimerManager(): ITimerManager;
   getPlayerState(playerId: string): PlayerState | undefined;
+
+  /**
+   * プレイヤーの役職を更新する
+   * @param playerId プレイヤーID
+   * @param role 新しい役職
+   */
+  updatePlayerRole(playerId: string, role: RoleType): void;
+
+  /**
+   * イベントリスナーを登録する
+   * @param event イベント名
+   * @param handler イベントハンドラ
+   */
+  on(event: "phaseChanged", handler: (phase: GamePhase) => void): void;
+  on(event: "playerJoined", handler: (playerId: string) => void): void;
+  on(event: "playerLeft", handler: (playerId: string) => void): void;
 
   /**
    * チュートリアルを表示する

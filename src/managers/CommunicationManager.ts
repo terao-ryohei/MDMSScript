@@ -1,26 +1,26 @@
 import type { ILoggerManager } from "./interfaces/ILoggerManager";
 import type { ICommunicationManager } from "./interfaces/ICommunicationManager";
-import type { GameState } from "../types/GameTypes";
 import type { Evidence } from "../types/EvidenceTypes";
 import { MurderMysteryActions } from "../types/ActionTypes";
 import type { RoleType } from "../types/AdvancedFeatureTypes";
 import { GamePhase } from "src/constants/main";
+import type { GameState } from "src/types/GameTypes";
 
 export class CommunicationManager implements ICommunicationManager {
-  private gameState: GameState;
   private loggerManager: ILoggerManager;
   private messageHistory: Map<string, string[]>;
   private isVotingPhase: boolean;
   private votes: Map<string, string>;
   private voteCount: Map<string, number>;
+  private gameState: GameState;
 
-  constructor(gameState: GameState, loggerManager: ILoggerManager) {
-    this.gameState = gameState;
+  constructor(loggerManager: ILoggerManager, gameState: GameState) {
     this.loggerManager = loggerManager;
     this.messageHistory = new Map();
     this.isVotingPhase = false;
     this.votes = new Map();
     this.voteCount = new Map();
+    this.gameState = gameState;
   }
 
   // チャットシステム実装
@@ -29,8 +29,12 @@ export class CommunicationManager implements ICommunicationManager {
     toId: string,
     message: string,
   ): Promise<boolean> {
-    const fromPlayer = this.gameState.players.get(fromId);
-    const toPlayer = this.gameState.players.get(toId);
+    const fromPlayer = this.gameState.players.find(
+      (player) => player.playerId === fromId,
+    );
+    const toPlayer = this.gameState.players.find(
+      (player) => player.playerId === toId,
+    );
 
     if (
       !fromPlayer ||
@@ -40,7 +44,7 @@ export class CommunicationManager implements ICommunicationManager {
       return false;
     }
 
-    await this.loggerManager.logAction({
+    this.loggerManager.logAction({
       type: "chat",
       playerId: fromId,
       details: {
@@ -55,15 +59,21 @@ export class CommunicationManager implements ICommunicationManager {
   }
 
   async broadcastMessage(fromId: string, message: string): Promise<boolean> {
-    await this.loggerManager.logAction({
+    this.loggerManager.logAction({
       type: "broadcast",
       playerId: fromId,
       details: { message },
     });
 
-    this.gameState.players.forEach((_, playerId) => {
-      this.addToHistory(playerId, `Broadcast from ${fromId}: ${message}`);
-    });
+    for (const player of this.gameState.players) {
+      if (player.playerId !== fromId) {
+        this.addToHistory(
+          player.playerId,
+          `Broadcast from ${fromId}: ${message}`,
+        );
+      }
+    }
+
     return true;
   }
 
@@ -72,7 +82,7 @@ export class CommunicationManager implements ICommunicationManager {
     playerId: string,
     message: string,
   ): Promise<boolean> {
-    await this.loggerManager.logAction({
+    this.loggerManager.logAction({
       type: MurderMysteryActions.TALK_TO_NPC,
       playerId,
       details: {
@@ -95,7 +105,7 @@ export class CommunicationManager implements ICommunicationManager {
       return false;
     }
 
-    await this.loggerManager.logAction({
+    this.loggerManager.logAction({
       type: MurderMysteryActions.EVIDENCE_SHARE,
       playerId: fromId,
       details: {
@@ -111,7 +121,7 @@ export class CommunicationManager implements ICommunicationManager {
     fromId: string,
     result: string,
   ): Promise<boolean> {
-    await this.loggerManager.logAction({
+    this.loggerManager.logAction({
       type: MurderMysteryActions.ANALYZE_EVIDENCE,
       playerId: fromId,
       details: { result },
@@ -125,7 +135,7 @@ export class CommunicationManager implements ICommunicationManager {
     alibi: string,
     timestamp: number,
   ): Promise<boolean> {
-    await this.loggerManager.logAction({
+    this.loggerManager.logAction({
       type: MurderMysteryActions.CREATE_ALIBI,
       playerId,
       details: {
@@ -143,7 +153,7 @@ export class CommunicationManager implements ICommunicationManager {
     this.votes.clear();
     this.voteCount.clear();
 
-    await this.loggerManager.logAction({
+    this.loggerManager.logAction({
       type: MurderMysteryActions.PHASE_CHANGE,
       playerId: "system",
       details: {
@@ -164,7 +174,7 @@ export class CommunicationManager implements ICommunicationManager {
     const currentCount = this.voteCount.get(targetId) || 0;
     this.voteCount.set(targetId, currentCount + 1);
 
-    await this.loggerManager.logAction({
+    this.loggerManager.logAction({
       type: MurderMysteryActions.VOTE_CAST,
       playerId: fromId,
       details: {
@@ -187,7 +197,7 @@ export class CommunicationManager implements ICommunicationManager {
       }
     });
 
-    await this.loggerManager.logAction({
+    this.loggerManager.logAction({
       type: MurderMysteryActions.PHASE_CHANGE,
       playerId: "system",
       details: {
@@ -221,8 +231,12 @@ export class CommunicationManager implements ICommunicationManager {
   }
 
   canShareEvidence(fromId: string, toId: string, evidence: Evidence): boolean {
-    const fromPlayer = this.gameState.players.get(fromId);
-    const toPlayer = this.gameState.players.get(toId);
+    const fromPlayer = this.gameState.players.find(
+      (player) => player.playerId === fromId,
+    );
+    const toPlayer = this.gameState.players.find(
+      (player) => player.playerId === toId,
+    );
 
     if (!fromPlayer || !toPlayer) return false;
     if (!fromPlayer.collectedEvidence.includes(evidence.evidenceId))
@@ -239,7 +253,7 @@ export class CommunicationManager implements ICommunicationManager {
   }
 
   canVote(playerId: string): boolean {
-    const player = this.gameState.players.get(playerId);
+    const player = this.gameState.players.find((p) => p.playerId === playerId);
     if (!player || !this.isVotingPhase || player.hasVoted) return false;
     return true;
   }

@@ -1,8 +1,7 @@
 import { ActionLoggerModule } from "../../submodules/mc-action-logger/src/ActionLoggerModule";
 import { PlayerActionLogManger } from "../../submodules/mc-action-logger/src/managers/PlayerActionLogManager";
 import type { ActionType } from "../../submodules/mc-action-logger/src/types/types";
-import type { RoleType } from "../types/AdvancedFeatureTypes";
-import { MurderMysteryActions } from "../types/ActionTypes";
+import { RoleType } from "../types/AdvancedFeatureTypes";
 import type {
   GameState,
   GameStartupConfig,
@@ -16,14 +15,22 @@ import { MainManager as ActionLoggerGameManager } from "../../submodules/mc-acti
 import { TimerManager } from "./TimerManager";
 import { PhaseManager } from "./PhaseManager";
 import { GamePhase } from "src/constants/main";
+import { RoleAssignmentManager } from "./RoleAssignmentManager";
 
 const GAME_TIME_SCALE = 72; // ゲーム内時間のスケール（1分の実時間 = 72分のゲーム内時間）
+
+type PhaseChangeHandler = (phase: GamePhase) => void;
+type PlayerHandler = (playerId: string) => void;
 
 /**
  * ゲームマネージャークラス
  * ゲーム全体の状態を管理し、各種マネージャーを統括します
  */
 export class GameManager implements IPhaseGameManager, ILoggerManager {
+  private phaseChangeHandlers: Set<PhaseChangeHandler> = new Set();
+  private playerJoinHandlers: Set<PlayerHandler> = new Set();
+  private playerLeaveHandlers: Set<PlayerHandler> = new Set();
+
   // チュートリアルの進行状態を管理
   private tutorialState: {
     shown: boolean;
@@ -36,24 +43,37 @@ export class GameManager implements IPhaseGameManager, ILoggerManager {
   };
 
   private static instance: GameManager | null = null;
-  private gameState: GameState;
+  public gameState: GameState;
   private actionLogger: ActionLoggerModule;
   private logManager: PlayerActionLogManger;
   private evidenceManager: EvidenceManager;
   private tickCallback: number | undefined;
   private phaseManager: PhaseManager;
   private timerManager: TimerManager;
+  private roleAssignmentManager: RoleAssignmentManager;
 
   private constructor() {
+    console.log("GameManager initialized");
     this.gameState = this.createInitialGameState();
     this.actionLogger = ActionLoggerModule.getInstance();
     this.logManager = new PlayerActionLogManger(
       ActionLoggerGameManager.getInstance(),
     );
-    this.evidenceManager = EvidenceManager.create(this);
+    this.evidenceManager = EvidenceManager.getInstance(this.gameState);
     this.timerManager = TimerManager.getInstance();
     this.phaseManager = PhaseManager.create(this);
-    this.initializeActionLogger();
+    this.roleAssignmentManager = RoleAssignmentManager.getInstance(this);
+    this.actionLogger.initialize({
+      gameTime: {
+        initialTime: 0,
+        timeScale: GAME_TIME_SCALE,
+        dayLength: 1200000,
+      },
+      filters: {
+        minLogLevel: 1,
+      },
+      startItems: [],
+    });
   }
 
   public static getInstance(): GameManager {
@@ -63,11 +83,6 @@ export class GameManager implements IPhaseGameManager, ILoggerManager {
     return GameManager.instance;
   }
 
-  /**
-   * ゲームを開始する
-   * @param config ゲーム開始設定
-   * @returns ゲーム開始結果
-   */
   /**
    * チュートリアルを表示する
    * @returns チュートリアルが完了したかどうか
@@ -160,6 +175,8 @@ export class GameManager implements IPhaseGameManager, ILoggerManager {
         config.timeSettings.preparation,
       );
 
+      await this.roleAssignmentManager.assignRoles();
+
       world.sendMessage("§a PHASES_INITIALIZED");
 
       // ゲーム状態の更新
@@ -193,43 +210,6 @@ export class GameManager implements IPhaseGameManager, ILoggerManager {
     }
   }
 
-  private createInitialGameState(): GameState {
-    return {
-      gameId: `ts-${Date.now()}-${system.currentTick}`,
-      phase: GamePhase.PREPARATION,
-      isActive: false,
-      startTime: 0,
-      currentDay: 1,
-      players: new Map(),
-      roles: new Map(),
-      evidenceList: [],
-      collectedEvidence: new Map(),
-      votes: new Map(),
-      murderCommitted: false,
-      investigationComplete: false,
-    };
-  }
-
-  private initializeActionLogger(): void {
-    this.actionLogger.initialize({
-      gameTime: {
-        initialTime: 0,
-        timeScale: GAME_TIME_SCALE,
-        dayLength: 1200000,
-      },
-      filters: {
-        minLogLevel: 1,
-        includedActionTypes: Object.values(MurderMysteryActions).map(
-          (action) => action as unknown as ActionType,
-        ),
-      },
-    });
-  }
-
-  public getGameState(): GameState {
-    return { ...this.gameState };
-  }
-
   public logAction(data: {
     type: string;
     playerId: string;
@@ -247,6 +227,34 @@ export class GameManager implements IPhaseGameManager, ILoggerManager {
     if (this.logManager) {
       this.logManager.logSystemAction(type as ActionType, details);
     }
+  }
+
+  private createInitialGameState(): GameState {
+    return {
+      gameId: `ts-${Date.now()}-${system.currentTick}`,
+      phase: GamePhase.PREPARATION,
+      isActive: false,
+      startTime: 0,
+      currentDay: 1,
+      players: world.getPlayers().map((player) => ({
+        playerId: player.id,
+        inventory: [],
+        collectedEvidence: [],
+        isAlive: true,
+        hasVoted: false,
+        actionLog: [],
+        role: RoleType.CITIZEN, // 初期状態では全員が市民
+      })),
+      evidenceList: [],
+      collectedEvidence: new Map(),
+      votes: new Map(),
+      murderCommitted: false,
+      investigationComplete: false,
+    };
+  }
+
+  public getGameState(): GameState {
+    return this.gameState;
   }
 
   public dispose(): void {
@@ -267,14 +275,5 @@ export class GameManager implements IPhaseGameManager, ILoggerManager {
       this.phaseManager.dispose();
     }
     GameManager.instance = null;
-  }
-
-  /**
-   * プレイヤーのロールを取得します
-   * @param playerId プレイヤーID
-   * @returns プレイヤーのロール、未設定の場合はundefined
-   */
-  public getPlayerRole(playerId: string): RoleType | undefined {
-    return this.gameState.roles.get(playerId);
   }
 }

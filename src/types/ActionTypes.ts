@@ -1,6 +1,42 @@
 /**
- * ゲーム内で発生する拡張アクション種別
+ * ゲーム内でのアクション種別を定義
  */
+export enum ActionType {
+  // プレイヤーアクション
+  MOVE = "move",
+  JUMP = "jump",
+  ATTACK = "attack",
+  INTERACT = "interact",
+
+  // ブロック操作
+  BLOCK_BROKEN = "block_broken",
+  BLOCK_PLACED = "block_placed",
+
+  // スクリプトイベント
+  SCRIPT_EVENT = "script_event",
+
+  // エンティティライフサイクル
+  ENTITY_SPAWN = "entity_spawn",
+  ENTITY_DEATH = "entity_death",
+  ENTITY_DESPAWN = "entity_despawn",
+
+  // プレイヤー状態変更
+  PLAYER_HEALTH_CHANGE = "player_health_change",
+  PLAYER_HUNGER_CHANGE = "player_hunger_change",
+  PLAYER_EXPERIENCE_CHANGE = "player_experience_change",
+  PLAYER_EFFECT_ADDED = "player_effect_added",
+  PLAYER_EFFECT_REMOVED = "player_effect_removed",
+
+  // システム操作
+  SYSTEM_RESUME = "system_resume",
+  SYSTEM_PAUSE = "system_pause",
+  SYSTEM_CONFIG_CHANGE = "system_config_change",
+  SYSTEM_EXPORT = "system_export",
+
+  // 役職関連
+  ROLE_ASSIGNED = "role_assigned",
+  ROLE_ERROR = "role_error",
+}
 export enum MurderMysteryActions {
   // プレイヤーの基本アクション
   TALK_TO_NPC = "talk_to_npc",

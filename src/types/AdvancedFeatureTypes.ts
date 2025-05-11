@@ -34,7 +34,7 @@ export type AbilityTarget = {
 export interface IRoleAbility {
   roleType: RoleType;
   useAbility(target: AbilityTarget): Promise<boolean>;
-  getCooldown(): number;
+  getCoolDown(): number;
   isAvailable(): boolean;
 }
 

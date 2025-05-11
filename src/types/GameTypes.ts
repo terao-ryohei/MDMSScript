@@ -8,18 +8,11 @@ import type { GamePhase } from "src/constants/main";
 export interface PlayerState {
   playerId: string;
   role: RoleType;
-  location: {
-    x: number;
-    y: number;
-    z: number;
-    dimension: string;
-  };
   inventory: string[];
   collectedEvidence: string[];
   isAlive: boolean;
   hasVoted: boolean;
   actionLog: string[];
-  abilities: Map<string, boolean>;
 }
 
 /**
@@ -30,8 +23,7 @@ export interface GameState {
   phase: GamePhase;
   startTime: number;
   currentDay: number;
-  players: Map<string, PlayerState>;
-  roles: Map<string, RoleType>;
+  players: PlayerState[];
   evidenceList: Evidence[];
   collectedEvidence: Map<string, Set<string>>;
   votes: Map<string, string>;

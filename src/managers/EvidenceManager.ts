@@ -1,10 +1,10 @@
+import type { GameState } from "src/types/GameTypes";
 import type {
   Evidence,
   EvidenceAnalysis,
   EvidenceChain,
   EvidenceRelation,
 } from "../types/EvidenceTypes";
-import type { GameManager } from "./GameManager";
 import { EvidenceAnalyzer } from "./EvidenceAnalyzer";
 import { world } from "@minecraft/server";
 
@@ -20,14 +20,14 @@ export class EvidenceManager {
   private analyzer: EvidenceAnalyzer;
   private accessLevels = new Map<string, number>();
 
-  private constructor(private gameManager: GameManager) {
-    this.analyzer = new EvidenceAnalyzer(gameManager);
+  private constructor(gameState: GameState) {
+    this.analyzer = EvidenceAnalyzer.getInstance(gameState);
     this.initializeAccessLevels();
   }
 
-  public static create(gameManager: GameManager): EvidenceManager {
+  public static getInstance(gameState: GameState): EvidenceManager {
     if (!EvidenceManager.instance) {
-      EvidenceManager.instance = new EvidenceManager(gameManager);
+      EvidenceManager.instance = new EvidenceManager(gameState);
     }
     return EvidenceManager.instance;
   }
