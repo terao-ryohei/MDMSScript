@@ -1,6 +1,9 @@
 /**
  * 役職の種類を定義する列挙型
  */
+/**
+ * 役割の種類を定義する列挙型
+ */
 export enum RoleType {
   DETECTIVE = "detective",
   KILLER = "killer",
@@ -9,7 +12,7 @@ export enum RoleType {
 }
 
 /**
- * 役職の文字列とRoleType enumのマッピング
+ * 役割の文字列とRoleType enumのマッピング
  * 文字列から対応するRoleType値への変換を提供する
  */
 export const roleTypeMapping: Record<string, RoleType> = {
@@ -22,11 +25,15 @@ export const roleTypeMapping: Record<string, RoleType> = {
 /**
  * 能力のターゲット型を定義する共用型
  */
-export type AbilityTarget = {
-  targetType: "player" | "evidence" | "location";
+// 能力のターゲットタイプ
+export type AbilityTargetType = "player" | "evidence" | "location";
+
+// 能力のターゲット
+export interface AbilityTarget {
+  targetType: AbilityTargetType;
   targetId: string;
   additionalData?: Record<string, unknown>;
-};
+}
 
 /**
  * 各役職の特殊能力を定義するインターフェース
@@ -36,6 +43,7 @@ export interface IRoleAbility {
   useAbility(target: AbilityTarget): Promise<boolean>;
   getCoolDown(): number;
   isAvailable(): boolean;
+  targetType: AbilityTargetType;
 }
 
 /**

@@ -1,3 +1,5 @@
+import { OccupationType } from "../types/OccupationTypes";
+
 // ゲーム開始設定
 export const DEFAULT_CONFIG = {
   maxPlayers: 20,
@@ -19,10 +21,38 @@ export const DEFAULT_CONFIG = {
   },
   roleDistribution: {
     detective: 1,
-    murderer: 1,
+    killer: 1,
     accomplice: 1,
+    citizen: 5,
   },
-} as const;
+  occupationRules: {
+    detective: {
+      allowedOccupations: [OccupationType.GUARD, OccupationType.PRIEST],
+      forbiddenOccupations: [OccupationType.PRISONER],
+    },
+    killer: {
+      allowedOccupations: [OccupationType.PRISONER],
+      forbiddenOccupations: [OccupationType.GUARD, OccupationType.PRIEST],
+    },
+    accomplice: {
+      allowedOccupations: [OccupationType.MERCHANT, OccupationType.PRISONER],
+      forbiddenOccupations: [OccupationType.GUARD],
+    },
+    citizen: {
+      allowedOccupations: [
+        OccupationType.GUARD,
+        OccupationType.MERCHANT,
+        OccupationType.PRIEST,
+        OccupationType.PRISONER,
+      ],
+      forbiddenOccupations: [],
+    },
+  },
+  occupationBalance: {
+    minOccupationDiversity: 2,
+    maxSameOccupation: 2,
+  },
+};
 
 /**
  * ゲームフェーズを表すenum

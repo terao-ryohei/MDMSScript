@@ -36,4 +36,14 @@ export interface IRoleUIManager {
     abilityId: string,
     success: boolean,
   ): Promise<void>;
+
+  /**
+   * 通知を表示する
+   */
+  showNotification(
+    playerId: string,
+    type: "info" | "warning" | "error" | "success",
+    message: string,
+    duration?: number,
+  ): Promise<void>;
 }

@@ -36,6 +36,10 @@ export enum ActionType {
   // 役職関連
   ROLE_ASSIGNED = "role_assigned",
   ROLE_ERROR = "role_error",
+
+  // ゲーム情報とデバッグ
+  GAME_INFO = "game_info",
+  GAME_DEBUG = "game_debug",
 }
 export enum MurderMysteryActions {
   // プレイヤーの基本アクション
@@ -53,11 +57,24 @@ export enum MurderMysteryActions {
   VERIFY_EVIDENCE = "verify_evidence",
   TAMPER_EVIDENCE = "tamper_evidence",
 
+  // 職業関連のアクション
+  OCCUPATION_CHANGE = "occupation_change",
+  OCCUPATION_ABILITY_USE = "occupation_ability_use",
+  OCCUPATION_ERROR = "occupation_error",
+  OCCUPATION_INTERACT = "occupation_interact",
+
   // システムアクション
   PHASE_CHANGE = "phase_change",
   GAME_START = "game_start",
   GAME_END = "game_end",
   MURDER_DISCOVERED = "murder_discovered",
+
+  // UI関連のアクション
+  UI_UPDATE = "ui_update",
+  UI_EVENT = "ui_event",
+  UI_ERROR = "ui_error",
+  UI_NOTIFICATION = "ui_notification",
+  ABILITY_USE = "ability_use",
 }
 
 /**

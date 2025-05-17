@@ -58,6 +58,7 @@ export class AdvancedFeaturesManager implements IAdvancedFeaturesManager {
     // Detective can investigate evidence
     this.roleAbilities.set(RoleType.DETECTIVE, {
       roleType: RoleType.DETECTIVE,
+      targetType: "evidence",
       useAbility: async (target: AbilityTarget): Promise<boolean> => {
         if (target.targetType !== "evidence") return false;
         return true;
@@ -69,6 +70,7 @@ export class AdvancedFeaturesManager implements IAdvancedFeaturesManager {
     // Killer can manipulate evidence
     this.roleAbilities.set(RoleType.KILLER, {
       roleType: RoleType.KILLER,
+      targetType: "evidence",
       useAbility: async (target: AbilityTarget): Promise<boolean> => {
         if (target.targetType !== "evidence") return false;
         return true;
@@ -80,6 +82,7 @@ export class AdvancedFeaturesManager implements IAdvancedFeaturesManager {
     // Accomplice can interact with players
     this.roleAbilities.set(RoleType.ACCOMPLICE, {
       roleType: RoleType.ACCOMPLICE,
+      targetType: "player",
       useAbility: async (target: AbilityTarget): Promise<boolean> => {
         if (target.targetType !== "player") return false;
         return true;
@@ -91,6 +94,7 @@ export class AdvancedFeaturesManager implements IAdvancedFeaturesManager {
     // Citizens and villagers have no special abilities
     this.roleAbilities.set(RoleType.CITIZEN, {
       roleType: RoleType.CITIZEN,
+      targetType: "evidence",
       useAbility: async (_target: AbilityTarget): Promise<boolean> => {
         return false;
       },
