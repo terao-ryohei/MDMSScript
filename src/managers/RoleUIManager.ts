@@ -1,23 +1,9 @@
-import { system, world } from "@minecraft/server";
-import {
-  ActionFormData,
-  MessageFormData,
-  ModalFormData,
-} from "@minecraft/server-ui";
-import { RoleType } from "../types/AdvancedFeatureTypes";
-import type {
-  AbilityTarget,
-  AbilityTargetType,
-} from "../types/AdvancedFeatureTypes";
-import type {
-  RoleDetails,
-  RoleUIState,
-  RoleNotification,
-  RoleAbility,
-} from "../types/RoleTypes";
-import { ROLE_DETAILS } from "../types/RoleTypes";
+import type { Player } from "@minecraft/server";
+import { ActionFormData } from "@minecraft/server-ui";
+import type { RoleUIState } from "../types/RoleTypes";
 import type { GameManager } from "./GameManager";
 import type { IRoleUIManager } from "./interfaces/IRoleUIManager";
+import { RoleAssignmentManager } from "./RoleAssignmentManager";
 
 /**
  * 役職UI管理クラス
@@ -25,440 +11,64 @@ import type { IRoleUIManager } from "./interfaces/IRoleUIManager";
 export class RoleUIManager implements IRoleUIManager {
   private static instance: RoleUIManager | null = null;
   private uiStates: Map<string, RoleUIState> = new Map();
+  private roleAssignmentManager: RoleAssignmentManager;
 
-  private constructor(private readonly gameManager: GameManager) {
+  private constructor(
+    private readonly gameManager: GameManager,
+    private players: Player[],
+  ) {
     this.initializeUIStates();
-  }
-
-  public static getInstance(gameManager: GameManager): RoleUIManager {
-    if (!RoleUIManager.instance) {
-      RoleUIManager.instance = new RoleUIManager(gameManager);
-    }
-    return RoleUIManager.instance;
+    this.roleAssignmentManager = RoleAssignmentManager.getInstance(
+      this.gameManager,
+      this.players,
+    );
   }
 
   private initializeUIStates(): void {
     const gameState = this.gameManager.getGameState();
     for (const player of gameState.players) {
-      this.uiStates.set(player.playerId, {
+      this.uiStates.set(player.player.id, {
         selectedAbilityId: null,
         targetPlayerId: null,
         showDetails: false,
         activeAbility: null,
-        cooldowns: new Map(),
         notifications: [],
       });
     }
   }
 
-  public async showRoleDetails(playerId: string): Promise<void> {
-    const player = world.getAllPlayers().find((p) => p.id === playerId);
-    if (!player) return;
-
-    const roleDetails = await this.getRoleDetails(playerId);
-    const form = new ActionFormData()
-      .title(`${roleDetails.name}の情報`)
-      .body(
-        `説明: ${roleDetails.description}\n\n` +
-          `目的: ${roleDetails.objective}\n\n` +
-          `勝利条件: ${roleDetails.winCondition}`,
-      );
-
-    // 各特殊能力をボタンとして追加
-    for (const ability of roleDetails.abilities) {
-      const coolDown = await this.getCoolDown(playerId, ability.id);
-      const remainingUses = await this.getRemainingUses(playerId, ability.id);
-      const buttonText = `${ability.name}\n残り使用回数: ${remainingUses}\nクールダウン: ${
-        coolDown > 0 ? `${Math.ceil(coolDown / 20)}秒` : "使用可能"
-      }`;
-      form.button(buttonText);
+  public static getInstance(
+    gameManager: GameManager,
+    players: Player[],
+  ): RoleUIManager {
+    if (!RoleUIManager.instance) {
+      RoleUIManager.instance = new RoleUIManager(gameManager, players);
     }
+    return RoleUIManager.instance;
+  }
+
+  public async showRoleDetails(player: Player): Promise<void> {
+    const role = await this.roleAssignmentManager.getPlayerRole(player);
+    if (!role) {
+      return;
+    }
+    const form = new ActionFormData()
+      .title(`${role.name}の情報`)
+      .body(
+        `説明: ${role.description}\n\n` +
+          `目的: ${role.objective}\n\n` +
+          `勝利条件: ${role.winCondition}`,
+      )
+      .body(
+        role.abilities
+          .map(
+            (ability) =>
+              `${ability.name}\n残り使用回数: ${ability.remainingUses}`,
+          )
+          .join("\n"),
+      );
 
     const response = await form.show(player);
     if (response.canceled || response.selection === undefined) return;
-
-    // 選択された能力を使用するためのUIを表示
-    const selectedAbility = roleDetails.abilities[response.selection];
-    if (selectedAbility) {
-      await this.showAbilityUseForm(playerId, selectedAbility);
-    }
-  }
-
-  private async showAbilityUseForm(
-    playerId: string,
-    ability: RoleAbility,
-  ): Promise<void> {
-    const player = world.getAllPlayers().find((p) => p.id === playerId);
-    if (!player) return;
-
-    const coolDown = await this.getCoolDown(playerId, ability.id);
-    if (coolDown > 0) {
-      const form = new MessageFormData()
-        .title("能力使用不可")
-        .body(
-          `この能力はまだ使用できません。\n残りクールダウン: ${Math.ceil(
-            coolDown / 20,
-          )}秒`,
-        )
-        .button1("閉じる")
-        .button2("詳細を見る");
-      await form.show(player);
-      return;
-    }
-
-    // 能力使用のためのフォームを表示
-    const form = new ModalFormData().title(`${ability.name}を使用`);
-
-    let selectedTarget: AbilityTarget | null = null;
-
-    // 能力のターゲットタイプに応じたUIを表示
-    switch (ability.targetType) {
-      case "player": {
-        const players = world
-          .getAllPlayers()
-          .filter((p) => p.id !== playerId)
-          .map((p) => p.name);
-        form.dropdown("対象プレイヤーを選択", players);
-        break;
-      }
-      case "location": {
-        form
-          .slider("X座標", -100, 100, 1, 0)
-          .slider("Y座標", -50, 50, 1, 0)
-          .slider("Z座標", -100, 100, 1, 0);
-        break;
-      }
-      case "evidence": {
-        form.dropdown("証拠を選択", ["証拠1", "証拠2", "証拠3"]);
-        break;
-      }
-    }
-
-    const response = await form.show(player);
-    if (response.canceled || !response.formValues) return;
-
-    // 能力のターゲットタイプに応じてターゲット情報を設定
-    switch (ability.targetType) {
-      case "player": {
-        const targetPlayers = world
-          .getAllPlayers()
-          .filter((p) => p.id !== playerId);
-        const selectedIndex = response.formValues[0] as number;
-        if (selectedIndex >= 0 && selectedIndex < targetPlayers.length) {
-          const targetPlayer = targetPlayers[selectedIndex];
-          selectedTarget = {
-            targetType: "player",
-            targetId: targetPlayer.id,
-          };
-        }
-        break;
-      }
-      case "location": {
-        const [x, y, z] = response.formValues as number[];
-        selectedTarget = {
-          targetType: "location",
-          targetId: `${x},${y},${z}`,
-          additionalData: { x, y, z },
-        };
-        break;
-      }
-      case "evidence": {
-        const evidenceIndex = response.formValues[0] as number;
-        selectedTarget = {
-          targetType: "evidence",
-          targetId: `evidence_${evidenceIndex}`,
-        };
-        break;
-      }
-    }
-
-    if (selectedTarget) {
-      const success = await this.useAbility(
-        playerId,
-        ability.id,
-        selectedTarget,
-      );
-      await this.showAbilityResultForm(playerId, success);
-    }
-  }
-
-  private async showAbilityResultForm(
-    playerId: string,
-    success: boolean,
-  ): Promise<void> {
-    const player = world.getAllPlayers().find((p) => p.id === playerId);
-    if (!player) return;
-
-    const form = new MessageFormData()
-      .title(success ? "能力使用成功" : "能力使用失敗")
-      .body(
-        success
-          ? "能力を正常に使用しました"
-          : "能力の使用に失敗しました。もう一度お試しください。",
-      )
-      .button1("閉じる")
-      .button2("役職情報に戻る");
-
-    const response = await form.show(player);
-    if (!response.canceled && response.selection === 1) {
-      await this.showRoleDetails(playerId);
-    }
-  }
-
-  public async hideRoleDetails(playerId: string): Promise<void> {
-    const uiState = this.uiStates.get(playerId);
-    if (!uiState) return;
-
-    this.updateUIState(playerId, {
-      ...uiState,
-      showDetails: false,
-    });
-  }
-
-  public async getRoleDetails(playerId: string): Promise<RoleDetails> {
-    const playerState = this.gameManager
-      .getGameState()
-      .players.find((p) => p.playerId === playerId);
-    if (!playerState) {
-      throw new Error("Player not found");
-    }
-    return ROLE_DETAILS[playerState.role];
-  }
-
-  public async getRoleUIState(playerId: string): Promise<RoleUIState> {
-    const uiState = this.uiStates.get(playerId);
-    if (!uiState) {
-      throw new Error("UI state not found");
-    }
-    return uiState;
-  }
-
-  /**
-   * 特殊能力を有効化するのだ
-   */
-  public async activateAbility(
-    playerId: string,
-    abilityId: string,
-  ): Promise<boolean> {
-    const uiState = this.uiStates.get(playerId);
-    if (!uiState) return false;
-
-    // クールダウンチェック
-    const coolDown = await this.getCoolDown(playerId, abilityId);
-    if (coolDown > 0) {
-      await this.addNotification(playerId, {
-        type: "warning",
-        message: `この能力はまだ使用できません。残り: ${Math.ceil(coolDown / 20)}秒`,
-        duration: 3000,
-        priority: "medium",
-      });
-      return false;
-    }
-
-    // 能力の残り使用回数チェック
-    const remainingUses = await this.getRemainingUses(playerId, abilityId);
-    if (remainingUses === 0) {
-      await this.addNotification(playerId, {
-        type: "warning",
-        message: "この能力は使用できません。",
-        duration: 3000,
-        priority: "medium",
-      });
-      return false;
-    }
-
-    uiState.activeAbility = abilityId;
-    this.updateUIState(playerId, uiState);
-
-    await this.addNotification(playerId, {
-      type: "ability_ready",
-      message: "能力が有効化されました。対象を選択してください。",
-      duration: 5000,
-      priority: "high",
-    });
-
-    return true;
-  }
-
-  /**
-   * 特殊能力を無効化するのだ
-   */
-  public async deactivateAbility(
-    playerId: string,
-    abilityId: string,
-  ): Promise<void> {
-    const uiState = this.uiStates.get(playerId);
-    if (!uiState) return;
-
-    if (uiState.activeAbility === abilityId) {
-      uiState.activeAbility = null;
-      this.updateUIState(playerId, uiState);
-
-      await this.addNotification(playerId, {
-        type: "info",
-        message: "能力が無効化されました。",
-        duration: 3000,
-        priority: "medium",
-      });
-    }
-  }
-
-  public async useAbility(
-    playerId: string,
-    abilityId: string,
-    target: AbilityTarget,
-  ): Promise<boolean> {
-    const playerState = this.gameManager
-      .getGameState()
-      .players.find((p) => p.playerId === playerId);
-    if (!playerState) return false;
-
-    const roleDetails = ROLE_DETAILS[playerState.role];
-    const ability = roleDetails.abilities.find((a) => a.id === abilityId);
-    if (!ability) return false;
-
-    const uiState = this.uiStates.get(playerId);
-    if (!uiState) return false;
-
-    // クールダウンチェック
-    const coolDown = uiState.cooldowns.get(abilityId);
-    if (coolDown && coolDown > system.currentTick) {
-      await this.addNotification(playerId, {
-        type: "warning",
-        message: "この能力はまだ使用できません",
-        duration: 3000,
-        priority: "medium",
-      });
-      return false;
-    }
-
-    // 能力の使用
-    const success = await ability.useAbility(target);
-    if (success) {
-      // クールダウンの設定
-      uiState.cooldowns.set(abilityId, system.currentTick + ability.coolDown);
-      this.updateUIState(playerId, uiState);
-    }
-
-    return success;
-  }
-
-  public async getCoolDown(
-    playerId: string,
-    abilityId: string,
-  ): Promise<number> {
-    const uiState = this.uiStates.get(playerId);
-    if (!uiState) return 0;
-
-    const coolDown = uiState.cooldowns.get(abilityId);
-    if (!coolDown || coolDown <= system.currentTick) return 0;
-    return coolDown - system.currentTick;
-  }
-
-  public async getRemainingUses(
-    playerId: string,
-    abilityId: string,
-  ): Promise<number> {
-    const playerState = this.gameManager
-      .getGameState()
-      .players.find((p) => p.playerId === playerId);
-    if (!playerState) return 0;
-
-    const roleDetails = ROLE_DETAILS[playerState.role];
-    const ability = roleDetails.abilities.find((a) => a.id === abilityId);
-    return ability?.remainingUses ?? 0;
-  }
-
-  private async addNotification(
-    playerId: string,
-    notification: Omit<RoleNotification, "id" | "timestamp">,
-  ): Promise<void> {
-    const player = world.getAllPlayers().find((p) => p.id === playerId);
-    if (!player) return;
-
-    const form = new MessageFormData()
-      .title(this.getNotificationTitle(notification.type))
-      .body(notification.message)
-      .button1("確認")
-      .button2(notification.type === "error" ? "詳細" : "閉じる");
-
-    await form.show(player);
-  }
-
-  private getNotificationTitle(type: RoleNotification["type"]): string {
-    switch (type) {
-      case "info":
-      case "ability_ready":
-        return "情報";
-      case "warning":
-        return "警告";
-      case "error":
-      case "ability_fail":
-        return "エラー";
-      case "success":
-      case "ability_success":
-        return "成功";
-      case "ability_use":
-        return "能力使用";
-      default:
-        return "通知";
-    }
-  }
-
-  public async onPhaseChange(phase: string): Promise<void> {
-    const gameState = this.gameManager.getGameState();
-    for (const player of gameState.players) {
-      if (phase === "night" && player.role === RoleType.KILLER) {
-        await this.addNotification(player.playerId, {
-          type: "info",
-          message: "夜間フェーズが始まりました。殺害能力が使用可能です。",
-          duration: 5000,
-          priority: "high",
-        });
-      }
-    }
-  }
-
-  public async onRoleAssignment(
-    playerId: string,
-    role: RoleType,
-  ): Promise<void> {
-    const roleDetails = ROLE_DETAILS[role];
-    await this.addNotification(playerId, {
-      type: "info",
-      message: `あなたは${roleDetails.name}になりました`,
-      duration: 0,
-      priority: "high",
-    });
-  }
-
-  public async onAbilityUse(
-    playerId: string,
-    abilityId: string,
-    success: boolean,
-  ): Promise<void> {
-    await this.showAbilityResultForm(playerId, success);
-  }
-
-  public async showNotification(
-    playerId: string,
-    type: "info" | "warning" | "error" | "success",
-    message: string,
-    duration = 3000,
-  ): Promise<void> {
-    const player = world.getAllPlayers().find((p) => p.id === playerId);
-    if (!player) return;
-
-    const form = new MessageFormData()
-      .title(this.getNotificationTitle(type))
-      .body(message)
-      .button1("確認")
-      .button2(type === "error" ? "詳細" : "閉じる");
-
-    await form.show(player);
-  }
-
-  private updateUIState(playerId: string, newState: RoleUIState): void {
-    this.uiStates.set(playerId, newState);
   }
 }

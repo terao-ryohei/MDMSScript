@@ -1,3 +1,4 @@
+import { ROLES } from "src/constants/abilities/RoleAbilities";
 import {
   type EvidenceAnalysis,
   type EvidenceRelation,
@@ -7,9 +8,9 @@ import {
   type Evidence,
 } from "../types/EvidenceTypes";
 import type { IEvidenceAnalyzer } from "./interfaces/IEvidenceAnalyzer";
-import { GameManager } from "./GameManager";
-import type { RoleType } from "../types/AdvancedFeatureTypes";
 import type { GameState } from "src/types/GameTypes";
+import type { Role } from "src/types/RoleTypes";
+import { getScore } from "src/utils/score";
 
 /**
  * 証拠分析システム
@@ -87,23 +88,23 @@ export class EvidenceAnalyzer implements IEvidenceAnalyzer {
 
   public async analyzeRoleRelevance(
     evidence: Evidence,
-    role: RoleType,
+    role: Role,
   ): Promise<number> {
     let relevance = 0.5;
 
     if (evidence.discoveredBy) {
-      const discovererRole = this.gameState.players.find(
-        (player) => player.playerId === evidence.discoveredBy,
-      )?.role;
+      const discovererRole = Object.values(ROLES).find(
+        (r) => r.id === getScore("role", evidence.discoveredBy),
+      );
       if (discovererRole === role) {
         relevance += 0.2;
       }
     }
 
-    if (evidence.type === "testimony" && role === "detective") {
+    if (evidence.type === "testimony" && role.name === "detective") {
       relevance += 0.3;
     }
-    if (evidence.type === "physical" && role === "killer") {
+    if (evidence.type === "physical" && role.name === "killer") {
       relevance += 0.4;
     }
 
@@ -139,7 +140,7 @@ export class EvidenceAnalyzer implements IEvidenceAnalyzer {
     context: {
       phase: string;
       discoveredEvidence: Evidence[];
-      suspectRoles: RoleType[];
+      suspectRoles: Role[];
     },
   ): Promise<number> {
     const baseScore = await this.evaluateReliability(evidence);
@@ -372,10 +373,10 @@ export class EvidenceAnalyzer implements IEvidenceAnalyzer {
 
     let credibility = 0.5;
     if (evidence.discoveredBy) {
-      const role = this.gameState.players.find(
-        (player) => player.playerId === evidence.discoveredBy,
-      )?.role;
-      if (role === "detective") credibility += 0.3;
+      const role = Object.values(ROLES).find(
+        (r) => r.id === getScore("role", evidence.discoveredBy),
+      );
+      if (role?.name === "detective") credibility += 0.3;
     }
 
     return Math.min(1.0, credibility);

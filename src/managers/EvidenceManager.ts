@@ -6,7 +6,7 @@ import type {
   EvidenceRelation,
 } from "../types/EvidenceTypes";
 import { EvidenceAnalyzer } from "./EvidenceAnalyzer";
-import { world } from "@minecraft/server";
+import { world, type Player } from "@minecraft/server";
 
 /**
  * 証拠管理システム
@@ -15,7 +15,7 @@ import { world } from "@minecraft/server";
 export class EvidenceManager {
   private static instance: EvidenceManager | null = null;
   private evidenceMap = new Map<string, Evidence>();
-  private playerEvidenceMap = new Map<string, Set<string>>();
+  private playerEvidenceMap = new Map<Player["id"], Set<string>>();
   private roleEvidenceMap = new Map<string, Set<string>>();
   private analyzer: EvidenceAnalyzer;
   private accessLevels = new Map<string, number>();
@@ -50,8 +50,8 @@ export class EvidenceManager {
   /**
    * プレイヤーの所持している証拠一覧の取得
    */
-  public getPlayerEvidence(playerId: string): Evidence[] {
-    const evidenceIds = this.playerEvidenceMap.get(playerId) || new Set();
+  public getPlayerEvidence(player: Player): Evidence[] {
+    const evidenceIds = this.playerEvidenceMap.get(player.id) || new Set();
     return Array.from(evidenceIds)
       .map((id) => this.evidenceMap.get(id))
       .filter((e): e is Evidence => e !== undefined);
@@ -60,32 +60,28 @@ export class EvidenceManager {
   /**
    * 証拠の共有
    */
-  public shareEvidence(
-    fromPlayerId: string,
-    toPlayerId: string,
-    evidenceId: string,
-  ): boolean {
+  public shareEvidence(from: Player, to: Player, evidenceId: string): boolean {
     const evidence = this.evidenceMap.get(evidenceId);
     if (!evidence) return false;
 
-    const fromPlayerEvidence = this.playerEvidenceMap.get(fromPlayerId);
+    const fromPlayerEvidence = this.playerEvidenceMap.get(from.id);
     if (!fromPlayerEvidence || !fromPlayerEvidence.has(evidenceId)) {
       return false;
     }
 
-    let toPlayerEvidence = this.playerEvidenceMap.get(toPlayerId);
+    let toPlayerEvidence = this.playerEvidenceMap.get(to.id);
     if (!toPlayerEvidence) {
       toPlayerEvidence = new Set();
-      this.playerEvidenceMap.set(toPlayerId, toPlayerEvidence);
+      this.playerEvidenceMap.set(to.id, toPlayerEvidence);
     }
     toPlayerEvidence.add(evidenceId);
 
-    if (!evidence.relatedPlayers.includes(toPlayerId)) {
-      evidence.relatedPlayers.push(toPlayerId);
+    if (!evidence.relatedPlayers.includes(to)) {
+      evidence.relatedPlayers.push(to);
     }
 
     world.sendMessage(
-      `${fromPlayerId}が${toPlayerId}に証拠を共有しました: ${evidence.description}`,
+      `${from.name}が${to.name}に証拠を共有しました: ${evidence.description}`,
     );
     return true;
   }

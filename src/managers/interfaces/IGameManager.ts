@@ -1,5 +1,6 @@
 import type { GameState } from "../../types/GameTypes";
 import type { PlayerState } from "../../types/GameTypes";
+import type { Player } from "@minecraft/server";
 
 export interface IGameManager {
   /**
@@ -9,7 +10,7 @@ export interface IGameManager {
 
   /**
    * 指定したプレイヤーの状態を取得するのだ
-   * @param playerId プレイヤーID
+   * @param player プレイヤーID
    */
-  getPlayerState(playerId: string): PlayerState | undefined;
+  getPlayerState(player: Player): PlayerState | undefined;
 }

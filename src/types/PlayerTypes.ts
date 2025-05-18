@@ -1,24 +1,25 @@
-import type { RoleCategory, RoleAbility } from "./RoleTypes";
-import type { OccupationType } from "./OccupationTypes";
+import type { Role } from "./RoleTypes";
+import type { OccupationName } from "./OccupationTypes";
 import type { BaseAbility } from "./AbilityTypes";
+import type { Player } from "@minecraft/server";
 
 // プレイヤーの状態
 export interface PlayerState {
-  playerId: string;
-  role: RoleCategory;
-  occupation: OccupationType;
+  player: Player;
+  role: Role;
+  occupation: OccupationName;
   abilities: PlayerAbilities;
 }
 
 // プレイヤーの能力
 export interface PlayerAbilities {
-  roleAbilities: RoleAbility[];
+  roleAbilities: BaseAbility[];
   occupationAbilities: BaseAbility[];
 }
 
 // 組み合わせ制約
 export interface CombinationConstraint {
-  role: RoleCategory;
-  allowedOccupations: OccupationType[];
-  forbiddenOccupations: OccupationType[];
+  role: Role;
+  allowedOccupations: OccupationName[];
+  forbiddenOccupations: OccupationName[];
 }

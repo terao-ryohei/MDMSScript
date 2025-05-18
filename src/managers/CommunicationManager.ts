@@ -2,16 +2,19 @@ import type { ILoggerManager } from "./interfaces/ILoggerManager";
 import type { ICommunicationManager } from "./interfaces/ICommunicationManager";
 import type { Evidence } from "../types/EvidenceTypes";
 import { MurderMysteryActions } from "../types/ActionTypes";
-import type { RoleType } from "../types/AdvancedFeatureTypes";
 import { GamePhase } from "src/constants/main";
 import type { GameState } from "src/types/GameTypes";
+import type { Player } from "@minecraft/server";
+import type { Role } from "src/types/RoleTypes";
+import { getScore } from "src/utils/score";
+import { ROLES } from "src/constants/abilities/RoleAbilities";
 
 export class CommunicationManager implements ICommunicationManager {
   private loggerManager: ILoggerManager;
-  private messageHistory: Map<string, string[]>;
+  private messageHistory: Map<Player, string[]>;
   private isVotingPhase: boolean;
-  private votes: Map<string, string>;
-  private voteCount: Map<string, number>;
+  private votes: Map<Player, Player>;
+  private voteCount: Map<Player, number>;
   private gameState: GameState;
 
   constructor(loggerManager: ILoggerManager, gameState: GameState) {
@@ -23,93 +26,39 @@ export class CommunicationManager implements ICommunicationManager {
     this.gameState = gameState;
   }
 
-  // チャットシステム実装
-  async sendMessage(
-    fromId: string,
-    toId: string,
-    message: string,
-  ): Promise<boolean> {
-    const fromPlayer = this.gameState.players.find(
-      (player) => player.playerId === fromId,
-    );
-    const toPlayer = this.gameState.players.find(
-      (player) => player.playerId === toId,
-    );
-
-    if (
-      !fromPlayer ||
-      !toPlayer ||
-      !this.canCommunicate(fromPlayer.role, toPlayer.role)
-    ) {
-      return false;
-    }
-
-    this.loggerManager.logAction({
-      type: "chat",
-      playerId: fromId,
-      details: {
-        toId,
-        message,
-      },
-    });
-
-    this.addToHistory(fromId, `To ${toId}: ${message}`);
-    this.addToHistory(toId, `From ${fromId}: ${message}`);
-    return true;
-  }
-
-  async broadcastMessage(fromId: string, message: string): Promise<boolean> {
-    this.loggerManager.logAction({
-      type: "broadcast",
-      playerId: fromId,
-      details: { message },
-    });
-
-    for (const player of this.gameState.players) {
-      if (player.playerId !== fromId) {
-        this.addToHistory(
-          player.playerId,
-          `Broadcast from ${fromId}: ${message}`,
-        );
-      }
-    }
-
-    return true;
-  }
-
   async sendNPCMessage(
     npcId: string,
-    playerId: string,
+    player: Player,
     message: string,
   ): Promise<boolean> {
     this.loggerManager.logAction({
       type: MurderMysteryActions.TALK_TO_NPC,
-      playerId,
+      player,
       details: {
         npcId,
         message,
       },
     });
 
-    this.addToHistory(playerId, `NPC ${npcId}: ${message}`);
+    this.addToHistory(player, `NPC ${npcId}: ${message}`);
     return true;
   }
 
   // 情報共有機能実装
   async shareEvidence(
-    fromId: string,
-    toId: string,
+    from: Player,
+    to: Player,
     evidence: Evidence,
   ): Promise<boolean> {
-    if (!this.canShareEvidence(fromId, toId, evidence)) {
+    if (!this.canShareEvidence(from, to, evidence)) {
       return false;
     }
 
     this.loggerManager.logAction({
       type: MurderMysteryActions.EVIDENCE_SHARE,
-      playerId: fromId,
+      player: from,
       details: {
-        toId,
+        to,
         evidenceId: evidence.evidenceId,
       },
     });
@@ -118,12 +67,12 @@ export class CommunicationManager implements ICommunicationManager {
   }
 
   async shareInvestigationResult(
-    fromId: string,
+    from: Player,
     result: string,
   ): Promise<boolean> {
     this.loggerManager.logAction({
       type: MurderMysteryActions.ANALYZE_EVIDENCE,
-      playerId: fromId,
+      player: from,
       details: { result },
     });
 
@@ -131,13 +80,13 @@ export class CommunicationManager implements ICommunicationManager {
   }
 
   async shareAlibi(
-    playerId: string,
+    player: Player,
     alibi: string,
     timestamp: number,
   ): Promise<boolean> {
     this.loggerManager.logAction({
       type: MurderMysteryActions.CREATE_ALIBI,
-      playerId,
+      player,
       details: {
         alibi,
         timestamp,
@@ -153,75 +102,53 @@ export class CommunicationManager implements ICommunicationManager {
     this.votes.clear();
     this.voteCount.clear();
 
-    this.loggerManager.logAction({
-      type: MurderMysteryActions.PHASE_CHANGE,
-      playerId: "system",
-      details: {
-        phase: "voting",
-        status: "started",
-      },
-    });
-
     return true;
   }
 
-  async castVote(fromId: string, targetId: string): Promise<boolean> {
-    if (!this.canVote(fromId)) {
+  async castVote(from: Player, target: Player): Promise<boolean> {
+    if (!this.canVote(from)) {
       return false;
     }
 
-    this.votes.set(fromId, targetId);
-    const currentCount = this.voteCount.get(targetId) || 0;
-    this.voteCount.set(targetId, currentCount + 1);
+    this.votes.set(from, target);
+    const currentCount = this.voteCount.get(target) || 0;
+    this.voteCount.set(target, currentCount + 1);
 
     this.loggerManager.logAction({
       type: MurderMysteryActions.VOTE_CAST,
-      playerId: fromId,
+      player: from,
       details: {
-        targetId,
+        target,
       },
     });
 
     return true;
   }
 
-  async endVoting(): Promise<{ suspect: string; voteCount: number }> {
+  async endVoting(): Promise<{ suspect: Player | null; voteCount: number }> {
     this.isVotingPhase = false;
     let maxVotes = 0;
-    let suspect = "";
+    let suspect: Player | null = null;
 
-    this.voteCount.forEach((count, playerId) => {
+    this.voteCount.forEach((count, player) => {
       if (count > maxVotes) {
         maxVotes = count;
-        suspect = playerId;
+        suspect = player;
       }
-    });
-
-    this.loggerManager.logAction({
-      type: MurderMysteryActions.PHASE_CHANGE,
-      playerId: "system",
-      details: {
-        phase: "voting",
-        status: "ended",
-        result: {
-          suspect,
-          voteCount: maxVotes,
-        },
-      },
     });
 
     return { suspect, voteCount: maxVotes };
   }
 
   // アクセス制御実装
-  canCommunicate(fromRole: RoleType, toRole: RoleType): boolean {
+  canCommunicate(fromRole: Role, toRole: Role): boolean {
     // 探偵は誰とでも会話可能
-    if (fromRole === "detective") return true;
+    if (fromRole.name === "detective") return true;
 
     // 殺人者と共犯者は互いに会話可能
     if (
-      (fromRole === "killer" && toRole === "accomplice") ||
-      (fromRole === "accomplice" && toRole === "killer")
+      (fromRole.name === "killer" && toRole.name === "accomplice") ||
+      (fromRole.name === "accomplice" && toRole.name === "killer")
     ) {
       return true;
     }
@@ -230,12 +157,12 @@ export class CommunicationManager implements ICommunicationManager {
     return this.gameState.phase !== "investigation";
   }
 
-  canShareEvidence(fromId: string, toId: string, evidence: Evidence): boolean {
+  canShareEvidence(from: Player, to: Player, evidence: Evidence): boolean {
     const fromPlayer = this.gameState.players.find(
-      (player) => player.playerId === fromId,
+      (player) => player.player === from,
     );
     const toPlayer = this.gameState.players.find(
-      (player) => player.playerId === toId,
+      (player) => player.player === to,
     );
 
     if (!fromPlayer || !toPlayer) return false;
@@ -243,7 +170,10 @@ export class CommunicationManager implements ICommunicationManager {
       return false;
 
     // 探偵は常に証拠を共有可能
-    if (fromPlayer.role === "detective") return true;
+    const fromRole = Object.values(ROLES).find(
+      (role) => role.id === getScore("role", from),
+    );
+    if (fromRole?.name === "detective") return true;
 
     // フェーズによる制限
     return (
@@ -252,9 +182,13 @@ export class CommunicationManager implements ICommunicationManager {
     );
   }
 
-  canVote(playerId: string): boolean {
-    const player = this.gameState.players.find((p) => p.playerId === playerId);
-    if (!player || !this.isVotingPhase || player.hasVoted) return false;
+  canVote(player: Player): boolean {
+    if (
+      !player ||
+      !this.isVotingPhase
+      //  || player.hasVoted
+    )
+      return false;
     return true;
   }
 
@@ -263,18 +197,18 @@ export class CommunicationManager implements ICommunicationManager {
     return this.isVotingPhase;
   }
 
-  getVoteCount(playerId: string): number {
-    return this.voteCount.get(playerId) || 0;
+  getVoteCount(player: Player): number {
+    return this.voteCount.get(player) || 0;
   }
 
-  async getCommunicationHistory(playerId: string): Promise<string[]> {
-    return this.messageHistory.get(playerId) || [];
+  async getCommunicationHistory(player: Player): Promise<string[]> {
+    return this.messageHistory.get(player) || [];
   }
 
   // プライベートメソッド
-  private addToHistory(playerId: string, message: string): void {
-    const history = this.messageHistory.get(playerId) || [];
+  private addToHistory(player: Player, message: string): void {
+    const history = this.messageHistory.get(player) || [];
     history.push(`[${new Date().toISOString()}] ${message}`);
-    this.messageHistory.set(playerId, history);
+    this.messageHistory.set(player, history);
   }
 }

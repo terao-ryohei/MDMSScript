@@ -1,41 +1,29 @@
-import type { RoleType } from "../../types/AdvancedFeatureTypes";
+import type { Role } from "src/types/RoleTypes";
 import type { Evidence } from "../../types/EvidenceTypes";
+import type { Player } from "@minecraft/server";
 
 export interface ICommunicationManager {
-  // チャットシステム
-  sendMessage(fromId: string, toId: string, message: string): Promise<boolean>;
-  broadcastMessage(fromId: string, message: string): Promise<boolean>;
-  sendNPCMessage(
-    npcId: string,
-    playerId: string,
-    message: string,
-  ): Promise<boolean>;
-
   // 情報共有機能
-  shareEvidence(
-    fromId: string,
-    toId: string,
-    evidence: Evidence,
-  ): Promise<boolean>;
-  shareInvestigationResult(fromId: string, result: string): Promise<boolean>;
+  shareEvidence(from: Player, to: Player, evidence: Evidence): Promise<boolean>;
+  shareInvestigationResult(from: Player, result: string): Promise<boolean>;
   shareAlibi(
-    playerId: string,
+    player: Player,
     alibi: string,
     timestamp: number,
   ): Promise<boolean>;
 
   // 投票システム
   startVoting(): Promise<boolean>;
-  castVote(fromId: string, targetId: string): Promise<boolean>;
-  endVoting(): Promise<{ suspect: string; voteCount: number }>;
+  castVote(from: Player, target: Player): Promise<boolean>;
+  endVoting(): Promise<{ suspect: Player | null; voteCount: number }>;
 
   // アクセス制御
-  canCommunicate(fromRole: RoleType, toRole: RoleType): boolean;
-  canShareEvidence(fromId: string, toId: string, evidence: Evidence): boolean;
-  canVote(playerId: string): boolean;
+  canCommunicate(fromRole: Role, toRole: Role): boolean;
+  canShareEvidence(from: Player, to: Player, evidence: Evidence): boolean;
+  canVote(player: Player): boolean;
 
   // ステータス確認
   isVotingActive(): boolean;
-  getVoteCount(playerId: string): number;
-  getCommunicationHistory(playerId: string): Promise<string[]>;
+  getVoteCount(player: Player): number;
+  getCommunicationHistory(player: Player): Promise<string[]>;
 }

@@ -6,7 +6,10 @@ import { RoleUIManager } from "./managers/RoleUIManager";
 
 // GameManagerを最優先で初期化
 const gameManager = GameManager.getInstance();
-const roleUIManager = RoleUIManager.getInstance(gameManager);
+const roleUIManager = RoleUIManager.getInstance(
+  gameManager,
+  world.getAllPlayers(),
+);
 
 console.log("main initialized");
 
@@ -88,7 +91,7 @@ world.afterEvents.itemUse.subscribe(async (event: ItemUseAfterEvent) => {
   }
 
   if (itemStack.typeId === "minecraft:prismarine_shard") {
-    await roleUIManager.showRoleDetails(event.source.id);
+    await roleUIManager.showRoleDetails(event.source);
   }
 });
 

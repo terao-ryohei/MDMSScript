@@ -1,48 +1,34 @@
+import type { Player } from "@minecraft/server";
+import { system, world } from "@minecraft/server";
+import { GamePhase } from "src/constants/main";
 import { ActionLoggerModule } from "../../submodules/mc-action-logger/src/ActionLoggerModule";
+import { MainManager as ActionLoggerGameManager } from "../../submodules/mc-action-logger/src/managers/MainManager";
 import { PlayerActionLogManger } from "../../submodules/mc-action-logger/src/managers/PlayerActionLogManager";
 import type { ActionType as LoggerActionType } from "../../submodules/mc-action-logger/src/types/types"; // Renamed to avoid conflict
-import { RoleType } from "../types/AdvancedFeatureTypes";
 import type {
-  GameState,
   GameStartupConfig,
+  GameState,
+  PlayerState,
   StartupResult,
-  OccupationBalanceRules, // Added for occupationBalance initialization
-  PlayerState, // Added for getPlayerState
 } from "../types/GameTypes";
 import { EvidenceManager } from "./EvidenceManager";
-import { system, world } from "@minecraft/server";
-import type { IPhaseGameManager } from "./interfaces/IPhaseManager";
 import type { ILoggerManager } from "./interfaces/ILoggerManager";
-import { MainManager as ActionLoggerGameManager } from "../../submodules/mc-action-logger/src/managers/MainManager";
-import { TimerManager } from "./TimerManager";
+import type { IOccupationUIManager } from "./interfaces/IOccupationUIManager";
+import { OccupationAssignmentManager } from "./OccupationAssignmentManager";
+import { OccupationUIManager } from "./OccupationUIManager";
 import { PhaseManager } from "./PhaseManager";
-import { GamePhase } from "src/constants/main";
 import { RoleAssignmentManager } from "./RoleAssignmentManager";
-import type { IRoleUIManager } from "./interfaces/IRoleUIManager"; // Added
-import { RoleUIManager } from "./RoleUIManager"; // Added
-import type { IOccupationUIManager } from "./interfaces/IOccupationUIManager"; // Added
-import { OccupationUIManager } from "./OccupationUIManager"; // Added
-import type { IOccupationManager } from "./interfaces/IOccupationManager"; // Added
-import { OccupationManager } from "./OccupationManager"; // Added
-import type { IUICoordinator } from "../ui/interfaces/IUICoordinator"; // Added
-import { UICoordinator } from "../ui/UICoordinator"; // Added
-import { CommunicationManager } from "./CommunicationManager"; // Assuming this exists or will be added
-import { AdvancedFeaturesManager } from "./AdvancedFeaturesManager"; // Assuming this exists or will be added
-
-const GAME_TIME_SCALE = 72; // ゲーム内時間のスケール（1分の実時間 = 72分のゲーム内時間）
-
-type PhaseChangeHandler = (phase: GamePhase) => void;
-type PlayerHandler = (playerId: string) => void;
+import { RoleUIManager } from "./RoleUIManager";
+import { TimerManager } from "./TimerManager";
+import type { IGameManager } from "./interfaces/IGameManager";
+import { GAME_TIME_SCALE } from "src/constants/gameManager";
+import { ROLES } from "src/constants/abilities/RoleAbilities";
 
 /**
  * ゲームマネージャークラス
  * ゲーム全体の状態を管理し、各種マネージャーを統括します
  */
-export class GameManager implements IPhaseGameManager, ILoggerManager {
-  private phaseChangeHandlers: Set<PhaseChangeHandler> = new Set();
-  private playerJoinHandlers: Set<PlayerHandler> = new Set();
-  private playerLeaveHandlers: Set<PlayerHandler> = new Set();
-
+export class GameManager implements IGameManager, ILoggerManager {
   // チュートリアルの進行状態を管理
   private tutorialState: {
     shown: boolean;
@@ -63,15 +49,15 @@ export class GameManager implements IPhaseGameManager, ILoggerManager {
   private phaseManager: PhaseManager;
   private timerManager: TimerManager;
   private roleAssignmentManager: RoleAssignmentManager;
-  private roleUIManager: IRoleUIManager; // Changed type
-  private occupationUIManager: IOccupationUIManager; // Added
-  private occupationManager: IOccupationManager; // Added
-  private uiCoordinator: IUICoordinator; // Added
+  private roleUIManager: RoleUIManager;
+  private occupationUIManager: IOccupationUIManager;
+  private occupationManager: OccupationAssignmentManager;
   // private communicationManager: CommunicationManager; // Assuming this exists or will be added
   // private advancedFeaturesManager: AdvancedFeaturesManager; // Assuming this exists or will be added
 
   private constructor() {
     console.log("GameManager initialized");
+    const players = world.getAllPlayers();
     this.gameState = this.createInitialGameState();
     this.actionLogger = ActionLoggerModule.getInstance();
     this.logManager = new PlayerActionLogManger(
@@ -79,16 +65,17 @@ export class GameManager implements IPhaseGameManager, ILoggerManager {
     );
     this.evidenceManager = EvidenceManager.getInstance(this.gameState);
     this.timerManager = TimerManager.getInstance();
-    this.phaseManager = PhaseManager.create(this);
-    this.roleAssignmentManager = RoleAssignmentManager.getInstance(this);
-    this.roleUIManager = RoleUIManager.getInstance(this); // Initialize RoleUIManager
-    this.occupationManager = OccupationManager.getInstance(this); // Initialize OccupationManager
-    this.occupationUIManager = OccupationUIManager.getInstance(this); // Initialize OccupationUIManager
-    this.uiCoordinator = UICoordinator.getInstance(
+    this.phaseManager = PhaseManager.create();
+    this.roleAssignmentManager = RoleAssignmentManager.getInstance(
       this,
-      this.roleUIManager,
-      this.occupationUIManager,
-    ); // Initialize UICoordinator
+      players,
+    );
+    this.roleUIManager = RoleUIManager.getInstance(this, players);
+    this.occupationManager = OccupationAssignmentManager.getInstance(
+      this,
+      players,
+    );
+    this.occupationUIManager = OccupationUIManager.getInstance(this, players);
     this.actionLogger.initialize({
       gameTime: {
         initialTime: 0,
@@ -201,64 +188,14 @@ export class GameManager implements IPhaseGameManager, ILoggerManager {
         config.timeSettings.preparation,
       );
 
+      // 役職の割り当て
       await this.roleAssignmentManager.assignRoles();
       world.sendMessage("§a ROLES_ASSIGNED");
 
       // 職業の割り当て
-      const occupationAssignmentsResult =
-        await this.occupationManager.assignOccupations(
-          this.gameState.players,
-          config.occupationRules,
-          config.occupationBalance,
-        );
-
-      if (!occupationAssignmentsResult.success) {
-        const errorMessage = `職業割り当て失敗: ${occupationAssignmentsResult.error}`;
-        this.logSystemAction("ERROR", { error: errorMessage });
-        return {
-          success: false,
-          gameId: this.gameState.gameId,
-          startTime: 0,
-          initialPhase: GamePhase.PREPARATION,
-          error: errorMessage,
-        };
-      }
+      await this.occupationManager.assignOccupations();
       world.sendMessage("§a OCCUPATIONS_ASSIGNED");
 
-      // GameStateの更新 (職業割り当て結果を反映)
-      this.gameState = {
-        ...this.createInitialGameState(), // 基本的な初期化
-        startTime: system.currentTick,
-        isActive: true,
-        occupationRules: new Map(
-          Object.entries(config.occupationRules).map(([role, rules]) => [
-            role as RoleType,
-            {
-              allowedOccupations: rules.allowedOccupations,
-              forbiddenOccupations: rules.forbiddenOccupations,
-            },
-          ]),
-        ), // occupationRulesを保存
-        occupationBalance: config.occupationBalance, // occupationBalanceを保存
-      };
-
-      // プレイヤー状態に職業を反映
-      occupationAssignmentsResult.assignments.forEach(
-        (occupation, playerId) => {
-          const playerState = this.gameState.players.find(
-            (p) => p.playerId === playerId,
-          );
-          if (playerState) {
-            playerState.occupation = occupation;
-          }
-          this.gameState.occupations.set(playerId, occupation); // occupationsマップも更新
-        },
-      );
-
-      // UIの初期化
-      for (const player of this.gameState.players) {
-        await this.uiCoordinator.setupInitialUI(player.playerId);
-      }
       world.sendMessage("§a UI_INITIALIZED");
 
       // ゲームログの記録開始
@@ -267,7 +204,7 @@ export class GameManager implements IPhaseGameManager, ILoggerManager {
       return {
         success: true,
         gameId: this.gameState.gameId,
-        startTime: this.gameState.startTime,
+        startTime: system.currentTick,
         initialPhase: GamePhase.PREPARATION,
       };
     } catch (error) {
@@ -287,13 +224,13 @@ export class GameManager implements IPhaseGameManager, ILoggerManager {
 
   public logAction(data: {
     type: string;
-    playerId: string;
+    player: Player;
     details: unknown;
   }): void {
     if (this.logManager) {
       this.logManager.logSystemAction(data.type as LoggerActionType, {
         // Changed to LoggerActionType
-        playerId: data.playerId,
+        player: data.player,
         details: data.details,
       });
     }
@@ -313,13 +250,13 @@ export class GameManager implements IPhaseGameManager, ILoggerManager {
       startTime: 0,
       currentDay: 1,
       players: world.getPlayers().map((player) => ({
-        playerId: player.id,
+        player: player,
         inventory: [],
         collectedEvidence: [],
         isAlive: true,
         hasVoted: false,
         actionLog: [],
-        role: RoleType.CITIZEN, // 初期状態では全員が市民
+        role: ROLES.citizen,
         abilities: new Map(),
       })),
       evidenceList: [],
@@ -327,15 +264,6 @@ export class GameManager implements IPhaseGameManager, ILoggerManager {
       votes: new Map(),
       murderCommitted: false,
       investigationComplete: false,
-      // 職業関連の状態を初期化
-      occupations: new Map(),
-      occupationRules: new Map(),
-      occupationBalance: {
-        minOccupationDiversity: 1, // Default value, can be overridden by config
-        maxSameOccupation: 2, // Default value, can be overridden by config
-      } as OccupationBalanceRules,
-      occupationAbilities: new Map(),
-      occupationInteractions: new Map(),
     };
   }
 
@@ -345,11 +273,11 @@ export class GameManager implements IPhaseGameManager, ILoggerManager {
 
   /**
    * 指定したプレイヤーの状態を取得するのだ
-   * @param playerId プレイヤーID
+   * @param player プレイヤーID
    * @returns プレイヤーの状態、見つからない場合はundefined
    */
-  public getPlayerState(playerId: string): PlayerState | undefined {
-    return this.gameState.players.find((p) => p.playerId === playerId);
+  public getPlayerState(player: Player): PlayerState | undefined {
+    return this.gameState.players.find((p) => p.player === player);
   }
 
   public dispose(): void {

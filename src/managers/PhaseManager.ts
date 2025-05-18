@@ -1,12 +1,13 @@
 import { system, world } from "@minecraft/server";
-import { MurderMysteryActions } from "../types/ActionTypes";
-import type { ExtendedActionType } from "../types/ActionTypes";
-import type {
-  IPhaseGameManager,
-  IPhaseRestrictions,
-} from "./interfaces/IPhaseManager";
-import { TimerManager } from "./TimerManager";
 import { GamePhase, PHASE_NAMES } from "src/constants/main";
+import {
+  PHASE_RESTRICTIONS,
+  VALID_PHASE_TRANSITIONS,
+} from "src/constants/phaseManger";
+import { handleError } from "src/utils/errorHandle";
+import type { ExtendedActionType } from "../types/ActionTypes";
+import type { IPhaseManager } from "./interfaces/IPhaseManager";
+import { TimerManager } from "./TimerManager";
 
 /**
  * フェーズマネージャーのエラー型
@@ -22,113 +23,16 @@ class PhaseManagerError extends Error {
 }
 
 /**
- * フェーズ遷移の定義
- */
-const VALID_PHASE_TRANSITIONS: Record<GamePhase, GamePhase[]> = {
-  [GamePhase.PREPARATION]: [GamePhase.DAILY_LIFE],
-  [GamePhase.DAILY_LIFE]: [GamePhase.INVESTIGATION],
-  [GamePhase.INVESTIGATION]: [GamePhase.DISCUSSION],
-  [GamePhase.DISCUSSION]: [GamePhase.PRIVATE_TALK],
-  [GamePhase.PRIVATE_TALK]: [GamePhase.FINAL_MEETING],
-  [GamePhase.FINAL_MEETING]: [GamePhase.REASONING],
-  [GamePhase.REASONING]: [GamePhase.VOTING],
-  [GamePhase.VOTING]: [GamePhase.ENDING],
-  [GamePhase.ENDING]: [],
-};
-
-/**
  * フェーズマネージャークラス
  * ゲームの各フェーズを管理し、フェーズごとの制限を適用します
  */
-export class PhaseManager {
+export class PhaseManager implements IPhaseManager {
   private static instance: PhaseManager | null = null;
   private currentPhase: GamePhase;
   private phaseStartTime: number;
   private timerManager: TimerManager;
 
-  private readonly phaseRestrictions: Record<GamePhase, IPhaseRestrictions> = {
-    [GamePhase.PREPARATION]: {
-      allowedActions: [MurderMysteryActions.TALK_TO_NPC],
-      canVote: false,
-      canCollectEvidence: false,
-      canChat: true,
-    },
-    [GamePhase.DAILY_LIFE]: {
-      allowedActions: [
-        MurderMysteryActions.TALK_TO_NPC,
-        MurderMysteryActions.COLLECT_EVIDENCE,
-        MurderMysteryActions.PERFORM_MURDER,
-        MurderMysteryActions.CREATE_ALIBI,
-      ],
-      canVote: false,
-      canCollectEvidence: true,
-      canChat: true,
-    },
-    [GamePhase.INVESTIGATION]: {
-      allowedActions: [
-        MurderMysteryActions.INVESTIGATE_SCENE,
-        MurderMysteryActions.COLLECT_EVIDENCE,
-        MurderMysteryActions.ANALYZE_EVIDENCE,
-        MurderMysteryActions.TALK_TO_NPC,
-      ],
-      canVote: false,
-      canCollectEvidence: true,
-      canChat: true,
-    },
-    [GamePhase.DISCUSSION]: {
-      allowedActions: [
-        MurderMysteryActions.EVIDENCE_SHARE,
-        MurderMysteryActions.TALK_TO_NPC,
-      ],
-      canVote: false,
-      canCollectEvidence: false,
-      canChat: true,
-    },
-    [GamePhase.PRIVATE_TALK]: {
-      allowedActions: [
-        MurderMysteryActions.INVESTIGATE_SCENE,
-        MurderMysteryActions.COLLECT_EVIDENCE,
-        MurderMysteryActions.ANALYZE_EVIDENCE,
-        MurderMysteryActions.TALK_TO_NPC,
-      ],
-      canVote: false,
-      canCollectEvidence: true,
-      canChat: true,
-    },
-    [GamePhase.FINAL_MEETING]: {
-      allowedActions: [
-        MurderMysteryActions.EVIDENCE_SHARE,
-        MurderMysteryActions.TALK_TO_NPC,
-      ],
-      canVote: false,
-      canCollectEvidence: false,
-      canChat: true,
-    },
-    [GamePhase.REASONING]: {
-      allowedActions: [
-        MurderMysteryActions.EVIDENCE_SHARE,
-        MurderMysteryActions.TALK_TO_NPC,
-        MurderMysteryActions.PRESENT_EVIDENCE,
-      ],
-      canVote: false,
-      canCollectEvidence: false,
-      canChat: true,
-    },
-    [GamePhase.VOTING]: {
-      allowedActions: [MurderMysteryActions.VOTE_CAST],
-      canVote: true,
-      canCollectEvidence: false,
-      canChat: false,
-    },
-    [GamePhase.ENDING]: {
-      allowedActions: [MurderMysteryActions.TALK_TO_NPC],
-      canVote: false,
-      canCollectEvidence: false,
-      canChat: true,
-    },
-  };
-
-  private constructor(private readonly gameManager: IPhaseGameManager) {
+  private constructor() {
     this.currentPhase = GamePhase.PREPARATION;
     this.phaseStartTime = system.currentTick;
     this.timerManager = TimerManager.getInstance();
@@ -137,9 +41,9 @@ export class PhaseManager {
   /**
    * インスタンスの作成
    */
-  public static create(gameManager: IPhaseGameManager): PhaseManager {
+  public static create(): PhaseManager {
     if (!PhaseManager.instance) {
-      PhaseManager.instance = new PhaseManager(gameManager);
+      PhaseManager.instance = new PhaseManager();
     }
     return PhaseManager.instance;
   }
@@ -154,7 +58,7 @@ export class PhaseManager {
   /**
    * フェーズの開始
    */
-  public startPhase(phase: GamePhase, duration: number): void {
+  public async startPhase(phase: GamePhase, duration: number): Promise<void> {
     try {
       // // フェーズ遷移の検証
       // if (!this.validatePhaseTransition(phase)) {
@@ -188,21 +92,8 @@ export class PhaseManager {
       this.currentPhase = phase;
       this.phaseStartTime = system.currentTick;
 
-      // フェーズ開始イベントをログに記録
-      this.gameManager.logSystemAction(MurderMysteryActions.PHASE_CHANGE, {
-        oldPhase,
-        newPhase: phase,
-        startTime: this.phaseStartTime,
-        duration,
-        transitionNumber: VALID_PHASE_TRANSITIONS[oldPhase].length,
-        totalPhases: Object.keys(VALID_PHASE_TRANSITIONS).length - 1,
-      });
-
       // タイマーの開始（遷移後に実行）
       this.timerManager.startTimer(phase, duration);
-
-      // フェーズ変更通知
-      this.notifyPhaseChange(oldPhase, phase);
 
       // フェーズ開始メッセージの送信
       const currentPhaseNumber = VALID_PHASE_TRANSITIONS[oldPhase].length;
@@ -211,64 +102,9 @@ export class PhaseManager {
         `§e${currentPhaseNumber}/${totalPhases}フェーズ目: ${PHASE_NAMES[phase]}フェーズが開始されました（制限時間: ${duration}秒）`,
       );
     } catch (error) {
-      const message =
-        error instanceof Error ? error.message : "不明なエラーが発生しました";
-      world.sendMessage(`§cエラー: ${message}`);
-      this.gameManager.logSystemAction("ERROR", { error: message });
-      throw error;
-    }
-  }
-
-  /**
-   * フェーズタイムアウト時の処理
-   */
-  private onPhaseTimeout(): void {
-    try {
-      const currentPhase = this.currentPhase;
-      const nextPhases = VALID_PHASE_TRANSITIONS[currentPhase];
-
-      // タイムアウト時のクリーンアップを確実に実行
-      this.cleanupPhaseResources();
-
-      const event = {
-        type: "phase_timeout",
-        phase: currentPhase,
-        endTime: system.currentTick,
-        nextPhase: nextPhases.length > 0 ? nextPhases[0] : null,
-        elapsedTime: this.getElapsedTime(),
-      };
-
-      this.gameManager.logSystemAction("PHASE_TIMEOUT", event);
-      world.sendMessage(`§e${PHASE_NAMES[currentPhase]}フェーズが終了しました`);
-
-      // 次のフェーズが存在する場合は自動遷移（遅延付き）
-      if (nextPhases.length > 0) {
-        system.runTimeout(() => {
-          try {
-            this.startPhase(
-              nextPhases[0],
-              this.getDefaultDuration(nextPhases[0]),
-            );
-          } catch (error) {
-            console.error("次フェーズへの遷移中にエラーが発生しました:", error);
-            this.gameManager.logSystemAction("ERROR", {
-              error:
-                error instanceof Error
-                  ? error.message
-                  : "不明なエラーが発生しました",
-              phase: currentPhase,
-              nextPhase: nextPhases[0],
-            });
-          }
-        }, 20); // 1秒の遅延を設定
+      if (error instanceof Error) {
+        await handleError(error);
       }
-    } catch (error) {
-      const message =
-        error instanceof Error
-          ? error.message
-          : "タイムアウト処理中にエラーが発生しました";
-      world.sendMessage(`§cエラー: ${message}`);
-      this.gameManager.logSystemAction("ERROR", { error: message });
     }
   }
 
@@ -276,7 +112,7 @@ export class PhaseManager {
    * アクションが現在のフェーズで許可されているかチェック
    */
   public isActionAllowed(action: ExtendedActionType): boolean {
-    const restrictions = this.phaseRestrictions[this.currentPhase];
+    const restrictions = PHASE_RESTRICTIONS[this.currentPhase];
     return restrictions.allowedActions.includes(action);
   }
 
@@ -284,21 +120,21 @@ export class PhaseManager {
    * 投票が許可されているかチェック
    */
   public canVote(): boolean {
-    return this.phaseRestrictions[this.currentPhase].canVote;
+    return PHASE_RESTRICTIONS[this.currentPhase].canVote;
   }
 
   /**
    * 証拠収集が許可されているかチェック
    */
   public canCollectEvidence(): boolean {
-    return this.phaseRestrictions[this.currentPhase].canCollectEvidence;
+    return PHASE_RESTRICTIONS[this.currentPhase].canCollectEvidence;
   }
 
   /**
    * チャットが許可されているかチェック
    */
   public canChat(): boolean {
-    return this.phaseRestrictions[this.currentPhase].canChat;
+    return PHASE_RESTRICTIONS[this.currentPhase].canChat;
   }
 
   /**
@@ -311,27 +147,16 @@ export class PhaseManager {
   /**
    * リソースの解放
    */
-  public dispose(): void {
+  public async dispose(): Promise<void> {
     try {
       this.cleanupPhaseResources();
       this.timerManager.dispose();
       PhaseManager.instance = null;
     } catch (error) {
-      const message =
-        error instanceof Error
-          ? error.message
-          : "リソース解放中にエラーが発生しました";
-      this.gameManager.logSystemAction("ERROR", { error: message });
+      if (error instanceof Error) {
+        await handleError(error);
+      }
     }
-  }
-
-  /**
-   * フェーズ遷移の検証
-   */
-  private validatePhaseTransition(newPhase: GamePhase): boolean {
-    if (this.currentPhase === newPhase) return false;
-    const validNextPhases = VALID_PHASE_TRANSITIONS[this.currentPhase];
-    return validNextPhases.includes(newPhase);
   }
 
   /**
@@ -341,19 +166,6 @@ export class PhaseManager {
     // 現在のフェーズに関連するリソースをクリーンアップ
     this.timerManager.stopTimer();
     // その他のクリーンアップ処理をここに追加
-  }
-
-  /**
-   * フェーズ変更の通知
-   */
-  private notifyPhaseChange(oldPhase: GamePhase, newPhase: GamePhase): void {
-    const event = {
-      type: "phase_change",
-      oldPhase,
-      newPhase,
-      timestamp: system.currentTick,
-    };
-    this.gameManager.logSystemAction("PHASE_NOTIFICATION", event);
   }
 
   /**

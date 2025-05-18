@@ -1,7 +1,7 @@
-import type { Evidence } from "./EvidenceTypes";
-import type { RoleType } from "./AdvancedFeatureTypes";
+import type { Player } from "@minecraft/server";
 import type { GamePhase } from "src/constants/main";
-import type { OccupationType } from "./OccupationTypes";
+import type { Evidence } from "./EvidenceTypes";
+import type { RoleName } from "./RoleTypes";
 
 /**
  * 能力の状態を表すインターフェース
@@ -9,7 +9,7 @@ import type { OccupationType } from "./OccupationTypes";
 export interface AbilityState {
   id: string;
   source: "role" | "occupation";
-  cooldown: number;
+  coolDown: number;
   remainingUses: number;
   lastUsedTime: number;
 }
@@ -18,15 +18,11 @@ export interface AbilityState {
  * プレイヤー状態を表すインターフェース
  */
 export interface PlayerState {
-  playerId: string;
-  role: RoleType;
-  occupation?: OccupationType;
-  inventory: string[];
+  player: Player;
   collectedEvidence: string[];
   isAlive: boolean;
   hasVoted: boolean;
   actionLog: string[];
-  abilities: Map<string, AbilityState>;
 }
 
 /**
@@ -45,18 +41,6 @@ export interface GameState {
   murderCommitted: boolean;
   investigationComplete: boolean;
   murderTime?: number; // 殺人が発生した時刻
-  // 職業関連の状態
-  occupations: Map<string, OccupationType>;
-  occupationRules: Map<
-    RoleType,
-    {
-      allowedOccupations: OccupationType[];
-      forbiddenOccupations: OccupationType[];
-    }
-  >;
-  occupationBalance: OccupationBalanceRules;
-  occupationAbilities: Map<string, AbilityState[]>;
-  occupationInteractions: Map<string, Set<string>>; // プレイヤー間の職業による相互作用を記録
 }
 
 /**
@@ -83,25 +67,6 @@ interface EvidenceSettings {
 }
 
 /**
- * 職業の割り当てルールを表すインターフェース
- */
-export type OccupationRules = Record<
-  RoleType,
-  {
-    allowedOccupations: OccupationType[];
-    forbiddenOccupations: OccupationType[];
-  }
->;
-
-/**
- * 職業のバランスルールを表すインターフェース
- */
-export interface OccupationBalanceRules {
-  minOccupationDiversity: number;
-  maxSameOccupation: number;
-}
-
-/**
  * ゲーム設定を表すインターフェース
  */
 export interface GameConfig {
@@ -109,9 +74,7 @@ export interface GameConfig {
   minPlayers: number;
   phaseTimings: PhaseTimings;
   evidenceSettings: EvidenceSettings;
-  roleDistribution: Record<RoleType, number>;
-  occupationRules: OccupationRules;
-  occupationBalance: OccupationBalanceRules; // 既に追加済みのため変更なし
+  roleDistribution: Record<RoleName, number>;
 }
 
 /**
@@ -120,10 +83,6 @@ export interface GameConfig {
 export interface GameStartupConfig {
   playerCount: number;
   timeSettings: PhaseTimings;
-  evidenceSettings: EvidenceSettings;
-  roleDistribution: Record<RoleType, number>;
-  occupationRules: OccupationRules;
-  occupationBalance: OccupationBalanceRules;
 }
 
 /**

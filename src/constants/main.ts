@@ -1,4 +1,4 @@
-import { OccupationType } from "../types/OccupationTypes";
+import { OccupationName } from "../types/OccupationTypes";
 
 // ゲーム開始設定
 export const DEFAULT_CONFIG = {
@@ -27,23 +27,23 @@ export const DEFAULT_CONFIG = {
   },
   occupationRules: {
     detective: {
-      allowedOccupations: [OccupationType.GUARD, OccupationType.PRIEST],
-      forbiddenOccupations: [OccupationType.PRISONER],
+      allowedOccupations: [OccupationName.GUARD, OccupationName.PRIEST],
+      forbiddenOccupations: [OccupationName.PRISONER],
     },
     killer: {
-      allowedOccupations: [OccupationType.PRISONER],
-      forbiddenOccupations: [OccupationType.GUARD, OccupationType.PRIEST],
+      allowedOccupations: [OccupationName.PRISONER],
+      forbiddenOccupations: [OccupationName.GUARD, OccupationName.PRIEST],
     },
     accomplice: {
-      allowedOccupations: [OccupationType.MERCHANT, OccupationType.PRISONER],
-      forbiddenOccupations: [OccupationType.GUARD],
+      allowedOccupations: [OccupationName.MERCHANT, OccupationName.PRISONER],
+      forbiddenOccupations: [OccupationName.GUARD],
     },
     citizen: {
       allowedOccupations: [
-        OccupationType.GUARD,
-        OccupationType.MERCHANT,
-        OccupationType.PRIEST,
-        OccupationType.PRISONER,
+        OccupationName.GUARD,
+        OccupationName.MERCHANT,
+        OccupationName.PRIEST,
+        OccupationName.PRISONER,
       ],
       forbiddenOccupations: [],
     },

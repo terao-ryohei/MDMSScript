@@ -1,3 +1,5 @@
+import type { Player } from "@minecraft/server";
+
 /**
  * 証拠の種類を表すenum
  */
@@ -17,7 +19,7 @@ export interface Evidence {
   evidenceId: string;
   type: EvidenceType;
   description: string;
-  discoveredBy: string;
+  discoveredBy: Player;
   discoveryTime: number;
   location: {
     x: number;
@@ -27,7 +29,7 @@ export interface Evidence {
   };
   reliability: number;
   isVerified: boolean;
-  relatedPlayers: string[];
+  relatedPlayers: Player[];
   linkedEvidence: string[];
   validate(): boolean;
 }

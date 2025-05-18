@@ -1,4 +1,4 @@
-import type { RoleType } from "../../types/AdvancedFeatureTypes";
+import type { Role } from "src/types/RoleTypes";
 import type { Evidence } from "../../types/EvidenceTypes";
 
 /**
@@ -25,7 +25,7 @@ export interface IEvidenceAnalyzer {
    * @param role 分析対象の役職
    * @returns 関連性スコア（0-100）
    */
-  analyzeRoleRelevance(evidence: Evidence, role: RoleType): Promise<number>;
+  analyzeRoleRelevance(evidence: Evidence, role: Role): Promise<number>;
 
   /**
    * 複数の証拠間の整合性を検証
@@ -59,7 +59,7 @@ export interface IEvidenceAnalyzer {
     context: {
       phase: string;
       discoveredEvidence: Evidence[];
-      suspectRoles: RoleType[];
+      suspectRoles: Role[];
     },
   ): Promise<number>;
 }

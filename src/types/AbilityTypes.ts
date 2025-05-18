@@ -1,11 +1,11 @@
-import type { AbilityTarget, AbilityTargetType } from "./AdvancedFeatureTypes";
+import type { Player } from "@minecraft/server";
 
 /**
  * 能力の要件を定義するインターフェース
  */
 export interface AbilityRequirement {
   // 能力使用に必要なクールダウン時間（秒）
-  cooldownTime: number;
+  coolDownTime: number;
   // 能力使用に必要なアイテム（オプション）
   requiredItems?: string[];
   // 能力使用に必要な状態（生存中、死亡済みなど）
@@ -37,10 +37,9 @@ export interface BaseAbility {
   id: string;
   name: string;
   description: string;
-  coolDown: number;
   requirements: AbilityRequirement;
   effect: AbilityEffect;
-  targetType: AbilityTargetType;
   remainingUses: number;
-  useAbility(target: AbilityTarget): Promise<boolean>;
+  target: "player" | "location" | "evidence";
+  useAbility(target: Player | string): Promise<boolean>;
 }

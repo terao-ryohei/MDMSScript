@@ -1,15 +1,11 @@
 import type { BaseAbility } from "./AbilityTypes";
-import type { OccupationType } from "./OccupationEnum";
-export { OccupationType } from "./OccupationEnum";
 
-// 職業の能力
-export interface OccupationAbility extends BaseAbility {}
-
-// 職業の詳細情報
-export interface OccupationDetails {
-  name: string;
-  description: string;
-  abilities: OccupationAbility[];
+// 職業の種類
+export enum OccupationName {
+  GUARD = "guard",
+  PRIEST = "priest",
+  MERCHANT = "merchant",
+  PRISONER = "prisoner",
 }
 
 // 職業のUI状態
@@ -18,7 +14,6 @@ export interface OccupationUIState {
   targetPlayerId: string | null;
   showDetails: boolean;
   notifications: OccupationNotification[];
-  cooldowns: Map<string, number>;
   activeAbility: string | null;
 }
 
@@ -38,4 +33,22 @@ export interface OccupationNotification {
   timestamp: number;
   duration?: number;
   priority?: "low" | "medium" | "high";
+}
+
+// 職業の詳細情報
+export interface Occupation {
+  id: number;
+  name: string;
+  description: string;
+  objective: string;
+  winCondition: string;
+  abilities: BaseAbility[];
+}
+
+// プレイヤー数による職業制限
+export interface OccupationDistributionRule {
+  playerRange: [number, number];
+  distribution: {
+    [key: string]: number;
+  };
 }

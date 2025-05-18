@@ -2,13 +2,6 @@ import type { GamePhase } from "src/constants/main";
 import type { ExtendedActionType } from "../../types/ActionTypes";
 
 /**
- * PhaseManagerが必要とするGameManagerのインターフェース
- */
-export interface IPhaseGameManager {
-  logSystemAction(type: string, details: unknown): void;
-}
-
-/**
  * ゲームのフェーズ管理を担当するインターフェース
  * フェーズの状態管理、遷移制御、および各フェーズでの制限事項を管理します
  */
@@ -24,7 +17,7 @@ export interface IPhaseManager {
    * @param phase 開始するフェーズ
    * @param duration フェーズの制限時間（秒）
    */
-  startPhase(phase: GamePhase, duration: number): void;
+  startPhase(phase: GamePhase, duration: number): Promise<void>;
 
   /**
    * 指定されたアクションが現在のフェーズで許可されているかを判定
@@ -61,16 +54,5 @@ export interface IPhaseManager {
    * PhaseManagerのリソースを解放
    * タイマーやイベントリスナーなどのクリーンアップを行います
    */
-  dispose(): void;
-}
-
-/**
- * フェーズごとの制限事項を定義
- */
-export interface IPhaseRestrictions {
-  allowedActions: ExtendedActionType[];
-  allowedAreas?: { x: number; y: number; z: number; radius: number }[];
-  canVote: boolean;
-  canCollectEvidence: boolean;
-  canChat: boolean;
+  dispose(): Promise<void>;
 }
