@@ -1,18 +1,6 @@
 import type { Player } from "@minecraft/server";
-import type { GamePhase } from "src/constants/main";
 import type { Evidence } from "./EvidenceTypes";
-import type { RoleName } from "./RoleTypes";
-
-/**
- * 能力の状態を表すインターフェース
- */
-export interface AbilityState {
-  id: string;
-  source: "role" | "occupation";
-  coolDown: number;
-  remainingUses: number;
-  lastUsedTime: number;
-}
+import type { GamePhase, Phase } from "./PhaseType";
 
 /**
  * プレイヤー状態を表すインターフェース
@@ -44,45 +32,10 @@ export interface GameState {
 }
 
 /**
- * フェーズごとのタイミング設定を表すインターフェース
- */
-interface PhaseTimings {
-  preparation: number; // 準備フェーズの制限時間
-  dailyLife: number; // 日常生活フェーズの制限時間
-  investigation: number; // 調査フェーズの制限時間
-  discussion: number; // 会議フェーズの制限時間
-  privateTalk: number; // 密談フェーズの制限時間
-  finalMeeting: number; // 最終会議フェーズの制限時間
-  reasoning: number; // 推理披露フェーズの制限時間
-  voting: number; // 投票フェーズの制限時間
-}
-
-/**
- * 証拠関連の設定を表すインターフェース
- */
-interface EvidenceSettings {
-  maxPhysicalEvidence: number;
-  maxTestimonies: number;
-  reliabilityThreshold: number;
-}
-
-/**
- * ゲーム設定を表すインターフェース
- */
-export interface GameConfig {
-  maxPlayers: number;
-  minPlayers: number;
-  phaseTimings: PhaseTimings;
-  evidenceSettings: EvidenceSettings;
-  roleDistribution: Record<RoleName, number>;
-}
-
-/**
  * ゲーム開始設定を表すインターフェース
  */
 export interface GameStartupConfig {
   playerCount: number;
-  timeSettings: PhaseTimings;
 }
 
 /**
@@ -92,6 +45,6 @@ export interface StartupResult {
   success: boolean;
   gameId: string;
   startTime: number;
-  initialPhase: GamePhase;
+  initialPhase: Phase;
   error?: string;
 }

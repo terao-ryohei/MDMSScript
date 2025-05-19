@@ -1,6 +1,5 @@
 import type { Player } from "@minecraft/server";
 import { system, world } from "@minecraft/server";
-import { GamePhase } from "src/constants/main";
 import { ActionLoggerModule } from "../../submodules/mc-action-logger/src/ActionLoggerModule";
 import { MainManager as ActionLoggerGameManager } from "../../submodules/mc-action-logger/src/managers/MainManager";
 import { PlayerActionLogManger } from "../../submodules/mc-action-logger/src/managers/PlayerActionLogManager";
@@ -23,6 +22,8 @@ import { TimerManager } from "./TimerManager";
 import type { IGameManager } from "./interfaces/IGameManager";
 import { GAME_TIME_SCALE } from "src/constants/gameManager";
 import { ROLES } from "src/constants/abilities/RoleAbilities";
+import { GamePhase } from "src/types/PhaseType";
+import { PHASES } from "src/constants/phaseManger";
 
 /**
  * ゲームマネージャークラス
@@ -65,7 +66,7 @@ export class GameManager implements IGameManager, ILoggerManager {
     );
     this.evidenceManager = EvidenceManager.getInstance(this.gameState);
     this.timerManager = TimerManager.getInstance();
-    this.phaseManager = PhaseManager.create();
+    this.phaseManager = PhaseManager.getInstance();
     this.roleAssignmentManager = RoleAssignmentManager.getInstance(
       this,
       players,
@@ -107,7 +108,7 @@ export class GameManager implements IGameManager, ILoggerManager {
       }
 
       // タイトルの表示
-      world.sendMessage("§l§6=== マーダーミステリー チュートリアル ===§r");
+      world.sendMessage("§l§6=== マイクラマーダーミステリー 説明 ===§r");
 
       // ページごとのコンテンツを表示
       const pages = [
@@ -148,7 +149,7 @@ export class GameManager implements IGameManager, ILoggerManager {
         error instanceof Error
           ? error.message
           : "チュートリアル表示中にエラーが発生しました";
-      this.logSystemAction("TUTORIAL_ERROR", { error: message });
+      console.error(message, "チュートリアルの表示に失敗しました");
       return false;
     }
   }
@@ -172,21 +173,14 @@ export class GameManager implements IGameManager, ILoggerManager {
       //   };
       // }
 
-      this.actionLogger.start();
-      world.sendMessage("§a ACTION_LOGGER_STARTED");
+      const initialPhase = PHASES.preparation;
 
       // タイマーの初期化
-      this.timerManager.startTimer(
-        GamePhase.PREPARATION,
-        config.timeSettings.preparation,
-      );
+      this.timerManager.startTimer(initialPhase);
       world.sendMessage("§a TIMER_INITIALIZED");
 
       // フェーズの初期化
-      this.phaseManager.startPhase(
-        GamePhase.PREPARATION,
-        config.timeSettings.preparation,
-      );
+      this.phaseManager.startPhase(initialPhase);
 
       // 役職の割り当て
       await this.roleAssignmentManager.assignRoles();
@@ -196,32 +190,30 @@ export class GameManager implements IGameManager, ILoggerManager {
       await this.occupationManager.assignOccupations();
       world.sendMessage("§a OCCUPATIONS_ASSIGNED");
 
-      world.sendMessage("§a UI_INITIALIZED");
-
-      // ゲームログの記録開始
-      this.logSystemAction("GAME_START", { config });
-
       return {
         success: true,
         gameId: this.gameState.gameId,
         startTime: system.currentTick,
-        initialPhase: GamePhase.PREPARATION,
+        initialPhase,
       };
     } catch (error) {
       this.actionLogger.stop();
       const message =
         error instanceof Error ? error.message : "不明なエラーが発生しました";
-      this.logSystemAction("ERROR", { error: message });
       return {
         success: false,
         gameId: this.gameState.gameId,
         startTime: 0,
-        initialPhase: GamePhase.PREPARATION,
+        initialPhase: PHASES.preparation,
         error: message,
       };
     }
   }
 
+  /**
+   * ゲームの状態を更新する
+   * @param newState 新しいゲーム状態
+   */
   public logAction(data: {
     type: string;
     player: Player;
@@ -236,6 +228,11 @@ export class GameManager implements IGameManager, ILoggerManager {
     }
   }
 
+  /**
+   * システムアクションをログに記録する
+   * @param type アクションの種類
+   * @param details アクションの詳細
+   */
   public logSystemAction(type: string, details: unknown): void {
     if (this.logManager) {
       this.logManager.logSystemAction(type as LoggerActionType, details); // Changed to LoggerActionType

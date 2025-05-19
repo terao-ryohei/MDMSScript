@@ -96,7 +96,7 @@ const PRISONER_ABILITIES: BaseAbility[] = [
 // 職業詳細の作成関数
 export const OCCUPATIONS: Record<OccupationName, Occupation> = {
   [OccupationName.GUARD]: {
-    id: 1,
+    id: 0,
     name: "看守",
     description: "囚人を監視し、秩序を維持する重要な役割なのだ",
     objective: "囚人の脱走を防ぐのだ",
@@ -104,7 +104,7 @@ export const OCCUPATIONS: Record<OccupationName, Occupation> = {
     abilities: GUARD_ABILITIES,
   },
   [OccupationName.PRIEST]: {
-    id: 2,
+    id: 1,
     name: "神父",
     description: "囚人の心の救済と更生を支援する存在なのだ",
     objective: "囚人の心を癒すのだ",
@@ -112,7 +112,7 @@ export const OCCUPATIONS: Record<OccupationName, Occupation> = {
     abilities: PRIEST_ABILITIES,
   },
   [OccupationName.MERCHANT]: {
-    id: 3,
+    id: 2,
     name: "商人",
     description: "刑務所内での物資の取引を担当するのだ",
     objective: "物資を適切に管理するのだ",
@@ -120,7 +120,7 @@ export const OCCUPATIONS: Record<OccupationName, Occupation> = {
     abilities: MERCHANT_ABILITIES,
   },
   [OccupationName.PRISONER]: {
-    id: 4,
+    id: 3,
     name: "囚人",
     description: "刑務所に収容されている存在なのだ",
     objective: "脱走を試みるのだ",

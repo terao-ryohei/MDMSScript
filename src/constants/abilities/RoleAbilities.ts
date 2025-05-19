@@ -96,7 +96,7 @@ const CITIZEN_ABILITIES: BaseAbility[] = [
 // 役割詳細の定義
 export const ROLES: Record<RoleName, Role> = {
   [RoleName.DETECTIVE]: {
-    id: 1,
+    id: 0,
     name: "探偵",
     description: "真実を追求する者なのだ",
     objective: "真犯人を見つけ出すのだ",
@@ -104,7 +104,7 @@ export const ROLES: Record<RoleName, Role> = {
     abilities: DETECTIVE_ABILITIES,
   },
   [RoleName.KILLER]: {
-    id: 2,
+    id: 1,
     name: "殺人者",
     description: "闇に潜む者なのだ",
     objective: "罪を逃れるのだ",
@@ -112,7 +112,7 @@ export const ROLES: Record<RoleName, Role> = {
     abilities: KILLER_ABILITIES,
   },
   [RoleName.ACCOMPLICE]: {
-    id: 3,
+    id: 2,
     name: "共犯者",
     description: "殺人者を支援する者なのだ",
     objective: "殺人者を助けるのだ",
@@ -120,7 +120,7 @@ export const ROLES: Record<RoleName, Role> = {
     abilities: ACCOMPLICE_ABILITIES,
   },
   [RoleName.CITIZEN]: {
-    id: 4,
+    id: 3,
     name: "市民",
     description: "正義のために戦う者なのだ",
     objective: "真犯人を見つけ出すのだ",

@@ -1,7 +1,9 @@
 import { system, world } from "@minecraft/server";
-import type { TimerDisplay } from "src/types/TimerTypes";
+import { PHASES } from "src/constants/phaseManger";
 import { WARNING_CONFIG } from "src/constants/timeManager";
-import { GamePhase, PHASE_NAMES } from "src/constants/main";
+import { GamePhase, type Phase } from "src/types/PhaseType";
+import type { TimerDisplay } from "src/types/TimerTypes";
+import { PhaseManager } from "./PhaseManager";
 
 /**
  * タイマーマネージャークラス
@@ -12,13 +14,15 @@ export class TimerManager {
   private currentTimer: number | undefined;
   private startTime = 0;
   private duration = 0;
-  private currentPhase = GamePhase.PREPARATION;
+  private currentPhase = PHASES.preparation;
   private updateCallback: number | undefined;
   private warningCallback: number | undefined;
   private warningShown = false;
   private isBlinking = false;
+  private phaseManager: PhaseManager;
 
   private constructor() {
+    this.phaseManager = PhaseManager.getInstance();
     // 1秒ごとの表示更新を設定（より正確な間隔で）
     this.updateCallback = system.runInterval(() => {
       try {
@@ -43,10 +47,8 @@ export class TimerManager {
   /**
    * タイマーの開始
    */
-  public startTimer(phase: GamePhase, duration: number): void {
-    this.currentPhase = phase;
+  public startTimer(phase: Phase): void {
     this.startTime = system.currentTick;
-    this.duration = duration;
     this.warningShown = false;
 
     // 既存のタイマーをクリア
@@ -57,7 +59,7 @@ export class TimerManager {
     // 新しいタイマーを設定
     this.currentTimer = system.runTimeout(() => {
       this.onTimerComplete();
-    }, duration * 20);
+    }, phase.duration * 20);
   }
 
   /**
@@ -102,7 +104,7 @@ export class TimerManager {
     try {
       const state = this.getTimerState();
       const { minutes, seconds } = state.remainingTime;
-      const phaseName = PHASE_NAMES[this.currentPhase];
+      const phaseName = this.currentPhase.name;
       const totalSeconds = minutes * 60 + seconds;
 
       // 残り時間文字列の生成
@@ -122,10 +124,7 @@ export class TimerManager {
       const color = this.getDisplayColor(isWarningTime);
 
       // タイマー表示テキストの生成
-      const displayText = [
-        `§7[${phaseName}]`,
-        `${color}残り時間: ${timeString}`,
-      ].join(" ");
+      const displayText = `§7[${phaseName}] ${color}残り時間: ${timeString}`;
 
       // 全プレイヤーに表示
       for (const player of world.getAllPlayers()) {
@@ -146,19 +145,27 @@ export class TimerManager {
    * タイマー完了時の処理
    */
   private onTimerComplete(): void {
-    const phaseName = PHASE_NAMES[this.currentPhase];
-    const message = `§e${phaseName}が終了しました`;
+    const message = `§e${this.currentPhase.name}が終了しました`;
     // 全プレイヤーに表示
     for (const player of world.getAllPlayers()) {
       player.onScreenDisplay.setActionBar(message);
     }
     this.currentTimer = undefined;
+
+    if (this.currentPhase.name !== GamePhase.ENDING) {
+      const nextPhase = Object.values(PHASES).find(
+        (phase) => phase.id === this.currentPhase.id + 1,
+      );
+      if (nextPhase) {
+        this.phaseManager.startPhase(nextPhase); // 次のフェーズを開始
+      }
+    }
   }
 
   /**
    * 残り時間の取得（秒）
    */
-  public getRemainingTime(): number {
+  private getRemainingTime(): number {
     const elapsedTicks = system.currentTick - this.startTime;
     return Math.max(0, this.duration - Math.floor(elapsedTicks / 20));
   }

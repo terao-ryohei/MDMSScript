@@ -1,10 +1,10 @@
-import type { GamePhase } from "src/constants/main";
+import type { Phase } from "./PhaseType";
 
 /**
  * タイマー表示の状態を表すインターフェース
  */
 export interface TimerDisplay {
-  currentPhase: GamePhase;
+  currentPhase: Phase;
   remainingTime: {
     minutes: number;
     seconds: number;

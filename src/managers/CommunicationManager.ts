@@ -2,12 +2,12 @@ import type { ILoggerManager } from "./interfaces/ILoggerManager";
 import type { ICommunicationManager } from "./interfaces/ICommunicationManager";
 import type { Evidence } from "../types/EvidenceTypes";
 import { MurderMysteryActions } from "../types/ActionTypes";
-import { GamePhase } from "src/constants/main";
 import type { GameState } from "src/types/GameTypes";
 import type { Player } from "@minecraft/server";
 import type { Role } from "src/types/RoleTypes";
 import { getScore } from "src/utils/score";
 import { ROLES } from "src/constants/abilities/RoleAbilities";
+import { GamePhase } from "src/types/PhaseType";
 
 export class CommunicationManager implements ICommunicationManager {
   private loggerManager: ILoggerManager;
@@ -66,6 +66,7 @@ export class CommunicationManager implements ICommunicationManager {
     return true;
   }
 
+  // 分析共有機能実装
   async shareInvestigationResult(
     from: Player,
     result: string,
@@ -79,6 +80,7 @@ export class CommunicationManager implements ICommunicationManager {
     return true;
   }
 
+  // アリバイ共有機能実装
   async shareAlibi(
     player: Player,
     alibi: string,
@@ -113,14 +115,6 @@ export class CommunicationManager implements ICommunicationManager {
     this.votes.set(from, target);
     const currentCount = this.voteCount.get(target) || 0;
     this.voteCount.set(target, currentCount + 1);
-
-    this.loggerManager.logAction({
-      type: MurderMysteryActions.VOTE_CAST,
-      player: from,
-      details: {
-        target,
-      },
-    });
 
     return true;
   }

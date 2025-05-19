@@ -1,13 +1,11 @@
 import { system, world } from "@minecraft/server";
-import { GamePhase, PHASE_NAMES } from "src/constants/main";
-import {
-  PHASE_RESTRICTIONS,
-  VALID_PHASE_TRANSITIONS,
-} from "src/constants/phaseManger";
+import { PHASES } from "src/constants/phaseManger";
+import type { Phase } from "src/types/PhaseType";
 import { handleError } from "src/utils/errorHandle";
 import type { ExtendedActionType } from "../types/ActionTypes";
 import type { IPhaseManager } from "./interfaces/IPhaseManager";
 import { TimerManager } from "./TimerManager";
+import { ActionLoggerModule } from "@mc-action-logger/ActionLoggerModule";
 
 /**
  * フェーズマネージャーのエラー型
@@ -28,20 +26,22 @@ class PhaseManagerError extends Error {
  */
 export class PhaseManager implements IPhaseManager {
   private static instance: PhaseManager | null = null;
-  private currentPhase: GamePhase;
+  private currentPhase: Phase;
   private phaseStartTime: number;
   private timerManager: TimerManager;
+  private actionLogger: ActionLoggerModule;
 
   private constructor() {
-    this.currentPhase = GamePhase.PREPARATION;
+    this.currentPhase = PHASES.preparation;
     this.phaseStartTime = system.currentTick;
     this.timerManager = TimerManager.getInstance();
+    this.actionLogger = ActionLoggerModule.getInstance();
   }
 
   /**
    * インスタンスの作成
    */
-  public static create(): PhaseManager {
+  public static getInstance(): PhaseManager {
     if (!PhaseManager.instance) {
       PhaseManager.instance = new PhaseManager();
     }
@@ -49,16 +49,16 @@ export class PhaseManager implements IPhaseManager {
   }
 
   /**
-   * 現在のフェーズの取得
+   * 現在のフェーズを取得
    */
-  public getCurrentPhase(): GamePhase {
+  public getCurrentPhase(): Phase {
     return this.currentPhase;
   }
 
   /**
    * フェーズの開始
    */
-  public async startPhase(phase: GamePhase, duration: number): Promise<void> {
+  public async startPhase(phase: Phase): Promise<void> {
     try {
       // // フェーズ遷移の検証
       // if (!this.validatePhaseTransition(phase)) {
@@ -69,14 +69,12 @@ export class PhaseManager implements IPhaseManager {
       // }
 
       // エッジケースの検証
-      if (duration <= 0) {
+      if (phase.duration <= 0) {
         throw new PhaseManagerError(
           "制限時間は0より大きい値である必要があります",
           "INVALID_DURATION",
         );
       }
-
-      const oldPhase = this.currentPhase;
 
       // 以前のフェーズのクリーンアップを確実に実行
       try {
@@ -89,18 +87,21 @@ export class PhaseManager implements IPhaseManager {
         // クリーンアップエラーでもフェーズ遷移は続行
       }
 
-      this.currentPhase = phase;
       this.phaseStartTime = system.currentTick;
 
       // タイマーの開始（遷移後に実行）
-      this.timerManager.startTimer(phase, duration);
+      this.timerManager.startTimer(phase);
+
+      if (phase === PHASES.daily_life) {
+        this.actionLogger.start();
+        world.sendMessage("§a ACTION_LOGGER_STARTED");
+      }
 
       // フェーズ開始メッセージの送信
-      const currentPhaseNumber = VALID_PHASE_TRANSITIONS[oldPhase].length;
-      const totalPhases = Object.keys(VALID_PHASE_TRANSITIONS).length - 1;
       world.sendMessage(
-        `§e${currentPhaseNumber}/${totalPhases}フェーズ目: ${PHASE_NAMES[phase]}フェーズが開始されました（制限時間: ${duration}秒）`,
+        `§e${phase.name}フェーズが開始されました（制限時間: ${phase.duration}秒）`,
       );
+      this.currentPhase = phase;
     } catch (error) {
       if (error instanceof Error) {
         await handleError(error);
@@ -112,29 +113,8 @@ export class PhaseManager implements IPhaseManager {
    * アクションが現在のフェーズで許可されているかチェック
    */
   public isActionAllowed(action: ExtendedActionType): boolean {
-    const restrictions = PHASE_RESTRICTIONS[this.currentPhase];
+    const restrictions = this.currentPhase;
     return restrictions.allowedActions.includes(action);
-  }
-
-  /**
-   * 投票が許可されているかチェック
-   */
-  public canVote(): boolean {
-    return PHASE_RESTRICTIONS[this.currentPhase].canVote;
-  }
-
-  /**
-   * 証拠収集が許可されているかチェック
-   */
-  public canCollectEvidence(): boolean {
-    return PHASE_RESTRICTIONS[this.currentPhase].canCollectEvidence;
-  }
-
-  /**
-   * チャットが許可されているかチェック
-   */
-  public canChat(): boolean {
-    return PHASE_RESTRICTIONS[this.currentPhase].canChat;
   }
 
   /**
@@ -166,23 +146,5 @@ export class PhaseManager implements IPhaseManager {
     // 現在のフェーズに関連するリソースをクリーンアップ
     this.timerManager.stopTimer();
     // その他のクリーンアップ処理をここに追加
-  }
-
-  /**
-   * フェーズごとのデフォルト制限時間を取得
-   */
-  private getDefaultDuration(phase: GamePhase): number {
-    const DEFAULT_DURATIONS: Record<GamePhase, number> = {
-      [GamePhase.PREPARATION]: 300, // 5分
-      [GamePhase.DAILY_LIFE]: 600, // 10分
-      [GamePhase.INVESTIGATION]: 480, // 8分
-      [GamePhase.DISCUSSION]: 420, // 7分
-      [GamePhase.PRIVATE_TALK]: 300, // 5分
-      [GamePhase.FINAL_MEETING]: 420, // 7分
-      [GamePhase.REASONING]: 300, // 5分
-      [GamePhase.VOTING]: 180, // 3分
-      [GamePhase.ENDING]: 300, // 5分
-    };
-    return DEFAULT_DURATIONS[phase];
   }
 }
