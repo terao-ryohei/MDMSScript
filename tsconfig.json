@@ -1,0 +1,25 @@
+{
+  "compilerOptions": {
+    "target": "ESNext",
+    "module": "ESNext",
+    "moduleResolution": "node",
+    "strict": true,
+    "outDir": "./dist/scripts",
+    "rootDir": ".",
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true,
+    "baseUrl": ".",
+    "paths": {
+      "@minecraft/*": [
+        "node_modules/@minecraft/*"
+      ],
+    }
+  },
+  "include": [
+    "src/**/*",
+  ],
+  "exclude": [
+    "node_modules"
+  ]
+}

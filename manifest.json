@@ -1,0 +1,42 @@
+{
+  "format_version": 2,
+  "header": {
+    "name": "マダミスクラフト",
+    "description": "マーダーミステリー風リアルタイム推理ゲーム",
+    "uuid": "32301806-9ecf-d29c-faf6-b5fc74d4e0ad",
+    "version": [
+      0,
+      0,
+      1
+    ],
+    "min_engine_version": [
+      1,
+      20,
+      0
+    ]
+  },
+  "modules": [
+    {
+      "description": "マダミスクラフト スクリプト",
+      "type": "script",
+      "language": "javascript",
+      "uuid": "ed56a2ca-b18b-2a38-5775-bd0d00cc2cbe",
+      "version": [
+        0,
+        0,
+        1
+      ],
+      "entry": "scripts/src/main.js"
+    }
+  ],
+  "dependencies": [
+    {
+      "module_name": "@minecraft/server",
+      "version": "1.19.0"
+    },
+    {
+      "module_name": "@minecraft/server-ui",
+      "version": "1.3.0"
+    }
+  ]
+}

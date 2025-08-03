@@ -1,0 +1,38 @@
+# Dependencies
+node_modules/
+.npm
+.npmrc
+.env
+package-lock.json
+
+# Build
+build/
+dist/
+
+# Logs
+logs/
+*.log
+
+# IDE
+.vscode/
+*.code-workspace
+
+# OS
+.DS_Store
+Thumbs.db
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Desktop.ini
+
+# Minecraft specific
+*.mcpack
+*.mcworld
+*.mcaddon
+behavior_packs/
+resource_packs/
+
+# Temporary files
+*.tmp
+*.temp
+.cache/
