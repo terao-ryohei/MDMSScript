@@ -1,54 +1,39 @@
-import type { BaseAbility } from "./AbilityTypes";
-
-// 役割の種類
-export enum RoleName {
-  DETECTIVE = "detective",
-  KILLER = "killer",
-  ACCOMPLICE = "accomplice",
-  CITIZEN = "citizen",
+/**
+ * プレイヤーロール（マダミス上の役割）
+ */
+export enum RoleType {
+  CITIZEN = "citizen",         // 一般人
+  MURDERER = "murderer",       // 犯人
+  ACCOMPLICE = "accomplice"    // 共犯者
 }
 
-// 役割のUI状態
-export interface RoleUIState {
-  selectedAbilityId: string | null;
-  targetPlayerId: string | null;
-  showDetails: boolean;
-  notifications: RoleNotification[];
-  activeAbility: string | null;
-}
-
-// 役割の通知
-export interface RoleNotification {
-  id: string;
-  type:
-    | "info"
-    | "warning"
-    | "error"
-    | "success"
-    | "ability_use"
-    | "ability_ready"
-    | "ability_fail"
-    | "ability_success";
-  message: string;
-  timestamp: number;
-  duration?: number;
-  priority?: "low" | "medium" | "high";
-}
-
-// 役割の詳細情報
+/**
+ * ロール定義
+ */
 export interface Role {
-  id: number;
+  type: RoleType;
   name: string;
   description: string;
-  objective: string;
-  winCondition: string;
-  abilities: BaseAbility[];
+  baseAbilityId: string;       // 基本能力ID
+  baseObjectiveId: string;     // 基本目的ID
+  specialRules: string[];
 }
 
-// プレイヤー数による役割制限
-export interface RoleDistributionRule {
-  playerRange: [number, number];
-  distribution: {
-    [key: string]: number;
-  };
+/**
+ * ロール構成定義
+ */
+export interface RoleComposition {
+  murderers: number;
+  accomplices: number;
+  citizens: number;
+}
+
+/**
+ * ロール割り当て結果
+ */
+export interface RoleAssignmentResult {
+  success: boolean;
+  assignments: Map<string, RoleType>; // playerId -> role
+  composition: RoleComposition;
+  error?: string;
 }

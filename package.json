@@ -1,5 +1,5 @@
 {
-  "name": "action-logger-sample",
+  "name": "MDMSCraft",
   "version": "0.0.1",
   "description": "MinecraftのActionLoggerを使用したサンプルアドオン",
   "scripts": {
@@ -11,9 +11,7 @@
   },
   "dependencies": {
     "@minecraft/server": "^2.0.0",
-    "@minecraft/server-ui": "^2.0.0",
-    "@types/react-native": "^0.73.0",
-    "neverthrow": "^8.2.0"
+    "@minecraft/server-ui": "^2.0.0"
   },
   "devDependencies": {
     "archiver": "^7.0.1",

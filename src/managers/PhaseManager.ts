@@ -1,235 +1,371 @@
 import { system, world } from "@minecraft/server";
-import { PHASES } from "src/constants/phaseManger";
-import { GamePhase, type Phase } from "src/types/PhaseType";
-import { handleError } from "src/utils/errorHandle";
-import type { ExtendedActionType } from "../types/ActionTypes";
-import type { IPhaseManager } from "./interfaces/IPhaseManager";
-// Removed mc-action-logger import - using mock implementation
-import { WARNING_CONFIG } from "src/constants/timeManager";
-import type { TimerDisplay } from "src/types/TimerTypes";
-/**
- * フェーズマネージャーのエラー型
- */
-class PhaseManagerError extends Error {
-  constructor(
-    message: string,
-    public code: string,
-  ) {
-    super(message);
-    this.name = "PhaseManagerError";
-  }
-}
+import { GamePhase, type PhaseConfig, type PhaseTransitionResult, type TimerDisplay } from "../types/PhaseTypes";
+import { PHASE_CONFIGS, WARNING_THRESHOLDS } from "../constants/PhaseConfigs";
+import { ScoreboardManager } from "./ScoreboardManager";
 
 /**
- * フェーズマネージャークラス
- * ゲームの各フェーズを管理し、フェーズごとの制限を適用します
+ * ゲームフェーズ管理システム
+ * 7つのフェーズの進行、タイマー管理、フェーズ遷移を制御
  */
-export class PhaseManager implements IPhaseManager {
+export class PhaseManager {
   private static instance: PhaseManager | null = null;
+  private scoreboardManager: ScoreboardManager;
   private currentTimer: number | undefined;
-  private startTime = 0;
-  private currentPhase = PHASES.preparation;
-  private updateCallback: number | undefined;
+  private displayTimer: number | undefined;
+  private currentPhaseConfig: PhaseConfig;
 
-  private constructor(private readonly actionLogger: any) {
-    // 1秒ごとの表示更新を設定（より正確な間隔で）
-    this.updateCallback = system.runInterval(() => {
-      try {
-        this.updateDisplay();
-      } catch (error) {
-        console.error("タイマー更新中にエラーが発生しました:", error);
-        // エラーが発生しても更新は継続
-      }
-    }, 20); // 20 ticks = 1秒
+  private constructor() {
+    this.scoreboardManager = ScoreboardManager.getInstance();
+    this.currentPhaseConfig = PHASE_CONFIGS[GamePhase.PREPARATION];
+    console.log("PhaseManager initialized");
   }
 
-  /**
-   * インスタンスの作成
-   */
-  public static getInstance(actionLogger: any): PhaseManager {
+  public static getInstance(): PhaseManager {
     if (!PhaseManager.instance) {
-      PhaseManager.instance = new PhaseManager(actionLogger);
+      PhaseManager.instance = new PhaseManager();
     }
     return PhaseManager.instance;
   }
 
   /**
-   * 現在のフェーズを取得
+   * 指定フェーズを開始
    */
-  public getCurrentPhase(): Phase {
-    return this.currentPhase;
+  public async startPhase(phase: GamePhase): Promise<PhaseTransitionResult> {
+    try {
+      const phaseConfig = PHASE_CONFIGS[phase];
+      if (!phaseConfig) {
+        return {
+          success: false,
+          previousPhase: this.currentPhaseConfig.phase,
+          currentPhase: this.currentPhaseConfig.phase,
+          error: `無効なフェーズ: ${phase}`
+        };
+      }
+
+      const previousPhase = this.currentPhaseConfig.phase;
+      
+      // 現在のタイマーを停止
+      this.stopCurrentTimer();
+      
+      // フェーズ設定更新
+      this.currentPhaseConfig = phaseConfig;
+      
+      // Scoreboardに状態保存
+      this.scoreboardManager.setGamePhase(phaseConfig.id);
+      this.scoreboardManager.setPhaseTimer(phaseConfig.duration);
+      
+      // 特別なフェーズ処理
+      await this.handlePhaseSpecialActions(phase);
+      
+      // タイマー開始
+      this.startPhaseTimer(phaseConfig);
+      
+      // プレイヤーに通知
+      this.notifyPhaseStart(phaseConfig);
+      
+      console.log(`Phase started: ${phase} (${phaseConfig.duration}s)`);
+      
+      return {
+        success: true,
+        previousPhase,
+        currentPhase: phase
+      };
+      
+    } catch (error) {
+      console.error("Failed to start phase:", error);
+      return {
+        success: false,
+        previousPhase: this.currentPhaseConfig.phase,
+        currentPhase: this.currentPhaseConfig.phase,
+        error: error instanceof Error ? error.message : "Unknown error"
+      };
+    }
   }
 
   /**
-   * フェーズの開始
+   * 現在のフェーズを取得
    */
-  public async startPhase(phase: Phase): Promise<void> {
-    try {
-      // // フェーズ遷移の検証
-      // if (!this.validatePhaseTransition(phase)) {
-      //   throw new PhaseManagerError(
-      //     `無効なフェーズ遷移です: ${this.currentPhase} -> ${phase}`,
-      //     "INVALID_PHASE_TRANSITION",
-      //   );
-      // }
+  public getCurrentPhase(): GamePhase {
+    return this.currentPhaseConfig.phase;
+  }
 
-      // エッジケースの検証
-      if (phase.duration <= 0) {
-        throw new PhaseManagerError(
-          "制限時間は0より大きい値である必要があります",
-          "INVALID_DURATION",
-        );
-      }
+  /**
+   * 現在のフェーズ設定を取得
+   */
+  public getCurrentPhaseConfig(): PhaseConfig {
+    return this.currentPhaseConfig;
+  }
 
-      // タイマーの開始（遷移後に実行）
-      this.startTimer(phase);
-
-      if (phase === PHASES.daily_life) {
-        this.actionLogger.start();
-        world.sendMessage("§a ACTION_LOGGER_STARTED");
-      }
-
-      // フェーズ開始メッセージの送信
-      world.sendMessage(
-        `§e${phase.name}フェーズが開始されました（制限時間: ${phase.duration}秒）`,
-      );
-      this.currentPhase = phase;
-    } catch (error) {
-      if (error instanceof Error) {
-        await handleError(error);
-      }
+  /**
+   * 次のフェーズに自動遷移
+   */
+  public async advanceToNextPhase(): Promise<PhaseTransitionResult> {
+    const nextPhase = this.currentPhaseConfig.nextPhase;
+    
+    if (!nextPhase) {
+      // ゲーム終了
+      await this.endGame();
+      return {
+        success: true,
+        previousPhase: this.currentPhaseConfig.phase,
+        currentPhase: GamePhase.ENDING
+      };
     }
+    
+    return await this.startPhase(nextPhase);
   }
 
   /**
    * アクションが現在のフェーズで許可されているかチェック
    */
-  public isActionAllowed(action: ExtendedActionType): boolean {
-    const restrictions = this.currentPhase;
-    return restrictions.allowedActions.includes(action);
+  public isActionAllowed(action: string): boolean {
+    return this.currentPhaseConfig.allowedActions.includes(action);
   }
 
   /**
-   * タイマーの開始
+   * フェーズタイマーを開始
    */
-  public startTimer(phase: Phase): void {
-    this.startTime = system.currentTick;
+  private startPhaseTimer(config: PhaseConfig): void {
+    // メインタイマー（フェーズ時間経過）
+    this.currentTimer = system.runTimeout(() => {
+      this.onPhaseTimeUp();
+    }, config.duration * 20); // 秒 → tick変換
 
-    // 既存のタイマーをクリア
+    // 表示更新タイマー（1秒間隔）
+    this.displayTimer = system.runInterval(() => {
+      this.updateTimerDisplay();
+    }, 20);
+    
+    console.log(`Phase timer started: ${config.duration}s`);
+  }
+
+  /**
+   * 現在のタイマーを停止
+   */
+  private stopCurrentTimer(): void {
     if (this.currentTimer !== undefined) {
       system.clearRun(this.currentTimer);
+      this.currentTimer = undefined;
     }
-
-    this.currentPhase = phase;
-
-    // 新しいタイマーを設定
-    this.currentTimer = system.runTimeout(() => {
-      this.onTimerComplete();
-    }, phase.duration * 20);
+    
+    if (this.displayTimer !== undefined) {
+      system.clearRun(this.displayTimer);
+      this.displayTimer = undefined;
+    }
   }
 
   /**
-   * 現在のタイマー状態の取得
+   * タイマー表示を更新
    */
-  private getTimerState(): TimerDisplay {
-    const duration = this.currentPhase.duration;
-    const elapsedTicks = system.currentTick - this.startTime;
-    const remainingSeconds = Math.max(
-      0,
-      duration - Math.floor(elapsedTicks / 20),
-    );
-    const progress = ((duration - remainingSeconds) / duration) * 100;
+  private updateTimerDisplay(): void {
+    const remainingTime = this.scoreboardManager.getPhaseTimer();
+    
+    if (remainingTime <= 0) {
+      return;
+    }
+    
+    // 残り時間を1秒減算
+    this.scoreboardManager.setPhaseTimer(remainingTime - 1);
+    
+    const display = this.createTimerDisplay(remainingTime - 1);
+    this.showTimerToPlayers(display);
+  }
 
+  /**
+   * タイマー表示情報を作成
+   */
+  private createTimerDisplay(remainingSeconds: number): TimerDisplay {
+    const minutes = Math.floor(remainingSeconds / 60);
+    const seconds = remainingSeconds % 60;
+    const totalDuration = this.currentPhaseConfig.duration;
+    const elapsed = totalDuration - remainingSeconds;
+    const progress = (elapsed / totalDuration) * 100;
+    
+    const isWarning = remainingSeconds <= WARNING_THRESHOLDS.WARNING_TIME;
+    
     return {
-      currentPhase: this.currentPhase,
-      remainingTime: {
-        minutes: Math.floor(remainingSeconds / 60),
-        seconds: remainingSeconds % 60,
-      },
+      remainingTime: { minutes, seconds },
       progress,
+      isWarning
     };
   }
 
   /**
-   * タイマー表示の更新
+   * プレイヤーにタイマーを表示
    */
-  private updateDisplay(): void {
-    if (this.currentTimer === undefined) {
-      return; // タイマーが動作していない場合は更新しない
+  private showTimerToPlayers(display: TimerDisplay): void {
+    const { minutes, seconds } = display.remainingTime;
+    const timeString = `${minutes}:${seconds.toString().padStart(2, '0')}`;
+    
+    // 警告レベルに応じて色を変更
+    let color = "§a"; // 緑（通常）
+    if (display.remainingTime.minutes === 0 && display.remainingTime.seconds <= WARNING_THRESHOLDS.CRITICAL_TIME) {
+      color = "§c"; // 赤（緊急）
+    } else if (display.isWarning) {
+      color = "§e"; // 黄（警告）
     }
-
-    try {
-      const state = this.getTimerState();
-      const { minutes, seconds } = state.remainingTime;
-      const phaseName = this.currentPhase.name;
-      const totalSeconds = minutes * 60 + seconds;
-
-      // 残り時間文字列の生成
-      const timeString = `${minutes}:${seconds.toString().padStart(2, "0")}`;
-
-      // 表示色の設定（警告時は点滅効果）
-      const isWarningTime = totalSeconds <= WARNING_CONFIG.threshold;
-      const color = isWarningTime ? "§c" : "§a";
-
-      // タイマー表示テキストの生成
-      const displayText = `§7[${phaseName}] ${color}残り時間: ${timeString}`;
-
-      // 全プレイヤーに表示
-      for (const player of world.getAllPlayers()) {
-        player.onScreenDisplay.setActionBar(displayText);
-      }
-    } catch (error) {
-      console.error("タイマー表示の更新中にエラーが発生しました:", error);
-      // エラーメッセージも全プレイヤーに表示
-      for (const player of world.getAllPlayers()) {
-        player.onScreenDisplay.setActionBar(
-          "§cタイマー表示の更新中にエラーが発生しました",
-        );
-      }
+    
+    const displayText = `§7[${this.currentPhaseConfig.name}] ${color}残り時間: ${timeString}`;
+    
+    // 全プレイヤーのActionBarに表示
+    for (const player of world.getAllPlayers()) {
+      player.onScreenDisplay.setActionBar(displayText);
     }
   }
 
   /**
-   * タイマー完了時の処理
+   * フェーズ時間終了時の処理
    */
-  private onTimerComplete(): void {
-    const message = `§e${this.currentPhase.name}が終了しました`;
-    // 全プレイヤーに表示
-    for (const player of world.getAllPlayers()) {
-      player.onScreenDisplay.setActionBar(message);
-    }
-    this.currentTimer = undefined;
+  private async onPhaseTimeUp(): Promise<void> {
+    console.log(`Phase time up: ${this.currentPhaseConfig.phase}`);
+    
+    // フェーズ終了通知
+    world.sendMessage(`§e${this.currentPhaseConfig.name}が終了しました`);
+    
+    // 次のフェーズに遷移
+    await this.advanceToNextPhase();
+  }
 
-    if (this.currentPhase.name !== GamePhase.ENDING) {
-      const nextPhase = Object.values(PHASES).find(
-        (phase) => phase.id === this.currentPhase.id + 1,
-      );
-      if (nextPhase) {
-        this.startPhase(nextPhase).catch((error) => {
-          if (error instanceof Error) {
-            handleError(error);
-          }
-        });
-      }
+  /**
+   * フェーズ固有の処理
+   */
+  private async handlePhaseSpecialActions(phase: GamePhase): Promise<void> {
+    switch (phase) {
+      case GamePhase.PREPARATION:
+        // 準備フェーズ：プレイヤー初期化
+        await this.initializePlayers();
+        break;
+        
+      case GamePhase.DAILY_LIFE:
+        // 生活フェーズ：開始時刻記録
+        this.scoreboardManager.setDailyLifeStartTime(system.currentTick);
+        this.scoreboardManager.setGameDay(1);
+        break;
+        
+      case GamePhase.INVESTIGATION:
+        // 調査フェーズ：証拠抽出開始
+        await this.startEvidenceCollection();
+        break;
+        
+      case GamePhase.VOTING:
+        // 投票フェーズ：投票システム開始
+        await this.startVotingSystem();
+        break;
+        
+      case GamePhase.ENDING:
+        // 終了フェーズ：結果計算
+        await this.calculateFinalResults();
+        break;
     }
+  }
+
+  /**
+   * フェーズ開始をプレイヤーに通知
+   */
+  private notifyPhaseStart(config: PhaseConfig): void {
+    world.sendMessage("§l§6============================");
+    world.sendMessage(`§l§e${config.name}が開始されました！`);
+    world.sendMessage(`§7${config.description}`);
+    
+    const minutes = Math.floor(config.duration / 60);
+    const seconds = config.duration % 60;
+    let timeText = "";
+    if (minutes > 0) {
+      timeText = `${minutes}分`;
+      if (seconds > 0) {
+        timeText += `${seconds}秒`;
+      }
+    } else {
+      timeText = `${seconds}秒`;
+    }
+    world.sendMessage(`§e制限時間: ${timeText}`);
+    world.sendMessage("§l§6============================");
+  }
+
+  /**
+   * プレイヤー初期化（準備フェーズ）
+   */
+  private async initializePlayers(): Promise<void> {
+    for (const player of world.getAllPlayers()) {
+      // プレイヤー状態をリセット
+      this.scoreboardManager.setPlayerAlive(player, true);
+      this.scoreboardManager.setPlayerVotes(player, 0);
+      this.scoreboardManager.setEvidenceCount(player, 0);
+      this.scoreboardManager.setAbilityUses(player, 0);
+      this.scoreboardManager.setCooldownTimer(player, 0);
+      this.scoreboardManager.setPlayerScore(player, 0);
+    }
+    console.log("Players initialized for new game");
+  }
+
+  /**
+   * 証拠収集開始（調査フェーズ）
+   */
+  private async startEvidenceCollection(): Promise<void> {
+    // 証拠抽出処理は後で実装
+    console.log("Evidence collection started");
+  }
+
+  /**
+   * 投票システム開始（投票フェーズ）
+   */
+  private async startVotingSystem(): Promise<void> {
+    // 投票システムは後で実装
+    console.log("Voting system started");
+  }
+
+  /**
+   * 最終結果計算（終了フェーズ）
+   */
+  private async calculateFinalResults(): Promise<void> {
+    // 結果計算は後で実装
+    console.log("Final results calculated");
+  }
+
+  /**
+   * ゲーム終了処理
+   */
+  private async endGame(): Promise<void> {
+    this.stopCurrentTimer();
+    
+    // 全プレイヤーに終了通知
+    world.sendMessage("§l§6============================");
+    world.sendMessage("§l§aマーダーミステリーゲーム終了！");
+    world.sendMessage("§eお疲れ様でした！");
+    world.sendMessage("§l§6============================");
+    
+    console.log("Game ended");
+  }
+
+  /**
+   * 緊急フェーズ変更（管理者用）
+   */
+  public async forcePhaseChange(phase: GamePhase): Promise<PhaseTransitionResult> {
+    console.log(`Force phase change to: ${phase}`);
+    return await this.startPhase(phase);
+  }
+
+  /**
+   * 残り時間を取得
+   */
+  public getRemainingTime(): number {
+    return this.scoreboardManager.getPhaseTimer();
+  }
+
+  /**
+   * 残り時間を設定（管理者用）
+   */
+  public setRemainingTime(seconds: number): void {
+    this.scoreboardManager.setPhaseTimer(seconds);
+    console.log(`Phase timer set to: ${seconds}s`);
   }
 
   /**
    * リソースの解放
    */
-  public async dispose(): Promise<void> {
-    try {
-      if (this.currentTimer !== undefined) {
-        system.clearRun(this.currentTimer);
-      }
-      if (this.updateCallback !== undefined) {
-        system.clearRun(this.updateCallback);
-      }
-      PhaseManager.instance = null;
-    } catch (error) {
-      if (error instanceof Error) {
-        await handleError(error);
-      }
-    }
+  public dispose(): void {
+    this.stopCurrentTimer();
+    console.log("PhaseManager disposed");
+    PhaseManager.instance = null;
   }
 }

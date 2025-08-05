@@ -1,83 +1,89 @@
+import { Player } from "@minecraft/server";
+
 /**
- * ゲーム内でのアクション種別を定義
+ * プレイヤー行動タイプ
  */
 export enum ActionType {
-  // プレイヤーアクション
-  MOVE = "move",
-  JUMP = "jump",
-  ATTACK = "attack",
-  INTERACT = "interact",
-
-  // ブロック操作
-  BLOCK_BROKEN = "block_broken",
-  BLOCK_PLACED = "block_placed",
-
-  // スクリプトイベント
-  SCRIPT_EVENT = "script_event",
-
-  // エンティティライフサイクル
-  ENTITY_SPAWN = "entity_spawn",
-  ENTITY_DEATH = "entity_death",
-  ENTITY_DESPAWN = "entity_despawn",
-
-  // プレイヤー状態変更
-  PLAYER_HEALTH_CHANGE = "player_health_change",
-  PLAYER_HUNGER_CHANGE = "player_hunger_change",
-  PLAYER_EXPERIENCE_CHANGE = "player_experience_change",
-  PLAYER_EFFECT_ADDED = "player_effect_added",
-  PLAYER_EFFECT_REMOVED = "player_effect_removed",
-
-  // システム操作
-  SYSTEM_RESUME = "system_resume",
-  SYSTEM_PAUSE = "system_pause",
-  SYSTEM_CONFIG_CHANGE = "system_config_change",
-  SYSTEM_EXPORT = "system_export",
-
-  // 役職関連
-  ROLE_ASSIGNED = "role_assigned",
-  ROLE_ERROR = "role_error",
-
-  // ゲーム情報とデバッグ
-  GAME_INFO = "game_info",
-  GAME_DEBUG = "game_debug",
-}
-export enum MurderMysteryActions {
-  // プレイヤーの基本アクション
-  TALK_TO_NPC = "talk_to_npc",
-  COLLECT_EVIDENCE = "collect_evidence",
-  INVESTIGATE_SCENE = "investigate_scene",
-  ANALYZE_EVIDENCE = "analyze_evidence",
-  EVIDENCE_SHARE = "evidence_share",
-  VOTE_CAST = "vote_cast",
-  PRESENT_EVIDENCE = "present_evidence", // 推理披露フェーズで使用する証拠提示アクション
-
-  // 役職固有のアクション
-  PERFORM_MURDER = "perform_murder",
-  CREATE_ALIBI = "create_alibi",
-  VERIFY_EVIDENCE = "verify_evidence",
-  TAMPER_EVIDENCE = "tamper_evidence",
-
-  // 職業関連のアクション
-  OCCUPATION_CHANGE = "occupation_change",
-  OCCUPATION_ABILITY_USE = "occupation_ability_use",
-  OCCUPATION_ERROR = "occupation_error",
-  OCCUPATION_INTERACT = "occupation_interact",
-
-  // システムアクション
-  PHASE_CHANGE = "phase_change",
-  GAME_START = "game_start",
-  GAME_END = "game_end",
-  MURDER_DISCOVERED = "murder_discovered",
-
-  // UI関連のアクション
-  UI_UPDATE = "ui_update",
-  UI_EVENT = "ui_event",
-  UI_ERROR = "ui_error",
-  UI_NOTIFICATION = "ui_notification",
-  ABILITY_USE = "ability_use",
+  MOVEMENT = "movement",           // 移動
+  CHAT = "chat",                   // チャット
+  BLOCK_BREAK = "block_break",     // ブロック破壊
+  BLOCK_PLACE = "block_place",     // ブロック設置
+  ITEM_USE = "item_use",           // アイテム使用
+  ENTITY_INTERACT = "entity_interact", // エンティティ交流
+  BLOCK_INTERACT = "block_interact",   // ブロック交流
+  DEATH = "death",                 // 死亡
+  MURDER = "murder",               // 殺人
+  ABILITY_USE = "ability_use",     // 能力使用
+  TASK_COMPLETE = "task_complete", // タスク完了
+  AREA_ENTER = "area_enter",       // エリア進入
+  AREA_EXIT = "area_exit"          // エリア退出
 }
 
 /**
- * 全てのアクション種別（基本アクションと拡張アクションを含む）
+ * 行動記録データ
  */
-export type ExtendedActionType = MurderMysteryActions | string;
+export interface ActionRecord {
+  id: string;                      // ユニークID
+  playerId: string;                // プレイヤーID
+  playerName: string;              // プレイヤー名
+  actionType: ActionType;          // 行動タイプ
+  timestamp: number;               // タイムスタンプ（ゲーム開始からの秒数）
+  phaseId: number;                 // フェーズID
+  location: {
+    x: number;
+    y: number;
+    z: number;
+    dimension: string;
+  };
+  data: Record<string, any>;       // 追加データ
+  isEvidence: boolean;             // 証拠として扱うか
+  witnessIds: string[];            // 目撃者プレイヤーID
+}
+
+/**
+ * 行動フィルター条件
+ */
+export interface ActionFilter {
+  playerId?: string;
+  actionType?: ActionType;
+  phaseId?: number;
+  startTime?: number;
+  endTime?: number;
+  isEvidence?: boolean;
+  location?: {
+    x: number;
+    y: number;
+    z: number;
+    radius: number;
+  };
+}
+
+/**
+ * 証拠抽出結果
+ */
+export interface EvidenceExtractionResult {
+  success: boolean;
+  evidence: ActionRecord[];
+  totalActions: number;
+  filteredActions: number;
+  timeRange: {
+    start: number;
+    end: number;
+  };
+  error?: string;
+}
+
+/**
+ * 行動統計
+ */
+export interface ActionStatistics {
+  totalActions: number;
+  actionsByType: Map<ActionType, number>;
+  actionsByPlayer: Map<string, number>;
+  actionsByPhase: Map<number, number>;
+  evidenceCount: number;
+  timeRange: {
+    start: number;
+    end: number;
+  };
+}
