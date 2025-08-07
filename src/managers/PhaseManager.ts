@@ -1,6 +1,6 @@
 import { system, world } from "@minecraft/server";
 import { GamePhase, type PhaseConfig, type PhaseTransitionResult, type TimerDisplay } from "../types/PhaseTypes";
-import { PHASE_CONFIGS, WARNING_THRESHOLDS } from "../constants/PhaseConfigs";
+import { PHASE_CONFIGS, WARNING_THRESHOLDS, getAdjustedPhaseConfig } from "../constants/PhaseConfigs";
 import { ScoreboardManager } from "./ScoreboardManager";
 
 /**
@@ -32,7 +32,8 @@ export class PhaseManager {
    */
   public async startPhase(phase: GamePhase): Promise<PhaseTransitionResult> {
     try {
-      const phaseConfig = PHASE_CONFIGS[phase];
+      const playerCount = world.getAllPlayers().length;
+      const phaseConfig = getAdjustedPhaseConfig(phase, playerCount);
       if (!phaseConfig) {
         return {
           success: false,

@@ -47,11 +47,33 @@ export const ROLES: Record<RoleType, Role> = {
  * プレイヤー数に応じたロール構成
  */
 export function getRoleComposition(playerCount: number): RoleComposition {
-  if (playerCount < 4) {
-    throw new Error("最低4人のプレイヤーが必要です");
+  // テスト用に1人から対応
+  if (playerCount < 1) {
+    throw new Error("最低1人のプレイヤーが必要です");
   }
   
-  if (playerCount <= 6) {
+  if (playerCount === 1) {
+    // 1人: テスト用、犯人役のみ
+    return {
+      murderers: 1,
+      accomplices: 0,
+      citizens: 0
+    };
+  } else if (playerCount === 2) {
+    // 2人: 犯人1人、市民1人
+    return {
+      murderers: 1,
+      accomplices: 0,
+      citizens: 1
+    };
+  } else if (playerCount === 3) {
+    // 3人: 犯人1人、市民2人（バランス重視）
+    return {
+      murderers: 1,
+      accomplices: 0,
+      citizens: 2
+    };
+  } else if (playerCount <= 6) {
     // 4-6人: 犯人1, 一般人のみ
     return {
       murderers: 1,

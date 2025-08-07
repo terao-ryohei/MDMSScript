@@ -56,10 +56,16 @@ async function startGame(): Promise<void> {
   try {
     const playerCount = world.getAllPlayers().length;
     
-    // プレイヤー数チェック
-    if (playerCount < 4) {
-      world.sendMessage("§c最低4人のプレイヤーが必要です");
+    // プレイヤー数チェック（3人推奨、1人からテスト可能）
+    if (playerCount < 1) {
+      world.sendMessage("§c最低1人のプレイヤーが必要です");
       return;
+    }
+    
+    if (playerCount === 2) {
+      world.sendMessage("§e2人でのプレイは実験的機能です。3人以上を推奨します。");
+    } else if (playerCount >= 3) {
+      world.sendMessage("§a3人以上での最適なゲーム体験をお楽しみください！");
     }
     
     if (playerCount > 20) {
@@ -117,7 +123,7 @@ async function startGame(): Promise<void> {
       world.sendMessage("§eロール・ジョブの確認とマップ散策を行ってください");
       
       // 全プレイヤーにロール・ジョブ情報を通知
-      setTimeout(() => {
+      system.runTimeout(() => {
         roleAssignmentManager.notifyAllPlayersRoles();
         jobAssignmentManager.notifyAllPlayersJobs();
         
@@ -132,7 +138,7 @@ async function startGame(): Promise<void> {
           adminManager.addAdmin(firstPlayer.id);
           firstPlayer.sendMessage("§e管理者権限が自動付与されました");
         }
-      }, 1000); // 1秒後に通知
+      }, 20); // 1秒後に通知（20 ticks = 1秒）
       
     } else {
       world.sendMessage(`§cゲーム開始エラー: ${result.error || "不明なエラー"}`);
@@ -142,6 +148,83 @@ async function startGame(): Promise<void> {
     const message = error instanceof Error ? error.message : "不明なエラーが発生しました";
     world.sendMessage(`§c予期せぬエラー: ${message}`);
     console.error("Game start error:", error);
+  }
+}
+
+// ゲーム強制終了・リセット処理
+async function forceEndGame(playerName: string): Promise<void> {
+  try {
+    world.sendMessage("§c============================");
+    world.sendMessage("§l§4ゲーム強制終了");
+    world.sendMessage(`§7実行者: ${playerName}`);
+    world.sendMessage("§c============================");
+    
+    // 各システムを停止・リセット
+    phaseManager.dispose();
+    actionTrackingManager.stopTracking();
+    actionTrackingManager.clearAllRecords();
+    votingManager.clearAllVotes();
+    abilityManager.clearAllData();
+    
+    // スコアボードリセット
+    scoreboardManager.initializeObjectives();
+    
+    // 全プレイヤーを生存状態に戻す
+    for (const player of world.getAllPlayers()) {
+      scoreboardManager.setPlayerAlive(player, true);
+      scoreboardManager.setPlayerRole(player, 0);
+      scoreboardManager.setPlayerJob(player, 0);
+      scoreboardManager.setPlayerScore(player, 0);
+      scoreboardManager.setBaseScore(player, 0);
+      scoreboardManager.setObjectiveScore(player, 0);
+      scoreboardManager.setEvidenceCount(player, 0);
+      scoreboardManager.setPlayerVotes(player, 0);
+      scoreboardManager.setAbilityUses(player, 0);
+      scoreboardManager.setCooldownTimer(player, 0);
+    }
+    
+    world.sendMessage("§a全システムがリセットされました");
+    world.sendMessage("§e新しいゲームを開始するには時計を使用してください");
+    
+    console.log(`Game forcefully ended and reset by ${playerName}`);
+    
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "不明なエラーが発生しました";
+    world.sendMessage(`§cリセットエラー: ${message}`);
+    console.error("Force end game error:", error);
+  }
+}
+
+// ゲーム強制終了確認UI
+async function showForceEndConfirmation(player: Player): Promise<void> {
+  try {
+    const { MessageFormData } = await import("@minecraft/server-ui");
+    
+    const form = new MessageFormData()
+      .title("§c§lゲーム強制終了")
+      .body("§c警告: ゲームを強制終了してすべてをリセットします。\n\n" +
+            "§7• 進行中のゲームが中断されます\n" +
+            "§7• すべてのプレイヤーデータがリセットされます\n" +
+            "§7• 行動記録・証拠がクリアされます\n" +
+            "§7• この操作は取り消せません\n\n" +
+            "§e本当に実行しますか？")
+      .button1("§c強制終了")
+      .button2("§7キャンセル");
+      
+    const response = await form.show(player);
+    
+    if (response.canceled || response.selection === 1) {
+      player.sendMessage("§7ゲーム強制終了をキャンセルしました");
+      return;
+    }
+    
+    if (response.selection === 0) {
+      await forceEndGame(player.name);
+    }
+    
+  } catch (error) {
+    console.error(`Failed to show force end confirmation for ${player.name}:`, error);
+    player.sendMessage("§c強制終了確認画面の表示に失敗しました");
   }
 }
 
@@ -614,6 +697,11 @@ world.afterEvents.itemUse.subscribe(async (event: ItemUseAfterEvent) => {
     player.sendMessage(`§6プレイヤー: §f${stats.gameInfo.playerCount}人 (生存: ${stats.gameInfo.aliveCount}人)`);
     player.sendMessage(`§6システム負荷: §f${stats.performance.systemLoad} ops/h`);
     player.sendMessage(`§6エラー数: §f${stats.health.errorCount}`);
+  }
+  
+  // バリアブロックでゲーム強制終了（管理者用）
+  if (itemStack.typeId === "minecraft:barrier") {
+    await showForceEndConfirmation(player);
   }
   
   // ダイヤモンドでフェーズ強制変更（テスト用）

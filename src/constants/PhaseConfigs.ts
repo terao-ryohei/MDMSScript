@@ -92,3 +92,43 @@ export const WARNING_THRESHOLDS = {
   WARNING_TIME: 60,      // 1分前から警告
   CRITICAL_TIME: 10      // 10秒前から緊急警告
 } as const;
+
+/**
+ * プレイヤー数に応じたフェーズ時間調整
+ */
+export function getAdjustedPhaseConfig(phase: GamePhase, playerCount: number): PhaseConfig {
+  const baseConfig = { ...PHASE_CONFIGS[phase] };
+  
+  // 3人以下の場合は時間を短縮
+  if (playerCount <= 3) {
+    const reductionFactor = 0.6; // 40%短縮
+    baseConfig.duration = Math.floor(baseConfig.duration * reductionFactor);
+    
+    // 最小時間を保証
+    switch (phase) {
+      case GamePhase.PREPARATION:
+        baseConfig.duration = Math.max(baseConfig.duration, 180); // 最低3分
+        break;
+      case GamePhase.DAILY_LIFE:
+        baseConfig.duration = Math.max(baseConfig.duration, 360); // 最低6分
+        break;
+      case GamePhase.INVESTIGATION:
+        baseConfig.duration = Math.max(baseConfig.duration, 240); // 最低4分
+        break;
+      case GamePhase.DISCUSSION:
+        baseConfig.duration = Math.max(baseConfig.duration, 180); // 最低3分
+        break;
+      case GamePhase.REINVESTIGATION:
+        baseConfig.duration = Math.max(baseConfig.duration, 150); // 最低2.5分
+        break;
+      case GamePhase.DEDUCTION:
+        baseConfig.duration = Math.max(baseConfig.duration, 120); // 最低2分
+        break;
+      case GamePhase.VOTING:
+        baseConfig.duration = Math.max(baseConfig.duration, 90);  // 最低1.5分
+        break;
+    }
+  }
+  
+  return baseConfig;
+}

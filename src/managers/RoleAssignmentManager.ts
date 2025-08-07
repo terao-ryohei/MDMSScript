@@ -30,13 +30,13 @@ export class RoleAssignmentManager {
       const players = world.getAllPlayers();
       const playerCount = players.length;
 
-      // プレイヤー数チェック
-      if (playerCount < 4) {
+      // プレイヤー数チェック（テスト用に1人から可能に変更）
+      if (playerCount < 1) {
         return {
           success: false,
           assignments: new Map(),
           composition: { murderers: 0, accomplices: 0, citizens: 0 },
-          error: "最低4人のプレイヤーが必要です"
+          error: "最低1人のプレイヤーが必要です"
         };
       }
 

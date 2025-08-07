@@ -72,14 +72,40 @@ export class ScoringManager {
       const alivePlayers = world.getAllPlayers().filter(p => this.scoreboardManager.isPlayerAlive(p));
       const currentPhase = this.phaseManager.getCurrentPhase();
       
-      // プレイヤー不足チェック
-      if (alivePlayers.length < 2) {
+      // プレイヤー不足チェック（1人になったら終了）
+      if (alivePlayers.length < 1) {
         return {
           isGameOver: true,
           victoryCondition: VictoryCondition.DRAW,
           reason: "プレイヤー不足によりゲーム終了",
           shouldEndGame: true
         };
+      }
+      
+      // 1人のみ生存の場合はその人の勝利
+      if (alivePlayers.length === 1) {
+        const survivor = alivePlayers[0];
+        const role = this.scoreboardManager.getPlayerRole(survivor);
+        
+        if (role === 1) { // MURDERER
+          return {
+            isGameOver: true,
+            victoryCondition: VictoryCondition.MURDERER_VICTORY,
+            winningTeam: "犯人チーム",
+            winnerIds: [survivor.id],
+            reason: "犯人が最後の生存者になりました",
+            shouldEndGame: true
+          };
+        } else { // CITIZEN or ACCOMPLICE
+          return {
+            isGameOver: true,
+            victoryCondition: VictoryCondition.CITIZEN_VICTORY,
+            winningTeam: role === 2 ? "共犯者チーム" : "市民チーム",
+            winnerIds: [survivor.id],
+            reason: "最後の生存者になりました",
+            shouldEndGame: true
+          };
+        }
       }
 
       // 生存者の役職分析

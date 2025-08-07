@@ -139,6 +139,18 @@ export const JOBS_BY_STATUS: Record<SocialStatus, JobType[]> = {
  */
 export function generateBalancedJobDistribution(playerCount: number): JobType[] {
   const jobs: JobType[] = [];
+  
+  // テスト用の小人数対応
+  if (playerCount <= 3) {
+    // 1-3人の場合は単純にランダムなジョブを割り当て
+    const allJobs = Object.values(JobType);
+    for (let i = 0; i < playerCount; i++) {
+      const randomJob = allJobs[Math.floor(Math.random() * allJobs.length)];
+      jobs.push(randomJob);
+    }
+    return jobs;
+  }
+  
   const statusCounts = {
     [SocialStatus.NOBLE]: Math.min(3, Math.ceil(playerCount * 0.2)),      // 20%を貴族に
     [SocialStatus.CITIZEN]: Math.ceil(playerCount * 0.5),                 // 50%を市民に
