@@ -6,9 +6,12 @@ import {
   type ActionRecord, 
   type ActionFilter, 
   type EvidenceExtractionResult,
-  type ActionStatistics 
+  type ActionStatistics,
+  type EvidenceData,
+  EvidenceCondition
 } from "../types/ActionTypes";
 import { GamePhase } from "../types/PhaseTypes";
+import { getAreaFromCoordinates, getNearestLandmark } from "../constants/AreaConfigs";
 
 /**
  * プレイヤー行動追跡マネージャー
@@ -90,6 +93,11 @@ export class ActionTrackingManager {
         isEvidence,
         witnessIds
       };
+
+      // 生活フェーズ中の証拠の場合、詳細データを生成
+      if (isEvidence && this.isInDailyLifePhase()) {
+        record.evidenceData = this.generateDetailedEvidenceData(player, actionType, data, timestamp);
+      }
 
       this.actionRecords.push(record);
 
@@ -402,15 +410,6 @@ export class ActionTrackingManager {
     }
   }
 
-  /**
-   * 距離計算
-   */
-  private calculateDistance(pos1: { x: number; y: number; z: number }, pos2: { x: number; y: number; z: number }): number {
-    const dx = pos1.x - pos2.x;
-    const dy = pos1.y - pos2.y;
-    const dz = pos1.z - pos2.z;
-    return Math.sqrt(dx * dx + dy * dy + dz * dz);
-  }
 
   /**
    * ゲーム時間を取得（開始からの秒数）
@@ -498,5 +497,212 @@ export class ActionTrackingManager {
     }
     
     console.log("=== End Action Records Debug ===");
+  }
+
+  /**
+   * 現在が生活フェーズかどうかをチェック
+   */
+  private isInDailyLifePhase(): boolean {
+    const currentPhase = this.phaseManager.getCurrentPhase();
+    return currentPhase === GamePhase.DAILY_LIFE;
+  }
+
+  /**
+   * 詳細証拠データを生成
+   */
+  private generateDetailedEvidenceData(
+    player: Player, 
+    actionType: ActionType, 
+    data: Record<string, any>, 
+    timestamp: number
+  ): EvidenceData {
+    const location = player.location;
+    const gameDay = this.scoreboardManager.getGameDay();
+    
+    // 記録条件を判定
+    const recordCondition = this.determineRecordCondition(actionType, data);
+    
+    // 信頼度を計算（目撃者数、プレイヤーの役職、行動タイプに基づく）
+    const reliability = this.calculateEvidenceReliability(player, actionType, data);
+    
+    return {
+      when: {
+        gameTime: timestamp,
+        realTime: this.formatGameTime(timestamp),
+        gameDay: gameDay,
+        timeOfDay: this.getTimeOfDay(timestamp)
+      },
+      where: {
+        coordinates: {
+          x: Math.round(location.x * 100) / 100,
+          y: Math.round(location.y * 100) / 100,
+          z: Math.round(location.z * 100) / 100
+        },
+        area: this.identifyArea(location),
+        nearbyPlayers: this.getNearbyPlayerNames(player, location),
+        landmark: this.findNearestLandmark(location)
+      },
+      what: {
+        primaryAction: actionType,
+        details: this.generateActionDescription(actionType, data),
+        targetBlock: data.blockType || undefined,
+        targetPlayer: data.targetPlayer || undefined,
+        itemUsed: data.itemType || undefined,
+        taskType: data.taskType || undefined
+      },
+      recordCondition,
+      reliability
+    };
+  }
+
+  /**
+   * 証拠記録条件を判定
+   */
+  private determineRecordCondition(actionType: ActionType, data: Record<string, any>): EvidenceCondition {
+    // タスク完了の場合
+    if (actionType === ActionType.TASK_COMPLETE) {
+      return EvidenceCondition.TASK_COMPLETION;
+    }
+    
+    // 殺人事件の場合
+    if (actionType === ActionType.MURDER || actionType === ActionType.DEATH) {
+      return EvidenceCondition.INCIDENT_TIMING;
+    }
+    
+    // エリア移動の場合
+    if (actionType === ActionType.AREA_ENTER || actionType === ActionType.AREA_EXIT) {
+      return EvidenceCondition.AREA_TRANSITION;
+    }
+    
+    // プレイヤー交流の場合
+    if (actionType === ActionType.ENTITY_INTERACT && data.targetPlayer) {
+      return EvidenceCondition.INTERACTION;
+    }
+    
+    // その他はランダムタイミング
+    return EvidenceCondition.RANDOM_TIMING;
+  }
+
+  /**
+   * 証拠の信頼度を計算
+   */
+  private calculateEvidenceReliability(player: Player, actionType: ActionType, data: Record<string, any>): number {
+    let baseReliability = 70; // 基本信頼度
+    
+    // 行動タイプによる調整
+    switch (actionType) {
+      case ActionType.MURDER:
+      case ActionType.DEATH:
+        baseReliability = 95; // 殺人・死亡は高信頼度
+        break;
+      case ActionType.TASK_COMPLETE:
+        baseReliability = 85; // タスク完了は高信頼度
+        break;
+      case ActionType.MOVEMENT:
+        baseReliability = 50; // 移動は低信頼度
+        break;
+    }
+    
+    // 目撃者数による調整
+    const witnessCount = data.witnessCount || 0;
+    baseReliability += Math.min(witnessCount * 5, 20); // 最大+20
+    
+    // プレイヤーの役職による調整
+    const role = this.scoreboardManager.getPlayerRole(player);
+    if (role === 1) { // MURDERER
+      baseReliability -= 10; // 犯人の証拠は信頼度下がる
+    } else if (role === 3) { // CITIZEN
+      baseReliability += 5; // 市民の証拠は信頼度上がる
+    }
+    
+    return Math.max(0, Math.min(100, baseReliability));
+  }
+
+  /**
+   * ゲーム時間をフォーマット
+   */
+  private formatGameTime(timestamp: number): string {
+    const totalSeconds = Math.floor(timestamp);
+    const hours = Math.floor(totalSeconds / 3600);
+    const minutes = Math.floor((totalSeconds % 3600) / 60);
+    const seconds = totalSeconds % 60;
+    
+    return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+  }
+
+  /**
+   * 時間帯を判定
+   */
+  private getTimeOfDay(timestamp: number): string {
+    const dayProgress = (timestamp % 2400) / 2400; // 1日 = 2400秒と仮定
+    
+    if (dayProgress < 0.25) return "夜";
+    if (dayProgress < 0.5) return "朝";
+    if (dayProgress < 0.75) return "昼";
+    return "夕";
+  }
+
+  /**
+   * エリア名を特定
+   */
+  private identifyArea(location: Vector3): string {
+    return getAreaFromCoordinates(location.x, location.z);
+  }
+
+  /**
+   * 近くのプレイヤー名を取得
+   */
+  private getNearbyPlayerNames(player: Player, location: Vector3): string[] {
+    return world.getAllPlayers()
+      .filter(p => p.id !== player.id)
+      .filter(p => this.calculateDistance(location, p.location) <= 10)
+      .map(p => p.name);
+  }
+
+  /**
+   * 最寄りのランドマークを検索
+   */
+  private findNearestLandmark(location: Vector3): string | null {
+    return getNearestLandmark(location);
+  }
+
+  /**
+   * 行動の詳細説明を生成
+   */
+  private generateActionDescription(actionType: ActionType, data: Record<string, any>): string {
+    switch (actionType) {
+      case ActionType.BLOCK_BREAK:
+        return `${data.blockType || "ブロック"}を破壊した`;
+      case ActionType.BLOCK_PLACE:
+        return `${data.blockType || "ブロック"}を設置した`;
+      case ActionType.ITEM_USE:
+        return `${data.itemType || "アイテム"}を使用した`;
+      case ActionType.ENTITY_INTERACT:
+        return `${data.targetPlayer || "誰か"}と交流した`;
+      case ActionType.TASK_COMPLETE:
+        return `${data.taskType || "タスク"}を完了した`;
+      case ActionType.MURDER:
+        return `${data.victimName || "誰か"}を殺害した`;
+      case ActionType.DEATH:
+        return `${data.killerName || "誰か"}により死亡した`;
+      case ActionType.MOVEMENT:
+        return `${data.fromArea || ""}から移動した`;
+      case ActionType.CHAT:
+        return `チャットで発言した: "${data.message || ""}"`;
+      case ActionType.ABILITY_USE:
+        return `${data.abilityName || "特殊能力"}を使用した`;
+      default:
+        return `${actionType}を実行した`;
+    }
+  }
+
+  /**
+   * 距離計算（Vector3 | {x, y, z}両方に対応）
+   */
+  private calculateDistance(pos1: Vector3 | {x: number, y: number, z: number}, pos2: Vector3 | {x: number, y: number, z: number}): number {
+    const dx = pos1.x - pos2.x;
+    const dy = pos1.y - pos2.y;
+    const dz = pos1.z - pos2.z;
+    return Math.sqrt(dx * dx + dy * dy + dz * dz);
   }
 }

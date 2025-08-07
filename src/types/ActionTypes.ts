@@ -20,6 +20,56 @@ export enum ActionType {
 }
 
 /**
+ * 証拠記録条件
+ */
+export enum EvidenceCondition {
+  RANDOM_TIMING = "random_timing",     // ランダムなタイミング
+  TASK_COMPLETION = "task_completion", // 日常タスク達成時
+  INCIDENT_TIMING = "incident_timing", // 事件発生タイミング
+  AREA_TRANSITION = "area_transition", // エリア移動時
+  INTERACTION = "interaction"          // 他プレイヤーとの交流時
+}
+
+/**
+ * 証拠データ（「いつ」「どこで」「何をした」の詳細情報）
+ */
+export interface EvidenceData {
+  // 「いつ」の情報
+  when: {
+    gameTime: number;                // ゲーム開始からの秒数
+    realTime: string;                // 実時間（HH:MM:SS形式）
+    gameDay: number;                 // ゲーム内日数
+    timeOfDay: string;               // 時間帯（朝/昼/夕/夜）
+  };
+  
+  // 「どこで」の情報
+  where: {
+    coordinates: {
+      x: number;
+      y: number;
+      z: number;
+    };
+    area: string;                    // エリア名（自動判定）
+    nearbyPlayers: string[];         // 近くにいたプレイヤー
+    landmark: string | null;         // 最寄りのランドマーク
+  };
+  
+  // 「何をした」の情報
+  what: {
+    primaryAction: ActionType;       // 主要行動
+    details: string;                 // 行動の詳細説明
+    targetBlock?: string;            // 対象ブロック（あれば）
+    targetPlayer?: string;           // 対象プレイヤー（あれば）
+    itemUsed?: string;               // 使用アイテム（あれば）
+    taskType?: string;               // タスクタイプ（タスク完了時）
+  };
+  
+  // 証拠記録条件
+  recordCondition: EvidenceCondition;
+  reliability: number;               // 信頼度（0-100）
+}
+
+/**
  * 行動記録データ
  */
 export interface ActionRecord {
@@ -38,6 +88,7 @@ export interface ActionRecord {
   data: Record<string, any>;       // 追加データ
   isEvidence: boolean;             // 証拠として扱うか
   witnessIds: string[];            // 目撃者プレイヤーID
+  evidenceData?: EvidenceData;     // 詳細証拠データ（証拠の場合のみ）
 }
 
 /**
