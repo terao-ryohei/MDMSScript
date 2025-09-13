@@ -1,708 +1,777 @@
-import { Player, world, system, Vector3 } from "@minecraft/server";
-import { ScoreboardManager } from "./ScoreboardManager";
-import { PhaseManager } from "./PhaseManager";
-import { 
-  ActionType, 
-  type ActionRecord, 
-  type ActionFilter, 
-  type EvidenceExtractionResult,
-  type ActionStatistics,
-  type EvidenceData,
-  EvidenceCondition
-} from "../types/ActionTypes";
-import { GamePhase } from "../types/PhaseTypes";
-import { getAreaFromCoordinates, getNearestLandmark } from "../constants/AreaConfigs";
-
 /**
- * プレイヤー行動追跡マネージャー
+ * プレイヤー行動追跡管理関数群（関数ベース版）
  * ScriptEventベースで全プレイヤーの行動を記録・管理
  */
-export class ActionTrackingManager {
-  private static instance: ActionTrackingManager;
-  private scoreboardManager: ScoreboardManager;
-  private phaseManager: PhaseManager;
-  
-  private actionRecords: ActionRecord[] = [];
-  private gameStartTime: number = 0;
-  private isTracking: boolean = false;
-  private recordCounter: number = 0;
 
-  private constructor() {
-    this.scoreboardManager = ScoreboardManager.getInstance();
-    this.phaseManager = PhaseManager.getInstance();
-    this.setupEventListeners();
-  }
+import { type Player, system, type Vector3, world } from "@minecraft/server";
+import {
+	getAreaFromCoordinates,
+	getNearestLandmark,
+} from "../constants/AreaConfigs";
+import {
+	type ActionFilter,
+	type ActionRecord,
+	type ActionStatistics,
+	ActionType,
+	EvidenceCondition,
+	type EvidenceData,
+	type EvidenceExtractionResult,
+} from "../types/ActionTypes";
+import { GamePhase } from "../types/PhaseTypes";
+import { RoleType } from "../types/RoleTypes";
+import { getCurrentPhase } from "./PhaseManager";
+import { getGameDay, getPlayerRole } from "./ScoreboardManager";
 
-  public static getInstance(): ActionTrackingManager {
-    if (!ActionTrackingManager.instance) {
-      ActionTrackingManager.instance = new ActionTrackingManager();
-    }
-    return ActionTrackingManager.instance;
-  }
+// グローバル状態変数（モジュールスコープ）
+let actionRecords: ActionRecord[] = [];
+let gameStartTime: number = 0;
+let isTracking: boolean = false;
+let recordCounter: number = 0;
 
-  /**
-   * 行動追跡を開始
-   */
-  public startTracking(): void {
-    this.isTracking = true;
-    this.gameStartTime = Date.now();
-    this.actionRecords = [];
-    this.recordCounter = 0;
-    console.log("Action tracking started");
-  }
+// 初期化フラグ
+let isInitialized = false;
 
-  /**
-   * 行動追跡を停止
-   */
-  public stopTracking(): void {
-    this.isTracking = false;
-    console.log(`Action tracking stopped. Total records: ${this.actionRecords.length}`);
-  }
+/**
+ * ActionTrackingシステムを初期化
+ */
+export function initializeActionTracking(): void {
+	if (!isInitialized) {
+		setupEventListeners();
+		isInitialized = true;
+	}
+}
 
-  /**
-   * 行動記録を追加
-   */
-  public recordAction(
-    player: Player,
-    actionType: ActionType,
-    data: Record<string, any> = {},
-    isEvidence: boolean = true
-  ): string | null {
-    if (!this.isTracking) return null;
+/**
+ * 行動追跡を開始
+ */
+export function startTracking(): void {
+	isTracking = true;
+	gameStartTime = Date.now();
+	actionRecords = [];
+	recordCounter = 0;
+	console.log("Action tracking started");
+}
 
-    try {
-      const timestamp = this.getGameTime();
-      const phaseId = this.convertPhaseToId(this.phaseManager.getCurrentPhase());
-      const location = player.location;
-      const witnessIds = this.findWitnesses(player, location);
+/**
+ * 行動追跡を停止
+ */
+export function stopTracking(): void {
+	isTracking = false;
+	console.log(
+		`Action tracking stopped. Total records: ${actionRecords.length}`,
+	);
+}
 
-      const record: ActionRecord = {
-        id: `action_${this.recordCounter++}`,
-        playerId: player.id,
-        playerName: player.name,
-        actionType,
-        timestamp,
-        phaseId,
-        location: {
-          x: Math.round(location.x * 100) / 100,
-          y: Math.round(location.y * 100) / 100,
-          z: Math.round(location.z * 100) / 100,
-          dimension: player.dimension.id
-        },
-        data,
-        isEvidence,
-        witnessIds
-      };
+/**
+ * 行動記録を追加
+ */
+export function recordAction(
+	player: Player,
+	actionType: ActionType,
+	data: Record<string, any> = {},
+	isEvidence: boolean = true,
+): string | null {
+	if (!isTracking) return null;
 
-      // 生活フェーズ中の証拠の場合、詳細データを生成
-      if (isEvidence && this.isInDailyLifePhase()) {
-        record.evidenceData = this.generateDetailedEvidenceData(player, actionType, data, timestamp);
-      }
+	try {
+		const timestamp = getGameTime();
+		const phaseId = convertPhaseToId(getCurrentPhase());
+		const location = player.location;
+		const witnessIds = findWitnesses(player, location);
 
-      this.actionRecords.push(record);
+		const record: ActionRecord = {
+			id: `action_${recordCounter++}`,
+			playerId: player.id,
+			playerName: player.name,
+			actionType,
+			timestamp,
+			phaseId,
+			location: {
+				x: Math.round(location.x * 100) / 100,
+				y: Math.round(location.y * 100) / 100,
+				z: Math.round(location.z * 100) / 100,
+				dimension: player.dimension.id,
+			},
+			data,
+			isEvidence,
+			witnessIds,
+		};
 
-      // ScriptEventで他のシステムに通知
-      system.run(() => {
-        world.getDimension("overworld").runCommand(
-          `scriptevent mdms:action_recorded {"actionId":"${record.id}","actionType":"${actionType}","playerId":"${player.id}"}`
-        );
-      });
+		// 生活フェーズ中の証拠の場合、詳細データを生成
+		if (isEvidence && isInDailyLifePhase()) {
+			record.evidenceData = generateDetailedEvidenceData(
+				player,
+				actionType,
+				data,
+				timestamp,
+			);
+		}
 
-      console.log(`Recorded action: ${actionType} by ${player.name} at ${timestamp}`);
-      return record.id;
+		actionRecords.push(record);
 
-    } catch (error) {
-      console.error("Failed to record action:", error);
-      return null;
-    }
-  }
+		// ScriptEventで他のシステムに通知
+		system.run(() => {
+			world
+				.getDimension("overworld")
+				.runCommand(
+					`scriptevent mdms:action_recorded {"actionId":"${record.id}","actionType":"${actionType}","playerId":"${player.id}"}`,
+				);
+		});
 
-  /**
-   * フェーズベース証拠抽出
-   */
-  public extractEvidenceFromPhase(phase: GamePhase): EvidenceExtractionResult {
-    try {
-      const phaseId = this.convertPhaseToId(phase);
-      const phaseActions = this.actionRecords.filter(record => record.phaseId === phaseId);
-      const evidence = phaseActions.filter(record => record.isEvidence);
+		console.log(
+			`Recorded action: ${actionType} by ${player.name} at ${timestamp}`,
+		);
+		return record.id;
+	} catch (error) {
+		console.error("Failed to record action:", error);
+		return null;
+	}
+}
 
-      const timeRange = this.getPhaseTimeRange(phaseId);
+/**
+ * フェーズベース証拠抽出
+ */
+export function extractEvidenceFromPhase(
+	phase: GamePhase,
+): EvidenceExtractionResult {
+	try {
+		const phaseId = convertPhaseToId(phase);
+		const phaseActions = actionRecords.filter(
+			(record) => record.phaseId === phaseId,
+		);
+		const evidence = phaseActions.filter((record) => record.isEvidence);
 
-      return {
-        success: true,
-        evidence,
-        totalActions: phaseActions.length,
-        filteredActions: evidence.length,
-        timeRange
-      };
+		const timeRange = getPhaseTimeRange(phaseId);
 
-    } catch (error) {
-      console.error(`Failed to extract evidence from phase ${phase}:`, error);
-      return {
-        success: false,
-        evidence: [],
-        totalActions: 0,
-        filteredActions: 0,
-        timeRange: { start: 0, end: 0 },
-        error: error instanceof Error ? error.message : "不明なエラー"
-      };
-    }
-  }
+		return {
+			success: true,
+			evidence,
+			totalActions: phaseActions.length,
+			filteredActions: evidence.length,
+			timeRange,
+		};
+	} catch (error) {
+		console.error(`Failed to extract evidence from phase ${phase}:`, error);
+		return {
+			success: false,
+			evidence: [],
+			totalActions: 0,
+			filteredActions: 0,
+			timeRange: { start: 0, end: 0 },
+			error: error instanceof Error ? error.message : "不明なエラー",
+		};
+	}
+}
 
-  /**
-   * 生活フェーズ内証拠抽出
-   */
-  public extractEvidenceFromDailyLife(): EvidenceExtractionResult {
-    return this.extractEvidenceFromPhase(GamePhase.DAILY_LIFE);
-  }
+/**
+ * 生活フェーズ内証拠抽出
+ */
+export function extractEvidenceFromDailyLife(): EvidenceExtractionResult {
+	return extractEvidenceFromPhase(GamePhase.DAILY_LIFE);
+}
 
-  /**
-   * フィルター条件に基づく行動検索
-   */
-  public searchActions(filter: ActionFilter): ActionRecord[] {
-    try {
-      return this.actionRecords.filter(record => {
-        // プレイヤーIDフィルター
-        if (filter.playerId && record.playerId !== filter.playerId) {
-          return false;
-        }
+/**
+ * フィルター条件に基づく行動検索
+ */
+export function searchActions(filter: ActionFilter): ActionRecord[] {
+	try {
+		return actionRecords.filter((record) => {
+			// プレイヤーIDフィルター
+			if (filter.playerId && record.playerId !== filter.playerId) {
+				return false;
+			}
 
-        // 行動タイプフィルター
-        if (filter.actionType && record.actionType !== filter.actionType) {
-          return false;
-        }
+			// 行動タイプフィルター
+			if (filter.actionType && record.actionType !== filter.actionType) {
+				return false;
+			}
 
-        // フェーズIDフィルター
-        if (filter.phaseId !== undefined && record.phaseId !== filter.phaseId) {
-          return false;
-        }
+			// フェーズIDフィルター
+			if (filter.phaseId !== undefined && record.phaseId !== filter.phaseId) {
+				return false;
+			}
 
-        // 時間範囲フィルター
-        if (filter.startTime !== undefined && record.timestamp < filter.startTime) {
-          return false;
-        }
-        if (filter.endTime !== undefined && record.timestamp > filter.endTime) {
-          return false;
-        }
+			// 時間範囲フィルター
+			if (
+				filter.startTime !== undefined &&
+				record.timestamp < filter.startTime
+			) {
+				return false;
+			}
+			if (filter.endTime !== undefined && record.timestamp > filter.endTime) {
+				return false;
+			}
 
-        // 証拠フィルター
-        if (filter.isEvidence !== undefined && record.isEvidence !== filter.isEvidence) {
-          return false;
-        }
+			// 証拠フィルター
+			if (
+				filter.isEvidence !== undefined &&
+				record.isEvidence !== filter.isEvidence
+			) {
+				return false;
+			}
 
-        // 位置フィルター
-        if (filter.location) {
-          const distance = this.calculateDistance(record.location, filter.location);
-          if (distance > filter.location.radius) {
-            return false;
-          }
-        }
+			// 位置フィルター
+			if (filter.location) {
+				const distance = calculateDistance(record.location, filter.location);
+				if (distance > filter.location.radius) {
+					return false;
+				}
+			}
 
-        return true;
-      });
+			return true;
+		});
+	} catch (error) {
+		console.error("Failed to search actions:", error);
+		return [];
+	}
+}
 
-    } catch (error) {
-      console.error("Failed to search actions:", error);
-      return [];
-    }
-  }
+/**
+ * プレイヤーの行動履歴を取得
+ */
+export function getPlayerActions(
+	playerId: string,
+	limit?: number,
+): ActionRecord[] {
+	const playerActions = actionRecords
+		.filter((record) => record.playerId === playerId)
+		.sort((a, b) => b.timestamp - a.timestamp);
 
-  /**
-   * プレイヤーの行動履歴を取得
-   */
-  public getPlayerActions(playerId: string, limit?: number): ActionRecord[] {
-    const playerActions = this.actionRecords
-      .filter(record => record.playerId === playerId)
-      .sort((a, b) => b.timestamp - a.timestamp);
+	return limit ? playerActions.slice(0, limit) : playerActions;
+}
 
-    return limit ? playerActions.slice(0, limit) : playerActions;
-  }
+/**
+ * 行動統計を取得
+ */
+export function getActionStatistics(): ActionStatistics {
+	const actionsByType = new Map<ActionType, number>();
+	const actionsByPlayer = new Map<string, number>();
+	const actionsByPhase = new Map<number, number>();
 
-  /**
-   * 行動統計を取得
-   */
-  public getActionStatistics(): ActionStatistics {
-    const actionsByType = new Map<ActionType, number>();
-    const actionsByPlayer = new Map<string, number>();
-    const actionsByPhase = new Map<number, number>();
+	let evidenceCount = 0;
+	let minTime = Infinity;
+	let maxTime = -Infinity;
 
-    let evidenceCount = 0;
-    let minTime = Infinity;
-    let maxTime = -Infinity;
+	for (const record of actionRecords) {
+		// タイプ別統計
+		actionsByType.set(
+			record.actionType,
+			(actionsByType.get(record.actionType) || 0) + 1,
+		);
 
-    for (const record of this.actionRecords) {
-      // タイプ別統計
-      actionsByType.set(record.actionType, (actionsByType.get(record.actionType) || 0) + 1);
-      
-      // プレイヤー別統計
-      actionsByPlayer.set(record.playerId, (actionsByPlayer.get(record.playerId) || 0) + 1);
-      
-      // フェーズ別統計
-      actionsByPhase.set(record.phaseId, (actionsByPhase.get(record.phaseId) || 0) + 1);
-      
-      // 証拠カウント
-      if (record.isEvidence) evidenceCount++;
-      
-      // 時間範囲
-      minTime = Math.min(minTime, record.timestamp);
-      maxTime = Math.max(maxTime, record.timestamp);
-    }
+		// プレイヤー別統計
+		actionsByPlayer.set(
+			record.playerId,
+			(actionsByPlayer.get(record.playerId) || 0) + 1,
+		);
 
-    return {
-      totalActions: this.actionRecords.length,
-      actionsByType,
-      actionsByPlayer,
-      actionsByPhase,
-      evidenceCount,
-      timeRange: {
-        start: minTime === Infinity ? 0 : minTime,
-        end: maxTime === -Infinity ? 0 : maxTime
-      }
-    };
-  }
+		// フェーズ別統計
+		actionsByPhase.set(
+			record.phaseId,
+			(actionsByPhase.get(record.phaseId) || 0) + 1,
+		);
 
-  /**
-   * 特定行動の目撃者を取得
-   */
-  public getActionWitnesses(actionId: string): Player[] {
-    const record = this.actionRecords.find(r => r.id === actionId);
-    if (!record) return [];
+		// 証拠カウント
+		if (record.isEvidence) evidenceCount++;
 
-    return record.witnessIds
-      .map(id => world.getAllPlayers().find(p => p.id === id))
-      .filter(p => p !== undefined) as Player[];
-  }
+		// 時間範囲
+		minTime = Math.min(minTime, record.timestamp);
+		maxTime = Math.max(maxTime, record.timestamp);
+	}
 
-  /**
-   * イベントリスナーを設定
-   */
-  private setupEventListeners(): void {
-    // チャットイベント（APIに存在しない場合はコメントアウト）
-    // world.beforeEvents.chatSend.subscribe((event: any) => {
-    //   if (this.isTracking) {
-    //     this.recordAction(event.sender, ActionType.CHAT, {
-    //       message: event.message
-    //     });
-    //   }
-    // });
+	return {
+		totalActions: actionRecords.length,
+		actionsByType,
+		actionsByPlayer,
+		actionsByPhase,
+		evidenceCount,
+		timeRange: {
+			start: minTime === Infinity ? 0 : minTime,
+			end: maxTime === -Infinity ? 0 : maxTime,
+		},
+	};
+}
 
-    // ブロック破壊イベント
-    world.beforeEvents.playerBreakBlock.subscribe((event: any) => {
-      if (this.isTracking) {
-        this.recordAction(event.player, ActionType.BLOCK_BREAK, {
-          blockType: event.block.typeId,
-          location: event.block.location
-        });
-      }
-    });
+/**
+ * 特定行動の目撃者を取得
+ */
+export function getActionWitnesses(actionId: string): Player[] {
+	const record = actionRecords.find((r) => r.id === actionId);
+	if (!record) return [];
 
-    // ブロック設置イベント（イベントが存在しない場合はコメントアウト）
-    // world.beforeEvents.playerPlaceBlock.subscribe((event: any) => {
-    //   if (this.isTracking) {
-    //     this.recordAction(event.player, ActionType.BLOCK_PLACE, {
-    //       blockType: event.block.typeId,
-    //       location: event.block.location
-    //     });
-    //   }
-    // });
+	return record.witnessIds
+		.map((id) => world.getAllPlayers().find((p) => p.id === id))
+		.filter((p) => p !== undefined) as Player[];
+}
 
-    // アイテム使用イベント
-    world.afterEvents.itemUse.subscribe((event) => {
-      if (this.isTracking) {
-        this.recordAction(event.source, ActionType.ITEM_USE, {
-          itemType: event.itemStack.typeId,
-          amount: event.itemStack.amount
-        });
-      }
-    });
+/**
+ * イベントリスナーを設定
+ */
+function setupEventListeners(): void {
+	// チャットイベント（APIに存在しない場合はコメントアウト）
+	// world.beforeEvents.chatSend.subscribe((event: any) => {
+	//   if (isTracking) {
+	//     recordAction(event.sender, ActionType.CHAT, {
+	//       message: event.message
+	//     });
+	//   }
+	// });
 
-    // エンティティヒットイベント（攻撃）
-    world.afterEvents.entityHitEntity.subscribe((event) => {
-      if (this.isTracking && event.damagingEntity?.typeId === "minecraft:player" && event.hitEntity?.typeId === "minecraft:player") {
-        const attacker = event.damagingEntity as Player;
-        const victim = event.hitEntity as Player;
-        
-        this.recordAction(attacker, ActionType.ENTITY_INTERACT, {
-          targetId: victim.id,
-          targetName: victim.name,
-          interactionType: "attack"
-        });
-      }
-    });
+	// ブロック破壊イベント
+	world.beforeEvents.playerBreakBlock.subscribe((event: any) => {
+		if (isTracking) {
+			recordAction(event.player, ActionType.BLOCK_BREAK, {
+				blockType: event.block.typeId,
+				location: event.block.location,
+			});
+		}
+	});
 
-    // プレイヤー死亡イベント
-    world.afterEvents.entityDie.subscribe((event) => {
-      if (this.isTracking && event.deadEntity?.typeId === "minecraft:player") {
-        const player = event.deadEntity as Player;
-        this.recordAction(player, ActionType.DEATH, {
-          cause: event.damageSource.cause
-        });
-      }
-    });
+	// ブロック設置イベント（イベントが存在しない場合はコメントアウト）
+	// world.beforeEvents.playerPlaceBlock.subscribe((event: any) => {
+	//   if (isTracking) {
+	//     recordAction(event.player, ActionType.BLOCK_PLACE, {
+	//       blockType: event.block.typeId,
+	//       location: event.block.location
+	//     });
+	//   }
+	// });
 
-    // カスタムScriptEvent処理
-    system.afterEvents.scriptEventReceive.subscribe((event) => {
-      if (!this.isTracking) return;
+	// アイテム使用イベント
+	world.afterEvents.itemUse.subscribe((event) => {
+		if (isTracking) {
+			recordAction(event.source, ActionType.ITEM_USE, {
+				itemType: event.itemStack.typeId,
+				amount: event.itemStack.amount,
+			});
+		}
+	});
 
-      if (event.id === "mdms:murder") {
-        const data = JSON.parse(event.message || "{}");
-        const murderer = world.getAllPlayers().find(p => p.id === data.murdererId);
-        const victim = world.getAllPlayers().find(p => p.id === data.victimId);
-        
-        if (murderer && victim) {
-          this.recordAction(murderer, ActionType.MURDER, {
-            victimId: victim.id,
-            victimName: victim.name,
-            method: data.method || "unknown"
-          }, true);
-        }
-      }
+	// エンティティヒットイベント（攻撃）
+	world.afterEvents.entityHitEntity.subscribe((event) => {
+		if (
+			isTracking &&
+			event.damagingEntity?.typeId === "minecraft:player" &&
+			event.hitEntity?.typeId === "minecraft:player"
+		) {
+			const attacker = event.damagingEntity as Player;
+			const victim = event.hitEntity as Player;
 
-      if (event.id === "mdms:ability_use") {
-        const data = JSON.parse(event.message || "{}");
-        const player = world.getAllPlayers().find(p => p.id === data.playerId);
-        
-        if (player) {
-          this.recordAction(player, ActionType.ABILITY_USE, {
-            abilityId: data.abilityId,
-            targetId: data.targetId,
-            result: data.result
-          }, true);
-        }
-      }
+			recordAction(attacker, ActionType.ENTITY_INTERACT, {
+				targetId: victim.id,
+				targetName: victim.name,
+				interactionType: "attack",
+			});
+		}
+	});
 
-      if (event.id === "mdms:task_complete") {
-        const data = JSON.parse(event.message || "{}");
-        const player = world.getAllPlayers().find(p => p.id === data.playerId);
-        
-        if (player) {
-          this.recordAction(player, ActionType.TASK_COMPLETE, {
-            taskId: data.taskId,
-            taskName: data.taskName,
-            duration: data.duration
-          });
-        }
-      }
-    });
-  }
+	// プレイヤー死亡イベント
+	world.afterEvents.entityDie.subscribe((event) => {
+		if (isTracking && event.deadEntity?.typeId === "minecraft:player") {
+			const player = event.deadEntity as Player;
+			recordAction(player, ActionType.DEATH, {
+				cause: event.damageSource.cause,
+			});
+		}
+	});
 
-  /**
-   * 目撃者を検索
-   */
-  private findWitnesses(actor: Player, location: Vector3, radius: number = 10): string[] {
-    try {
-      return world.getAllPlayers()
-        .filter(player => {
-          if (player.id === actor.id) return false;
-          
-          const distance = this.calculateDistance(
-            location,
-            { x: player.location.x, y: player.location.y, z: player.location.z }
-          );
-          
-          return distance <= radius;
-        })
-        .map(player => player.id);
+	// カスタムScriptEvent処理
+	system.afterEvents.scriptEventReceive.subscribe((event) => {
+		if (!isTracking) return;
 
-    } catch (error) {
-      console.error("Failed to find witnesses:", error);
-      return [];
-    }
-  }
+		if (event.id === "mdms:murder") {
+			const data = JSON.parse(event.message || "{}");
+			const murderer = world
+				.getAllPlayers()
+				.find((p) => p.id === data.murdererId);
+			const victim = world.getAllPlayers().find((p) => p.id === data.victimId);
 
+			if (murderer && victim) {
+				recordAction(
+					murderer,
+					ActionType.MURDER,
+					{
+						victimId: victim.id,
+						victimName: victim.name,
+						method: data.method || "unknown",
+					},
+					true,
+				);
+			}
+		}
 
-  /**
-   * ゲーム時間を取得（開始からの秒数）
-   */
-  private getGameTime(): number {
-    return Math.floor((Date.now() - this.gameStartTime) / 1000);
-  }
+		if (event.id === "mdms:ability_use") {
+			const data = JSON.parse(event.message || "{}");
+			const player = world.getAllPlayers().find((p) => p.id === data.playerId);
 
-  /**
-   * フェーズの時間範囲を取得
-   */
-  private getPhaseTimeRange(phaseId: number): { start: number; end: number } {
-    // 実装は簡略化。実際にはPhaseManagerと連携して正確な時間を取得
-    const phaseActions = this.actionRecords.filter(record => record.phaseId === phaseId);
-    
-    if (phaseActions.length === 0) {
-      return { start: 0, end: 0 };
-    }
+			if (player) {
+				recordAction(
+					player,
+					ActionType.ABILITY_USE,
+					{
+						abilityId: data.abilityId,
+						targetId: data.targetId,
+						result: data.result,
+					},
+					true,
+				);
+			}
+		}
 
-    const timestamps = phaseActions.map(action => action.timestamp);
-    return {
-      start: Math.min(...timestamps),
-      end: Math.max(...timestamps)
-    };
-  }
+		if (event.id === "mdms:task_complete") {
+			const data = JSON.parse(event.message || "{}");
+			const player = world.getAllPlayers().find((p) => p.id === data.playerId);
 
-  /**
-   * 全記録をクリア
-   */
-  public clearAllRecords(): void {
-    this.actionRecords = [];
-    this.recordCounter = 0;
-    console.log("All action records cleared");
-  }
+			if (player) {
+				recordAction(player, ActionType.TASK_COMPLETE, {
+					taskId: data.taskId,
+					taskName: data.taskName,
+					duration: data.duration,
+				});
+			}
+		}
+	});
+}
 
-  /**
-   * フェーズをIDに変換
-   */
-  private convertPhaseToId(phase: GamePhase): number {
-    // 文字列としてのフェーズ値も対応
-    switch (phase) {
-      case GamePhase.PREPARATION:
-        return 0;
-      case GamePhase.DAILY_LIFE:
-        return 1;
-      case GamePhase.INVESTIGATION:
-        return 2;
-      case GamePhase.DISCUSSION:
-        return 3;
-      case GamePhase.REINVESTIGATION:
-        return 4;
-      case GamePhase.DEDUCTION:
-        return 5;
-      case GamePhase.VOTING:
-        return 6;
-      case GamePhase.ENDING:
-        return 7;
-      default:
-        console.warn(`Unknown phase: ${phase}, defaulting to 0`);
-        return 0;
-    }
-  }
+/**
+ * 目撃者を検索
+ */
+function findWitnesses(
+	actor: Player,
+	location: Vector3,
+	radius: number = 10,
+): string[] {
+	try {
+		return world
+			.getAllPlayers()
+			.filter((player) => {
+				if (player.id === actor.id) return false;
 
-  /**
-   * デバッグ用：記録統計を出力
-   */
-  public debugActionRecords(): void {
-    console.log("=== Action Records Debug ===");
-    const stats = this.getActionStatistics();
-    
-    console.log(`Total actions: ${stats.totalActions}`);
-    console.log(`Evidence count: ${stats.evidenceCount}`);
-    console.log(`Time range: ${stats.timeRange.start} - ${stats.timeRange.end}`);
-    
-    console.log("Actions by type:");
-    for (const [type, count] of stats.actionsByType.entries()) {
-      console.log(`  ${type}: ${count}`);
-    }
-    
-    console.log("Actions by player:");
-    for (const [playerId, count] of stats.actionsByPlayer.entries()) {
-      const player = world.getAllPlayers().find(p => p.id === playerId);
-      const playerName = player ? player.name : "Unknown";
-      console.log(`  ${playerName} (${playerId}): ${count}`);
-    }
-    
-    console.log("=== End Action Records Debug ===");
-  }
+				const distance = calculateDistance(location, {
+					x: player.location.x,
+					y: player.location.y,
+					z: player.location.z,
+				});
 
-  /**
-   * 現在が生活フェーズかどうかをチェック
-   */
-  private isInDailyLifePhase(): boolean {
-    const currentPhase = this.phaseManager.getCurrentPhase();
-    return currentPhase === GamePhase.DAILY_LIFE;
-  }
+				return distance <= radius;
+			})
+			.map((player) => player.id);
+	} catch (error) {
+		console.error("Failed to find witnesses:", error);
+		return [];
+	}
+}
 
-  /**
-   * 詳細証拠データを生成
-   */
-  private generateDetailedEvidenceData(
-    player: Player, 
-    actionType: ActionType, 
-    data: Record<string, any>, 
-    timestamp: number
-  ): EvidenceData {
-    const location = player.location;
-    const gameDay = this.scoreboardManager.getGameDay();
-    
-    // 記録条件を判定
-    const recordCondition = this.determineRecordCondition(actionType, data);
-    
-    // 信頼度を計算（目撃者数、プレイヤーの役職、行動タイプに基づく）
-    const reliability = this.calculateEvidenceReliability(player, actionType, data);
-    
-    return {
-      when: {
-        gameTime: timestamp,
-        realTime: this.formatGameTime(timestamp),
-        gameDay: gameDay,
-        timeOfDay: this.getTimeOfDay(timestamp)
-      },
-      where: {
-        coordinates: {
-          x: Math.round(location.x * 100) / 100,
-          y: Math.round(location.y * 100) / 100,
-          z: Math.round(location.z * 100) / 100
-        },
-        area: this.identifyArea(location),
-        nearbyPlayers: this.getNearbyPlayerNames(player, location),
-        landmark: this.findNearestLandmark(location)
-      },
-      what: {
-        primaryAction: actionType,
-        details: this.generateActionDescription(actionType, data),
-        targetBlock: data.blockType || undefined,
-        targetPlayer: data.targetPlayer || undefined,
-        itemUsed: data.itemType || undefined,
-        taskType: data.taskType || undefined
-      },
-      recordCondition,
-      reliability
-    };
-  }
+/**
+ * ゲーム時間を取得（開始からの秒数）
+ */
+function getGameTime(): number {
+	return Math.floor((Date.now() - gameStartTime) / 1000);
+}
 
-  /**
-   * 証拠記録条件を判定
-   */
-  private determineRecordCondition(actionType: ActionType, data: Record<string, any>): EvidenceCondition {
-    // タスク完了の場合
-    if (actionType === ActionType.TASK_COMPLETE) {
-      return EvidenceCondition.TASK_COMPLETION;
-    }
-    
-    // 殺人事件の場合
-    if (actionType === ActionType.MURDER || actionType === ActionType.DEATH) {
-      return EvidenceCondition.INCIDENT_TIMING;
-    }
-    
-    // エリア移動の場合
-    if (actionType === ActionType.AREA_ENTER || actionType === ActionType.AREA_EXIT) {
-      return EvidenceCondition.AREA_TRANSITION;
-    }
-    
-    // プレイヤー交流の場合
-    if (actionType === ActionType.ENTITY_INTERACT && data.targetPlayer) {
-      return EvidenceCondition.INTERACTION;
-    }
-    
-    // その他はランダムタイミング
-    return EvidenceCondition.RANDOM_TIMING;
-  }
+/**
+ * フェーズの時間範囲を取得
+ */
+function getPhaseTimeRange(phaseId: number): { start: number; end: number } {
+	// 実装は簡略化。実際にはPhaseManagerと連携して正確な時間を取得
+	const phaseActions = actionRecords.filter(
+		(record) => record.phaseId === phaseId,
+	);
 
-  /**
-   * 証拠の信頼度を計算
-   */
-  private calculateEvidenceReliability(player: Player, actionType: ActionType, data: Record<string, any>): number {
-    let baseReliability = 70; // 基本信頼度
-    
-    // 行動タイプによる調整
-    switch (actionType) {
-      case ActionType.MURDER:
-      case ActionType.DEATH:
-        baseReliability = 95; // 殺人・死亡は高信頼度
-        break;
-      case ActionType.TASK_COMPLETE:
-        baseReliability = 85; // タスク完了は高信頼度
-        break;
-      case ActionType.MOVEMENT:
-        baseReliability = 50; // 移動は低信頼度
-        break;
-    }
-    
-    // 目撃者数による調整
-    const witnessCount = data.witnessCount || 0;
-    baseReliability += Math.min(witnessCount * 5, 20); // 最大+20
-    
-    // プレイヤーの役職による調整
-    const role = this.scoreboardManager.getPlayerRole(player);
-    if (role === 1) { // MURDERER
-      baseReliability -= 10; // 犯人の証拠は信頼度下がる
-    } else if (role === 3) { // CITIZEN
-      baseReliability += 5; // 市民の証拠は信頼度上がる
-    }
-    
-    return Math.max(0, Math.min(100, baseReliability));
-  }
+	if (phaseActions.length === 0) {
+		return { start: 0, end: 0 };
+	}
 
-  /**
-   * ゲーム時間をフォーマット
-   */
-  private formatGameTime(timestamp: number): string {
-    const totalSeconds = Math.floor(timestamp);
-    const hours = Math.floor(totalSeconds / 3600);
-    const minutes = Math.floor((totalSeconds % 3600) / 60);
-    const seconds = totalSeconds % 60;
-    
-    return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
-  }
+	const timestamps = phaseActions.map((action) => action.timestamp);
+	return {
+		start: Math.min(...timestamps),
+		end: Math.max(...timestamps),
+	};
+}
 
-  /**
-   * 時間帯を判定
-   */
-  private getTimeOfDay(timestamp: number): string {
-    const dayProgress = (timestamp % 2400) / 2400; // 1日 = 2400秒と仮定
-    
-    if (dayProgress < 0.25) return "夜";
-    if (dayProgress < 0.5) return "朝";
-    if (dayProgress < 0.75) return "昼";
-    return "夕";
-  }
+/**
+ * 全記録をクリア
+ */
+export function clearAllRecords(): void {
+	actionRecords = [];
+	recordCounter = 0;
+	console.log("All action records cleared");
+}
 
-  /**
-   * エリア名を特定
-   */
-  private identifyArea(location: Vector3): string {
-    return getAreaFromCoordinates(location.x, location.z);
-  }
+/**
+ * フェーズをIDに変換
+ */
+function convertPhaseToId(phase: GamePhase): number {
+	// 文字列としてのフェーズ値も対応
+	switch (phase) {
+		case GamePhase.PREPARATION:
+			return 0;
+		case GamePhase.DAILY_LIFE:
+			return 1;
+		case GamePhase.INVESTIGATION:
+			return 2;
+		case GamePhase.DISCUSSION:
+			return 3;
+		case GamePhase.REINVESTIGATION:
+			return 4;
+		case GamePhase.DEDUCTION:
+			return 5;
+		case GamePhase.VOTING:
+			return 6;
+		case GamePhase.ENDING:
+			return 7;
+		default:
+			console.warn(`Unknown phase: ${phase}, defaulting to 0`);
+			return 0;
+	}
+}
 
-  /**
-   * 近くのプレイヤー名を取得
-   */
-  private getNearbyPlayerNames(player: Player, location: Vector3): string[] {
-    return world.getAllPlayers()
-      .filter(p => p.id !== player.id)
-      .filter(p => this.calculateDistance(location, p.location) <= 10)
-      .map(p => p.name);
-  }
+/**
+ * デバッグ用：記録統計を出力
+ */
+export function debugActionRecords(): void {
+	console.log("=== Action Records Debug ===");
+	const stats = getActionStatistics();
 
-  /**
-   * 最寄りのランドマークを検索
-   */
-  private findNearestLandmark(location: Vector3): string | null {
-    return getNearestLandmark(location);
-  }
+	console.log(`Total actions: ${stats.totalActions}`);
+	console.log(`Evidence count: ${stats.evidenceCount}`);
+	console.log(`Time range: ${stats.timeRange.start} - ${stats.timeRange.end}`);
 
-  /**
-   * 行動の詳細説明を生成
-   */
-  private generateActionDescription(actionType: ActionType, data: Record<string, any>): string {
-    switch (actionType) {
-      case ActionType.BLOCK_BREAK:
-        return `${data.blockType || "ブロック"}を破壊した`;
-      case ActionType.BLOCK_PLACE:
-        return `${data.blockType || "ブロック"}を設置した`;
-      case ActionType.ITEM_USE:
-        return `${data.itemType || "アイテム"}を使用した`;
-      case ActionType.ENTITY_INTERACT:
-        return `${data.targetPlayer || "誰か"}と交流した`;
-      case ActionType.TASK_COMPLETE:
-        return `${data.taskType || "タスク"}を完了した`;
-      case ActionType.MURDER:
-        return `${data.victimName || "誰か"}を殺害した`;
-      case ActionType.DEATH:
-        return `${data.killerName || "誰か"}により死亡した`;
-      case ActionType.MOVEMENT:
-        return `${data.fromArea || ""}から移動した`;
-      case ActionType.CHAT:
-        return `チャットで発言した: "${data.message || ""}"`;
-      case ActionType.ABILITY_USE:
-        return `${data.abilityName || "特殊能力"}を使用した`;
-      default:
-        return `${actionType}を実行した`;
-    }
-  }
+	console.log("Actions by type:");
+	for (const [type, count] of stats.actionsByType.entries()) {
+		console.log(`  ${type}: ${count}`);
+	}
 
-  /**
-   * 距離計算（Vector3 | {x, y, z}両方に対応）
-   */
-  private calculateDistance(pos1: Vector3 | {x: number, y: number, z: number}, pos2: Vector3 | {x: number, y: number, z: number}): number {
-    const dx = pos1.x - pos2.x;
-    const dy = pos1.y - pos2.y;
-    const dz = pos1.z - pos2.z;
-    return Math.sqrt(dx * dx + dy * dy + dz * dz);
-  }
+	console.log("Actions by player:");
+	for (const [playerId, count] of stats.actionsByPlayer.entries()) {
+		const player = world.getAllPlayers().find((p) => p.id === playerId);
+		const playerName = player ? player.name : "Unknown";
+		console.log(`  ${playerName} (${playerId}): ${count}`);
+	}
+
+	console.log("=== End Action Records Debug ===");
+}
+
+/**
+ * 現在が生活フェーズかどうかをチェック
+ */
+function isInDailyLifePhase(): boolean {
+	const currentPhase = getCurrentPhase();
+	return currentPhase === GamePhase.DAILY_LIFE;
+}
+
+/**
+ * 詳細証拠データを生成
+ */
+function generateDetailedEvidenceData(
+	player: Player,
+	actionType: ActionType,
+	data: Record<string, any>,
+	timestamp: number,
+): EvidenceData {
+	const location = player.location;
+	const gameDay = getGameDay();
+
+	// 記録条件を判定
+	const recordCondition = determineRecordCondition(actionType, data);
+
+	// 信頼度を計算（目撃者数、プレイヤーの役職、行動タイプに基づく）
+	const reliability = calculateEvidenceReliability(player, actionType, data);
+
+	return {
+		when: {
+			gameTime: timestamp,
+			realTime: formatGameTime(timestamp),
+			gameDay: gameDay,
+			timeOfDay: getTimeOfDay(timestamp),
+		},
+		where: {
+			coordinates: {
+				x: Math.round(location.x * 100) / 100,
+				y: Math.round(location.y * 100) / 100,
+				z: Math.round(location.z * 100) / 100,
+			},
+			area: identifyArea(location),
+			nearbyPlayers: getNearbyPlayerNames(player, location),
+			landmark: findNearestLandmark(location),
+		},
+		what: {
+			primaryAction: actionType,
+			details: generateActionDescription(actionType, data),
+			targetBlock: data.blockType || undefined,
+			targetPlayer: data.targetPlayer || undefined,
+			itemUsed: data.itemType || undefined,
+			taskType: data.taskType || undefined,
+		},
+		recordCondition,
+		reliability,
+	};
+}
+
+/**
+ * 証拠記録条件を判定
+ */
+function determineRecordCondition(
+	actionType: ActionType,
+	data: Record<string, any>,
+): EvidenceCondition {
+	// タスク完了の場合
+	if (actionType === ActionType.TASK_COMPLETE) {
+		return EvidenceCondition.TASK_COMPLETION;
+	}
+
+	// 殺人事件の場合
+	if (actionType === ActionType.MURDER || actionType === ActionType.DEATH) {
+		return EvidenceCondition.INCIDENT_TIMING;
+	}
+
+	// エリア移動の場合
+	if (
+		actionType === ActionType.AREA_ENTER ||
+		actionType === ActionType.AREA_EXIT
+	) {
+		return EvidenceCondition.AREA_TRANSITION;
+	}
+
+	// プレイヤー交流の場合
+	if (actionType === ActionType.ENTITY_INTERACT && data.targetPlayer) {
+		return EvidenceCondition.INTERACTION;
+	}
+
+	// その他はランダムタイミング
+	return EvidenceCondition.RANDOM_TIMING;
+}
+
+/**
+ * 証拠の信頼度を計算
+ */
+function calculateEvidenceReliability(
+	player: Player,
+	actionType: ActionType,
+	data: Record<string, any>,
+): number {
+	let baseReliability = 70; // 基本信頼度
+
+	// 行動タイプによる調整
+	switch (actionType) {
+		case ActionType.MURDER:
+		case ActionType.DEATH:
+			baseReliability = 95; // 殺人・死亡は高信頼度
+			break;
+		case ActionType.TASK_COMPLETE:
+			baseReliability = 85; // タスク完了は高信頼度
+			break;
+		case ActionType.MOVEMENT:
+			baseReliability = 50; // 移動は低信頼度
+			break;
+	}
+
+	// 目撃者数による調整
+	const witnessCount = data.witnessCount || 0;
+	baseReliability += Math.min(witnessCount * 5, 20); // 最大+20
+
+	// プレイヤーの役職による調整
+	const role = getPlayerRole(player);
+	if (role === RoleType.MURDERER) {
+		baseReliability -= 10; // 犯人の証拠は信頼度下がる
+	} else if (role === RoleType.VILLAGER) {
+		baseReliability += 5; // 市民の証拠は信頼度上がる
+	}
+
+	return Math.max(0, Math.min(100, baseReliability));
+}
+
+/**
+ * ゲーム時間をフォーマット
+ */
+function formatGameTime(timestamp: number): string {
+	const totalSeconds = Math.floor(timestamp);
+	const hours = Math.floor(totalSeconds / 3600);
+	const minutes = Math.floor((totalSeconds % 3600) / 60);
+	const seconds = totalSeconds % 60;
+
+	return `${hours.toString().padStart(2, "0")}:${minutes.toString().padStart(2, "0")}:${seconds.toString().padStart(2, "0")}`;
+}
+
+/**
+ * 時間帯を判定
+ */
+function getTimeOfDay(timestamp: number): string {
+	const dayProgress = (timestamp % 2400) / 2400; // 1日 = 2400秒と仮定
+
+	if (dayProgress < 0.25) return "夜";
+	if (dayProgress < 0.5) return "朝";
+	if (dayProgress < 0.75) return "昼";
+	return "夕";
+}
+
+/**
+ * エリア名を特定
+ */
+function identifyArea(location: Vector3): string {
+	return getAreaFromCoordinates(location.x, location.z);
+}
+
+/**
+ * 近くのプレイヤー名を取得
+ */
+function getNearbyPlayerNames(player: Player, location: Vector3): string[] {
+	return world
+		.getAllPlayers()
+		.filter((p) => p.id !== player.id)
+		.filter((p) => calculateDistance(location, p.location) <= 10)
+		.map((p) => p.name);
+}
+
+/**
+ * 最寄りのランドマークを検索
+ */
+function findNearestLandmark(location: Vector3): string | null {
+	return getNearestLandmark(location);
+}
+
+/**
+ * 行動の詳細説明を生成
+ */
+function generateActionDescription(
+	actionType: ActionType,
+	data: Record<string, any>,
+): string {
+	switch (actionType) {
+		case ActionType.BLOCK_BREAK:
+			return `${data.blockType || "ブロック"}を破壊した`;
+		case ActionType.BLOCK_PLACE:
+			return `${data.blockType || "ブロック"}を設置した`;
+		case ActionType.ITEM_USE:
+			return `${data.itemType || "アイテム"}を使用した`;
+		case ActionType.ENTITY_INTERACT:
+			return `${data.targetPlayer || "誰か"}と交流した`;
+		case ActionType.TASK_COMPLETE:
+			return `${data.taskType || "タスク"}を完了した`;
+		case ActionType.MURDER:
+			return `${data.victimName || "誰か"}を殺害した`;
+		case ActionType.DEATH:
+			return `${data.killerName || "誰か"}により死亡した`;
+		case ActionType.MOVEMENT:
+			return `${data.fromArea || ""}から移動した`;
+		case ActionType.CHAT:
+			return `チャットで発言した: "${data.message || ""}"`;
+		case ActionType.ABILITY_USE:
+			return `${data.abilityName || "特殊能力"}を使用した`;
+		default:
+			return `${actionType}を実行した`;
+	}
+}
+
+/**
+ * 距離計算（Vector3 | {x, y, z}両方に対応）
+ */
+function calculateDistance(
+	pos1: Vector3 | { x: number; y: number; z: number },
+	pos2: Vector3 | { x: number; y: number; z: number },
+): number {
+	const dx = pos1.x - pos2.x;
+	const dy = pos1.y - pos2.y;
+	const dz = pos1.z - pos2.z;
+	return Math.sqrt(dx * dx + dy * dy + dz * dz);
 }

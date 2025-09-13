@@ -18,12 +18,20 @@ export enum VictoryCondition {
 export interface ScoreWeights {
   correctVote: number;        // 正しい投票
   incorrectVote: number;      // 間違った投票
-  abstention: number;         // 棄権
   evidenceFound: number;      // 証拠発見
   accurateDeduction: number;  // 的確な推理
   rolePerformance: number;    // 役職パフォーマンス
   survivalBonus: number;      // 生存ボーナス
   speedBonus: number;         // 速度ボーナス
+}
+
+/**
+ * 汎用目標
+ */
+export interface RandomObjective {
+  id: string;
+  description: string;
+  checkCondition: (playerId: string) => boolean;
 }
 
 /**
@@ -34,26 +42,15 @@ export interface PlayerScore {
   playerName: string;
   role: string;
   job: string;
-  isAlive: boolean;
   
-  // 基本スコア
-  baseScore: number;
+  // 3点満点評価システム
+  jobGoalAchieved: boolean;     // 職業目標達成 (1点)
+  roleGoalAchieved: boolean;    // ロール目標達成 (1点)  
+  randomGoalAchieved: boolean;  // 汎用目標達成 (1点)
+  randomGoalDescription: string; // 汎用目標の内容
   
-  // 詳細スコア
-  voteScore: number;          // 投票スコア
-  evidenceScore: number;      // 証拠スコア
-  deductionScore: number;     // 推理スコア
-  roleScore: number;          // 役職スコア
-  bonusScore: number;         // ボーナススコア
-  penaltyScore: number;       // ペナルティスコア
-  
-  // 最終スコア
+  // 最終スコア (0-3点)
   totalScore: number;
-  
-  // 詳細情報
-  votingAccuracy: number;     // 投票精度(%)
-  evidenceCount: number;      // 発見証拠数
-  contributionLevel: number;  // 貢献度(%)
 }
 
 /**
@@ -95,8 +92,6 @@ export interface GameResult {
   
   // MVP
   mvpPlayer?: PlayerScore;
-  bestDetective?: PlayerScore;
-  bestMurderer?: PlayerScore;
 }
 
 /**
@@ -123,46 +118,52 @@ export interface VictoryCheckResult {
 }
 
 /**
- * デフォルトスコア重み
+ * 汎用目標リスト
  */
-export const DEFAULT_SCORE_WEIGHTS: ScoreWeights = {
-  correctVote: 100,
-  incorrectVote: -20,
-  abstention: -10,
-  evidenceFound: 50,
-  accurateDeduction: 75,
-  rolePerformance: 80,
-  survivalBonus: 30,
-  speedBonus: 25
-};
+// 動的にインポートされる関数群（循環インポートを回避）
+let objectiveCheckers: any = {};
 
-/**
- * デフォルトスコアリング設定
- */
-export const DEFAULT_SCORING_CONFIG: ScoringConfig = {
-  weights: DEFAULT_SCORE_WEIGHTS,
-  enableBonuses: true,
-  penalizeIncorrectVotes: true,
-  rewardTeamwork: true,
-  mvpThreshold: 300
-};
+export function initializeObjectiveCheckers(checkers: any) {
+  objectiveCheckers = checkers;
+}
 
-/**
- * 役職別基本スコア
- */
-export const ROLE_BASE_SCORES = {
-  murderer: 200,    // 犯人：高難易度
-  accomplice: 150,  // 共犯者：中難易度
-  citizen: 100      // 市民：基本
-};
+export const RANDOM_OBJECTIVES: RandomObjective[] = [
+  {
+    id: "first_evidence",
+    description: "最初に証拠を発見する",
+    checkCondition: (playerId: string) => {
+      return objectiveCheckers.checkFirstEvidence ? objectiveCheckers.checkFirstEvidence(playerId) : false;
+    }
+  },
+  {
+    id: "most_active",
+    description: "最も多くの行動を起こす",
+    checkCondition: (playerId: string) => {
+      return objectiveCheckers.checkMostActive ? objectiveCheckers.checkMostActive(playerId) : false;
+    }
+  },
+  {
+    id: "correct_vote",
+    description: "投票で犯人を正しく特定する",
+    checkCondition: (playerId: string) => {
+      return objectiveCheckers.checkCorrectVote ? objectiveCheckers.checkCorrectVote(playerId) : false;
+    }
+  },
+  {
+    id: "survival",
+    description: "ゲーム終了まで生存する",
+    checkCondition: (playerId: string) => {
+      return objectiveCheckers.checkSurvival ? objectiveCheckers.checkSurvival(playerId) : false;
+    }
+  },
+  {
+    id: "evidence_collector",
+    description: "3つ以上の証拠を発見する",
+    checkCondition: (playerId: string) => {
+      return objectiveCheckers.checkEvidenceCollector ? objectiveCheckers.checkEvidenceCollector(playerId) : false;
+    }
+  }
+];
 
-/**
- * 職業別スコア倍率
- */
-export const JOB_SCORE_MULTIPLIERS = {
-  detective: 1.2,   // 探偵：推理ボーナス
-  doctor: 1.1,      // 医者：治療ボーナス
-  guard: 1.1,       // 警備員：護衛ボーナス
-  reporter: 1.15,   // 記者：情報ボーナス
-  default: 1.0      // その他
-};
+
+

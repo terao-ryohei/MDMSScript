@@ -46,7 +46,6 @@ export interface VotingSession {
   eligibleVoters: string[];              // 投票権者ID
   candidates: string[];                  // 候補者ID
   votes: VoteRecord[];                   // 投票記録
-  allowAbstain: boolean;                 // 棄権許可
   requiresAll: boolean;                  // 全員投票必須
 }
 
@@ -57,7 +56,6 @@ export interface VotingResult {
   session: VotingSession;
   totalVotes: number;                    // 総投票数
   validVotes: number;                    // 有効投票数
-  abstentions: number;                   // 棄権数
   results: VoteCount[];                  // 得票結果
   winner?: string;                       // 最多得票者ID
   isTie: boolean;                        // 同票かどうか
@@ -82,7 +80,6 @@ export interface VoteCount {
 export interface VotingConfig {
   voteType: VoteType;
   duration: number;                      // 制限時間（秒）
-  allowAbstain: boolean;                 // 棄権許可
   requiresAll: boolean;                  // 全員投票必須
   allowSelfVote: boolean;                // 自己投票許可
   showRealTimeResults: boolean;          // リアルタイム結果表示
@@ -118,7 +115,6 @@ export const DEFAULT_VOTING_CONFIGS: Record<VoteType, VotingConfig> = {
   [VoteType.MURDER_SUSPECT]: {
     voteType: VoteType.MURDER_SUSPECT,
     duration: 300,                       // 5分
-    allowAbstain: false,                 // 棄権不可
     requiresAll: true,                   // 全員投票必須
     allowSelfVote: false,                // 自己投票不可
     showRealTimeResults: false,          // リアルタイム結果非表示
@@ -127,7 +123,6 @@ export const DEFAULT_VOTING_CONFIGS: Record<VoteType, VotingConfig> = {
   [VoteType.EXILE]: {
     voteType: VoteType.EXILE,
     duration: 180,                       // 3分
-    allowAbstain: true,                  // 棄権可能
     requiresAll: false,                  // 全員投票不要
     allowSelfVote: false,                // 自己投票不可
     showRealTimeResults: true,           // リアルタイム結果表示
@@ -136,7 +131,6 @@ export const DEFAULT_VOTING_CONFIGS: Record<VoteType, VotingConfig> = {
   [VoteType.FINAL_JUDGMENT]: {
     voteType: VoteType.FINAL_JUDGMENT,
     duration: 600,                       // 10分
-    allowAbstain: false,                 // 棄権不可
     requiresAll: true,                   // 全員投票必須
     allowSelfVote: false,                // 自己投票不可
     showRealTimeResults: false,          // リアルタイム結果非表示

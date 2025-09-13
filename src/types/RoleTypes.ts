@@ -2,8 +2,9 @@
  * プレイヤーロール（マダミス上の役割）
  */
 export enum RoleType {
-  CITIZEN = "citizen",         // 一般人
-  MURDERER = "murderer",       // 犯人
+  MURDERER = "murderer",       // 殺人者
+  VILLAGER = "villager",       // 村人
+  DETECTIVE = "detective",     // 探偵
   ACCOMPLICE = "accomplice"    // 共犯者
 }
 
@@ -24,8 +25,9 @@ export interface Role {
  */
 export interface RoleComposition {
   murderers: number;
+  villagers: number;
+  detectives: number;
   accomplices: number;
-  citizens: number;
 }
 
 /**
