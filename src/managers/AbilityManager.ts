@@ -1,5 +1,6 @@
 import { type Player, system, type Vector3, world } from "@minecraft/server";
 import { ABILITY_DEFINITIONS } from "../data/AbilityDefinitions";
+import { calculateDistance } from "../utils/CommonUtils";
 import {
 	type AbilityDefinition,
 	type AbilityEffect,
@@ -7,15 +8,14 @@ import {
 	type AbilityResult,
 	type AbilityStatistics,
 	AbilityStatus,
-	AbilityType,
+	type AbilityType,
 	type AbilityUsage,
 	type PlayerAbilityState,
 } from "../types/AbilityTypes";
 import { ActionType } from "../types/ActionTypes";
 import { GamePhase } from "../types/PhaseTypes";
-import { RoleType } from "../types/RoleTypes";
+import { createAbilityExecutorFactory } from "./abilities/AbilityExecutorFactory";
 import { getPlayerActions, recordAction } from "./ActionTrackingManager";
-import { getEvidenceData } from "./EvidenceAnalyzer";
 import { getCurrentPhase } from "./PhaseManager";
 import {
 	getJobString,
@@ -24,7 +24,6 @@ import {
 	getRoleString,
 	isPlayerAlive,
 	roleTypeToNumber,
-	setPlayerAlive,
 } from "./ScoreboardManager";
 
 /**
@@ -35,11 +34,13 @@ const playerStates: Map<string, PlayerAbilityState> = new Map();
 let abilityUsages: AbilityUsage[] = [];
 const activeEffects: Map<string, AbilityEffect> = new Map();
 let usageCounter: number = 0;
+let executorFactory: ReturnType<typeof createAbilityExecutorFactory>;
 
 export function initialize(): void {
 	if (isInitialized) return;
 
 	isInitialized = true;
+	executorFactory = createAbilityExecutorFactory(activeEffects);
 	setupEventListeners();
 	console.log("AbilityManager initialized");
 }
@@ -298,50 +299,17 @@ async function executeAbility(
 	location?: Vector3,
 ): Promise<AbilityResult> {
 	try {
-		switch (definition.type) {
-			case AbilityType.INVESTIGATE:
-				return executeInvestigate(player, target!);
+		const executor = executorFactory.getExecutor(definition.type);
 
-			case AbilityType.SEARCH_EVIDENCE:
-				return executeSearchEvidence(player, definition);
-
-			case AbilityType.HEAL:
-				return executeHeal(player, target!);
-
-			case AbilityType.AUTOPSY:
-				return executeAutopsy(player, target!);
-
-			case AbilityType.GUARD:
-				return executeGuard(player, target!, definition);
-
-			case AbilityType.PATROL:
-				return executePatrol(player, definition);
-
-			case AbilityType.INTERVIEW:
-				return executeInterview(player, target!);
-
-			case AbilityType.BROADCAST:
-				return executeBroadcast(player, definition);
-
-			case AbilityType.MURDER:
-				return executeMurder(player, target!);
-
-			case AbilityType.SABOTAGE:
-				return executeSabotage(player, target!, definition);
-
-			case AbilityType.ASSIST:
-				return executeAssist(player, target!, definition);
-
-			case AbilityType.DISTRACT:
-				return executeDistract(player, definition);
-
-			default:
-				return {
-					success: false,
-					message: "未実装の能力です",
-					error: "Ability not implemented",
-				};
+		if (!executor) {
+			return {
+				success: false,
+				message: "未実装の能力です",
+				error: "Ability not implemented",
+			};
 		}
+
+		return await executor(player, definition, target, location);
 	} catch (error) {
 		console.error(`Failed to execute ability ${definition.type}:`, error);
 		return {
@@ -350,469 +318,6 @@ async function executeAbility(
 			error: error instanceof Error ? error.message : "Unknown error",
 		};
 	}
-}
-
-/**
- * 調査能力実行
- */
-function executeInvestigate(player: Player, target: Player): AbilityResult {
-	const role = getRoleString(roleTypeToNumber(getPlayerRole(target)));
-	const job = getJobString(getPlayerJob(target));
-	const isAlive = isPlayerAlive(target);
-
-	const playerActions = getPlayerActions(target.id, 10);
-	const recentActions = playerActions
-		.slice(0, 3)
-		.map(
-			(action) =>
-				`${action.actionType} (${new Date(action.timestamp * 1000).toLocaleTimeString()})`,
-		)
-		.join(", ");
-
-	const investigationResult =
-		`§6=== ${target.name} の調査結果 ===\n\n` +
-		`§7状態: ${isAlive ? "§a生存" : "§c死亡"}\n` +
-		`§7最近の行動: §f${recentActions || "なし"}\n` +
-		`§7行動パターン: §f${analyzePlayerBehavior(target)}\n\n`;
-
-	player.sendMessage(investigationResult);
-
-	return {
-		success: true,
-		message: `${target.name}を調査しました`,
-		data: {
-			targetId: target.id,
-			role: role,
-			job: job,
-			isAlive: isAlive,
-			behaviorPattern: analyzePlayerBehavior(target),
-		},
-	};
-}
-
-/**
- * 証拠捜索能力実行
- */
-function executeSearchEvidence(
-	player: Player,
-	definition: AbilityDefinition,
-): AbilityResult {
-	// エリア内の証拠発見確率を向上させる効果を付与
-	const effect: AbilityEffect = {
-		id: `effect_${Date.now()}`,
-		abilityId: definition.id,
-		targetId: player.id,
-		startTime: Date.now(),
-		endTime: Date.now() + definition.duration * 1000,
-		effectType: "evidence_boost",
-		data: { boost: 2.0 }, // 2倍の発見確率
-		isActive: true,
-	};
-
-	activeEffects.set(effect.id, effect);
-
-	player.sendMessage(
-		`§a証拠捜索モードが有効になりました（${Math.floor(definition.duration / 60)}分間）`,
-	);
-	player.sendMessage("§7周囲での行動で証拠を発見しやすくなります");
-
-	return {
-		success: true,
-		message: "証拠捜索能力を発動しました",
-		effectDuration: definition.duration,
-		data: { effectId: effect.id },
-	};
-}
-
-/**
- * 治療能力実行
- */
-function executeHeal(player: Player, target: Player): AbilityResult {
-	if (isPlayerAlive(target)) {
-		return {
-			success: false,
-			message: "対象は既に健康です",
-			error: "Target is already healthy",
-		};
-	}
-
-	// 死亡プレイヤーの蘇生（特別な条件下でのみ）
-	// 通常は重傷状態の回復として実装
-
-	player.sendMessage(`§a${target.name}を治療しました`);
-	target.sendMessage("§a医者によって治療されました");
-
-	// 治療効果を全体に通知
-	world.sendMessage(`§b${player.name}が${target.name}を治療しました`);
-
-	return {
-		success: true,
-		message: `${target.name}を治療しました`,
-		affectedPlayers: [target.id],
-	};
-}
-
-/**
- * 検死能力実行
- */
-function executeAutopsy(player: Player, target: Player): AbilityResult {
-	if (isPlayerAlive(target)) {
-		return {
-			success: false,
-			message: "対象は生存しています",
-			error: "Target is alive",
-		};
-	}
-
-	// 死亡関連の行動記録を詳しく分析
-	const deathActions = getPlayerActions(target.id).filter(
-		(action) => action.actionType === "death" || action.actionType === "murder",
-	);
-
-	let autopsyResult = `§6=== ${target.name} の検死結果 ===\n\n`;
-
-	if (deathActions.length > 0) {
-		const deathAction = deathActions[0];
-		autopsyResult += `§7死亡時刻: §f${new Date(deathAction.timestamp * 1000).toLocaleString()}\n`;
-		autopsyResult += `§7死因: §f${deathAction.data.method || "不明"}\n`;
-		autopsyResult += `§7発見場所: §f${Math.round(deathAction.location.x)}, ${Math.round(deathAction.location.y)}, ${Math.round(deathAction.location.z)}\n`;
-
-		if (deathAction.witnessIds.length > 0) {
-			const witnesses = deathAction.witnessIds
-				.map((id) => {
-					const witness = world.getAllPlayers().find((p) => p.id === id);
-					return witness ? witness.name : "不明";
-				})
-				.join(", ");
-			autopsyResult += `§7目撃者: §f${witnesses}\n`;
-		}
-	} else {
-		autopsyResult += "§7詳細な死因は特定できませんでした\n";
-	}
-
-	autopsyResult += "\n§7※ この情報は証拠として記録されました";
-
-	player.sendMessage(autopsyResult);
-
-	return {
-		success: true,
-		message: `${target.name}の検死を行いました`,
-		discoveredEvidence: [`autopsy_${target.id}_${Date.now()}`],
-		data: { deathActions },
-	};
-}
-
-/**
- * 護衛能力実行
- */
-function executeGuard(
-	player: Player,
-	target: Player,
-	definition: AbilityDefinition,
-): AbilityResult {
-	const effect: AbilityEffect = {
-		id: `guard_${Date.now()}`,
-		abilityId: definition.id,
-		targetId: target.id,
-		startTime: Date.now(),
-		endTime: Date.now() + definition.duration * 1000,
-		effectType: "protection",
-		data: { protectorId: player.id },
-		isActive: true,
-	};
-
-	activeEffects.set(effect.id, effect);
-
-	player.sendMessage(
-		`§a${target.name}を護衛しました（${Math.floor(definition.duration / 3600)}時間）`,
-	);
-	target.sendMessage("§a警備員によって護衛されています");
-
-	return {
-		success: true,
-		message: `${target.name}を護衛しました`,
-		effectDuration: definition.duration,
-		affectedPlayers: [target.id],
-	};
-}
-
-/**
- * 巡回能力実行
- */
-function executePatrol(
-	player: Player,
-	definition: AbilityDefinition,
-): AbilityResult {
-	const effect: AbilityEffect = {
-		id: `patrol_${Date.now()}`,
-		abilityId: definition.id,
-		targetId: player.id,
-		startTime: Date.now(),
-		endTime: Date.now() + definition.duration * 1000,
-		effectType: "detection",
-		data: { range: definition.detectRange },
-		isActive: true,
-	};
-
-	activeEffects.set(effect.id, effect);
-
-	player.sendMessage(
-		`§a巡回モードが有効になりました（${Math.floor(definition.duration / 60)}分間）`,
-	);
-	player.sendMessage("§7異常行動を検出しやすくなります");
-
-	return {
-		success: true,
-		message: "巡回能力を発動しました",
-		effectDuration: definition.duration,
-	};
-}
-
-/**
- * インタビュー能力実行
- */
-function executeInterview(player: Player, target: Player): AbilityResult {
-	// 対象プレイヤーの最近の証言や行動から情報を抽出
-	const recentActions = getPlayerActions(target.id, 5);
-	const suspicionLevel = 0; // 疑惑スコア計算機能を削除
-
-	const interviewResult =
-		`§6=== ${target.name} へのインタビュー結果 ===\n\n` +
-		`§7協力度: §f${suspicionLevel < 0.3 ? "積極的" : suspicionLevel < 0.7 ? "普通" : "消極的"}\n` +
-		`§7証言の信頼性: §f${calculateTestimonyReliability(target)}%\n` +
-		`§7新しい情報: §f${generateInterviewInfo(target)}\n\n` +
-		`§7※ この情報は証拠として記録されました`;
-
-	player.sendMessage(interviewResult);
-	target.sendMessage(`§b${player.name}からインタビューを受けました`);
-
-	return {
-		success: true,
-		message: `${target.name}にインタビューしました`,
-		discoveredEvidence: [`interview_${target.id}_${Date.now()}`],
-		data: {
-			suspicionLevel,
-			reliability: calculateTestimonyReliability(target),
-		},
-	};
-}
-
-/**
- * 放送能力実行
- */
-function executeBroadcast(
-	player: Player,
-	definition: AbilityDefinition,
-): AbilityResult {
-	// 重要な証拠情報を全プレイヤーに伝達
-	const evidence = getEvidenceData();
-
-	let broadcastMessage =
-		`§6=== 緊急報道 ===\n` + `§7記者 ${player.name} からの重要情報:\n\n`;
-
-	if (evidence.length > 0) {
-		const latestEvidence = evidence[0];
-		broadcastMessage +=
-			`§7最新の重要証拠を発見:\n` +
-			`§7時刻: §f${new Date(latestEvidence.timestamp * 1000).toLocaleTimeString("ja-JP")}\n` +
-			`§7関係者: §f${latestEvidence.playerId}\n` +
-			`§7内容: §f${latestEvidence.actionType}\n`;
-	} else {
-		broadcastMessage += `§7現在、明確な容疑者は特定されていません\n`;
-	}
-
-	broadcastMessage += `§7証拠総数: §f${evidence.length}件\n`;
-	broadcastMessage += `§6========================`;
-
-	world.sendMessage(broadcastMessage);
-
-	return {
-		success: true,
-		message: "重要情報を放送しました",
-		affectedPlayers: world.getAllPlayers().map((p) => p.id),
-	};
-}
-
-/**
- * 殺人能力実行
- */
-function executeMurder(player: Player, target: Player): AbilityResult {
-	if (!isPlayerAlive(target)) {
-		return {
-			success: false,
-			message: "対象は既に死亡しています",
-			error: "Target is already dead",
-		};
-	}
-
-	// 護衛効果チェック
-	const protectionEffect = Array.from(activeEffects.values()).find(
-		(effect) =>
-			effect.targetId === target.id &&
-			effect.effectType === "protection" &&
-			effect.isActive,
-	);
-
-	if (protectionEffect) {
-		// 護衛によって阻止
-		activeEffects.delete(protectionEffect.id);
-
-		const protector = world
-			.getAllPlayers()
-			.find((p) => p.id === protectionEffect.data.protectorId);
-		if (protector) {
-			protector.sendMessage(`§c${target.name}への攻撃を阻止しました！`);
-			target.sendMessage("§a護衛によって攻撃が阻止されました！");
-			player.sendMessage("§c攻撃が護衛によって阻止されました");
-		}
-
-		return {
-			success: false,
-			message: "攻撃が護衛によって阻止されました",
-			error: "Attack blocked by guard",
-		};
-	}
-
-	// 殺人実行
-	setPlayerAlive(target, false);
-
-	// 殺人イベントをトリガー
-	system.run(() => {
-		world
-			.getDimension("overworld")
-			.runCommand(
-				`scriptevent mdms:murder {"murdererId":"${player.id}","victimId":"${target.id}","method":"ability"}`,
-			);
-	});
-
-	world.sendMessage(`§c${target.name}が殺害されました！`);
-	target.sendMessage("§c§lあなたは殺害されました");
-
-	return {
-		success: true,
-		message: `${target.name}を殺害しました`,
-		affectedPlayers: [target.id],
-	};
-}
-
-/**
- * 妨害工作能力実行
- */
-function executeSabotage(
-	player: Player,
-	target: Player,
-	definition: AbilityDefinition,
-): AbilityResult {
-	const effect: AbilityEffect = {
-		id: `sabotage_${Date.now()}`,
-		abilityId: definition.id,
-		targetId: target.id,
-		startTime: Date.now(),
-		endTime: Date.now() + definition.duration * 1000,
-		effectType: "sabotage",
-		data: { saboteurId: player.id },
-		isActive: true,
-	};
-
-	activeEffects.set(effect.id, effect);
-
-	player.sendMessage(
-		`§c${target.name}の行動を妨害しました（${Math.floor(definition.duration / 60)}分間）`,
-	);
-	target.sendMessage("§c何者かによって行動が妨害されています");
-
-	return {
-		success: true,
-		message: `${target.name}を妨害しました`,
-		effectDuration: definition.duration,
-		affectedPlayers: [target.id],
-	};
-}
-
-/**
- * 協力能力実行
- */
-function executeAssist(
-	player: Player,
-	target: Player,
-	definition: AbilityDefinition,
-): AbilityResult {
-	// 対象が犯人かチェック
-	const targetRole = getPlayerRole(target);
-	if (targetRole !== RoleType.MURDERER) {
-		return {
-			success: false,
-			message: "対象は犯人ではありません",
-			error: "Target is not murderer",
-		};
-	}
-
-	const effect: AbilityEffect = {
-		id: `assist_${Date.now()}`,
-		abilityId: definition.id,
-		targetId: target.id,
-		startTime: Date.now(),
-		endTime: Date.now() + definition.duration * 1000,
-		effectType: "assistance",
-		data: { assistantId: player.id, boost: 1.5 },
-		isActive: true,
-	};
-
-	activeEffects.set(effect.id, effect);
-
-	player.sendMessage(
-		`§6${target.name}をサポートしました（${Math.floor(definition.duration / 60)}分間）`,
-	);
-	target.sendMessage("§6共犯者からのサポートを受けています");
-
-	return {
-		success: true,
-		message: `${target.name}をサポートしました`,
-		effectDuration: definition.duration,
-		affectedPlayers: [target.id],
-	};
-}
-
-/**
- * 注意逸らし能力実行
- */
-function executeDistract(
-	player: Player,
-	definition: AbilityDefinition,
-): AbilityResult {
-	// 周囲のプレイヤーに影響を与える
-	const nearbyPlayers = world.getAllPlayers().filter((p) => {
-		if (p.id === player.id) return false;
-		const distance = calculateDistance(player.location, p.location);
-		return distance <= definition.range;
-	});
-
-	for (const nearbyPlayer of nearbyPlayers) {
-		const effect: AbilityEffect = {
-			id: `distract_${Date.now()}_${nearbyPlayer.id}`,
-			abilityId: definition.id,
-			targetId: nearbyPlayer.id,
-			startTime: Date.now(),
-			endTime: Date.now() + definition.duration * 1000,
-			effectType: "distraction",
-			data: { distractorId: player.id },
-			isActive: true,
-		};
-
-		activeEffects.set(effect.id, effect);
-		nearbyPlayer.sendMessage("§7何かに気を取られています...");
-	}
-
-	player.sendMessage(
-		`§6周囲の注意を逸らしました（${nearbyPlayers.length}人に影響）`,
-	);
-
-	return {
-		success: true,
-		message: "注意逸らしを発動しました",
-		effectDuration: definition.duration,
-		affectedPlayers: nearbyPlayers.map((p) => p.id),
-	};
 }
 
 /**
@@ -980,12 +485,7 @@ function onPhaseChanged(): void {
 /**
  * ヘルパーメソッド
  */
-function calculateDistance(pos1: Vector3, pos2: Vector3): number {
-	const dx = pos1.x - pos2.x;
-	const dy = pos1.y - pos2.y;
-	const dz = pos1.z - pos2.z;
-	return Math.sqrt(dx * dx + dy * dy + dz * dz);
-}
+
 
 function getPhaseString(phase: GamePhase): string {
 	switch (phase) {

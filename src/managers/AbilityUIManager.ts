@@ -4,12 +4,15 @@
 
 import { type Player, world } from "@minecraft/server";
 import { ActionFormData, MessageFormData } from "@minecraft/server-ui";
+import { ABILITY_DEFINITIONS } from "../data/AbilityDefinitions";
+import { calculateDistance } from "../utils/CommonUtils";
+import { createActionForm, handleUIError, createStatusText } from "../utils/UIHelpers";
+import { createPlayerSelectionUI, createStatusDisplayUI } from "../utils/UIPatterns";
 import {
 	type AbilityDefinition,
 	type AbilityInstanceState,
 	AbilityStatus,
 	AbilityTargetType,
-	DEFAULT_ABILITIES,
 } from "../types/AbilityTypes";
 import {
 	canUseAbility,
@@ -31,9 +34,10 @@ import {
  */
 export async function showAbilityMenu(player: Player): Promise<void> {
 	try {
-		const form = new ActionFormData()
-			.title("§l§d特殊能力システム")
-			.body("§7能力を使用するメニューを選択してください");
+		const form = createActionForm(
+			"§l§d特殊能力システム",
+			"§7能力を使用するメニューを選択してください"
+		);
 
 		const playerAbilities = getPlayerAbilities(player.id);
 
@@ -71,8 +75,7 @@ export async function showAbilityMenu(player: Player): Promise<void> {
 				break;
 		}
 	} catch (error) {
-		console.error(`Failed to show ability menu for ${player.name}:`, error);
-		player.sendMessage("§c能力メニューの表示に失敗しました");
+		handleUIError(player, error as Error);
 	}
 }
 
@@ -99,12 +102,13 @@ export async function showAbilitySelection(player: Player): Promise<void> {
 			return;
 		}
 
-		const form = new ActionFormData()
-			.title("§l§a能力使用")
-			.body("§7使用する能力を選択してください");
+		const form = createActionForm(
+			"§l§a能力使用",
+			"§7使用する能力を選択してください"
+		);
 
 		for (const [abilityId, state] of availableAbilities) {
-			const definition = DEFAULT_ABILITIES[abilityId];
+			const definition = ABILITY_DEFINITIONS[abilityId];
 			if (definition) {
 				const statusIcon = getAbilityStatusIcon(state);
 				const usesText = `(${state.usesRemaining}/${definition.usesPerGame})`;
@@ -127,11 +131,7 @@ export async function showAbilitySelection(player: Player): Promise<void> {
 		const [selectedAbilityId] = availableAbilities[response.selection!];
 		await showAbilityConfirmation(player, selectedAbilityId);
 	} catch (error) {
-		console.error(
-			`Failed to show ability selection for ${player.name}:`,
-			error,
-		);
-		player.sendMessage("§c能力選択の表示に失敗しました");
+		handleUIError(player, error as Error);
 	}
 }
 
@@ -143,7 +143,7 @@ async function showAbilityConfirmation(
 	abilityId: string,
 ): Promise<void> {
 	try {
-		const definition = DEFAULT_ABILITIES[abilityId];
+		const definition = ABILITY_DEFINITIONS[abilityId];
 		if (!definition) {
 			player.sendMessage("§c能力定義が見つかりません");
 			return;
@@ -200,11 +200,7 @@ async function showAbilityConfirmation(
 			player.sendMessage(`§c${result.message}`);
 		}
 	} catch (error) {
-		console.error(
-			`Failed to show ability confirmation for ${player.name}:`,
-			error,
-		);
-		player.sendMessage("§c能力確認の表示に失敗しました");
+		handleUIError(player, error as Error);
 	}
 }
 
@@ -227,9 +223,10 @@ async function showTargetSelection(
 				return;
 			}
 
-			const form = new ActionFormData()
-				.title(`§l§6対象選択 - ${definition.name}`)
-				.body("§7能力の対象を選択してください");
+			const form = createActionForm(
+				`§l§6対象選択 - ${definition.name}`,
+				"§7能力の対象を選択してください"
+			);
 
 			for (const target of alivePlayers) {
 				const distance = calculateDistance(player.location, target.location);
@@ -272,8 +269,7 @@ async function showTargetSelection(
 			}
 		}
 	} catch (error) {
-		console.error(`Failed to show target selection for ${player.name}:`, error);
-		player.sendMessage("§c対象選択の表示に失敗しました");
+		handleUIError(player, error as Error);
 	}
 }
 
@@ -356,7 +352,7 @@ export async function showAbilityList(player: Player): Promise<void> {
 		let listText = "§6=== 所持能力一覧 ===\n\n";
 
 		for (const [abilityId, state] of playerAbilities.entries()) {
-			const definition = DEFAULT_ABILITIES[abilityId];
+			const definition = ABILITY_DEFINITIONS[abilityId];
 			if (definition) {
 				const statusIcon = getAbilityStatusIcon(state);
 				const statusText = getAbilityStatusText(state);
@@ -416,7 +412,7 @@ export async function showAbilityHistory(player: Player): Promise<void> {
 
 		const playerAbilities = getPlayerAbilities(player.id);
 		for (const [abilityId, state] of playerAbilities.entries()) {
-			const definition = DEFAULT_ABILITIES[abilityId];
+			const definition = ABILITY_DEFINITIONS[abilityId];
 			if (definition) {
 				const usedCount = definition.usesPerGame - state.usesRemaining;
 				if (usedCount > 0) {
@@ -518,12 +514,4 @@ function getAbilityStatusText(state: AbilityInstanceState): string {
 /**
  * 距離計算
  */
-function calculateDistance(
-	pos1: { x: number; y: number; z: number },
-	pos2: { x: number; y: number; z: number },
-): number {
-	const dx = pos1.x - pos2.x;
-	const dy = pos1.y - pos2.y;
-	const dz = pos1.z - pos2.z;
-	return Math.sqrt(dx * dx + dy * dy + dz * dz);
-}
+

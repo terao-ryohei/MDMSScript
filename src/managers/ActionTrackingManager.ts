@@ -4,6 +4,7 @@
  */
 
 import { type Player, system, type Vector3, world } from "@minecraft/server";
+import { calculateDistance } from "../utils/CommonUtils";
 import {
 	getAreaFromCoordinates,
 	getNearestLandmark,
@@ -766,12 +767,4 @@ function generateActionDescription(
 /**
  * 距離計算（Vector3 | {x, y, z}両方に対応）
  */
-function calculateDistance(
-	pos1: Vector3 | { x: number; y: number; z: number },
-	pos2: Vector3 | { x: number; y: number; z: number },
-): number {
-	const dx = pos1.x - pos2.x;
-	const dy = pos1.y - pos2.y;
-	const dz = pos1.z - pos2.z;
-	return Math.sqrt(dx * dx + dy * dy + dz * dz);
-}
+

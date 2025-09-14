@@ -12,6 +12,7 @@ import { ActionType } from "../types/ActionTypes";
 import { RoleType } from "../types/RoleTypes";
 import { recordAction } from "./ActionTrackingManager";
 import { getGamePhase, getPlayerRole } from "./ScoreboardManager";
+import { calculateDistance } from "../utils/CommonUtils";
 
 /**
  * スポーンされたNPCの情報
@@ -427,12 +428,7 @@ function generateEvidenceAtLocation(npc: SpawnedNPC): void {
 /**
  * 距離計算
  */
-function calculateDistance(pos1: Vector3, pos2: Vector3): number {
-	const dx = pos1.x - pos2.x;
-	const dy = pos1.y - pos2.y;
-	const dz = pos1.z - pos2.z;
-	return Math.sqrt(dx * dx + dy * dy + dz * dz);
-}
+
 
 /**
  * イベントリスナーを設定

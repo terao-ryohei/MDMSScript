@@ -4,6 +4,7 @@
 
 import type { Player } from "@minecraft/server";
 import { ActionFormData, MessageFormData } from "@minecraft/server-ui";
+import { createActionForm, handleUIError } from "../utils/UIHelpers";
 import { ROLES } from "../constants/RoleConfigs";
 import { RoleType } from "../types/RoleTypes";
 import {
@@ -48,8 +49,7 @@ export async function showRoleDetails(player: Player): Promise<void> {
 
 		await form.show(player);
 	} catch (error) {
-		console.error(`Failed to show role details for ${player.name}:`, error);
-		player.sendMessage("§cロール詳細の表示に失敗しました");
+		handleUIError(player, error as Error);
 	}
 }
 
