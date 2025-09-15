@@ -9,6 +9,7 @@ import { MELODIES } from "src/data/MusicDefinitions";
 import { PHASE_CONFIGS } from "../constants/PhaseConfigs";
 import { GamePhase } from "../types/PhaseTypes";
 import { RoleType } from "../types/RoleTypes";
+import { createActionForm } from "../utils/UIHelpers";
 import { getCurrentBGM, playBGM, stopBGM } from "./BGMManager";
 import { debugJobAssignments } from "./JobAssignmentManager";
 import { forcePhaseChange, getCurrentPhase } from "./PhaseManager";
@@ -37,16 +38,16 @@ export async function showPlayerInfo(player: Player): Promise<void> {
 		const evidenceCount = getEvidenceCount(player);
 
 		const form = new MessageFormData()
-			.title("§l§6プレイヤー情報")
+			.title("§lプレイヤー情報")
 			.body(
-				`§6プレイヤー名: §f${player.name}\n\n` +
-					`§6ロール: §f${role ? getRoleDisplayName(role) : "未設定"}\n\n` +
-					`§6ジョブ: §f${job ? job.toString() : "未設定"}\n\n` +
-					`§6スコア: §f${score}pt\n\n` +
-					`§6証拠数: §f${evidenceCount}個`,
+				`§6プレイヤー名: §j${player.name}\n\n` +
+					`§6ロール: §j${role ? getRoleDisplayName(role) : "未設定"}\n\n` +
+					`§6ジョブ: §j${job ? job.toString() : "未設定"}\n\n` +
+					`§6スコア: §j${score}pt\n\n` +
+					`§6証拠数: §j${evidenceCount}個`,
 			)
-			.button1("§a了解")
-			.button2("§7閉じる");
+			.button1("了解")
+			.button2("閉じる");
 
 		await form.show(player);
 	} catch (error) {
@@ -69,15 +70,15 @@ export async function showGameState(
 		const playerCount = world.getAllPlayers().length;
 
 		const form = new MessageFormData()
-			.title("§l§aゲーム状態")
+			.title("§lゲーム状態")
 			.body(
-				`§6現在フェーズ: §f${getPhaseDisplayName(currentPhase)}\n\n` +
-					`§6残り時間: §f${formatTime(phaseTimer)}\n\n` +
-					`§6事件発生: §f${murderOccurred ? "発生済み" : "未発生"}\n\n` +
-					`§6総プレイヤー数: §f${playerCount}人`,
+				`§6現在フェーズ: §j${getPhaseDisplayName(currentPhase)}\n\n` +
+					`§6残り時間: §j${formatTime(phaseTimer)}\n\n` +
+					`§6事件発生: §j${murderOccurred ? "発生済み" : "未発生"}\n\n` +
+					`§6総プレイヤー数: §j${playerCount}人`,
 			)
-			.button1("§a了解")
-			.button2("§7戻る");
+			.button1("了解")
+			.button2("戻る");
 
 		const response = await form.show(player);
 
@@ -110,18 +111,18 @@ export async function showPhaseInfo(
 		}
 
 		const form = new MessageFormData()
-			.title(`§l§e${getPhaseDisplayName(currentPhase)}`)
+			.title(`§l§6${getPhaseDisplayName(currentPhase)}`)
 			.body(
-				`§6フェーズ名: §f${getPhaseDisplayName(currentPhase)}\n\n` +
-					`§6説明: §f${phaseConfig.description}\n\n` +
-					`§6制限時間: §f${formatTime(phaseConfig.duration)}\n\n` +
+				`§6フェーズ名: §j${getPhaseDisplayName(currentPhase)}\n\n` +
+					`§6説明: §j${phaseConfig.description}\n\n` +
+					`§6制限時間: §j${formatTime(phaseConfig.duration)}\n\n` +
 					`§6許可された行動:\n` +
 					phaseConfig.allowedActions
-						.map((action: string) => `§f- ${action}`)
+						.map((action: string) => `§j- ${action}`)
 						.join("\n"),
 			)
-			.button1("§a了解")
-			.button2("§7戻る");
+			.button1("了解")
+			.button2("戻る");
 
 		const response = await form.show(player);
 
@@ -142,16 +143,14 @@ export async function showPhaseInfo(
  */
 export async function showAdminMenu(player: Player): Promise<void> {
 	try {
-		const form = new ActionFormData()
-			.title("§l§c管理者メニュー")
-			.body("§7管理者向けのデバッグ機能です")
-			.button("§aゲーム状態表示", "textures/ui/book_edit_default")
-			.button("§eプレイヤー一覧", "textures/ui/friend_glyph")
-			.button("§bフェーズ強制変更", "textures/ui/clock")
-			.button("§dBGMコントロール", "textures/ui/sound_glyph")
-			.button("§6デバッグ情報出力", "textures/ui/debug_glyph")
-			.button("§cゲームリセット", "textures/ui/redX1")
-			.button("§7閉じる", "textures/ui/cancel");
+		const form = createActionForm("$1", "$2")
+			.button("ゲーム状態表示", "textures/ui/book_edit_default")
+			.button("プレイヤー一覧", "textures/ui/friend_glyph")
+			.button("フェーズ強制変更", "textures/ui/clock")
+			.button("BGMコントロール", "textures/ui/sound_glyph")
+			.button("デバッグ情報出力", "textures/ui/debug_glyph")
+			.button("ゲームリセット", "textures/ui/redX1")
+			.button("閉じる", "textures/ui/cancel");
 
 		const response = await form.show(player);
 
@@ -172,7 +171,7 @@ export async function showAdminMenu(player: Player): Promise<void> {
 				break;
 			case 4: // デバッグ情報出力
 				outputDebugInfo();
-				player.sendMessage("§aデバッグ情報をコンソールに出力しました");
+				player.sendMessage("§2デバッグ情報をコンソールに出力しました");
 				break;
 			case 5: // ゲームリセット
 				await showResetConfirmation(player);
@@ -192,14 +191,14 @@ export async function showEvidenceList(player: Player): Promise<void> {
 		const evidenceCount = getEvidenceCount(player);
 
 		const form = new MessageFormData()
-			.title("§l§b証拠一覧")
+			.title("§l証拠一覧")
 			.body(
-				`§6収集済み証拠数: §f${evidenceCount}\n\n` +
+				`§6収集済み証拠数: §j${evidenceCount}\n\n` +
 					`§7※証拠詳細表示機能は今後実装予定です\n` +
 					`§7※現在は証拠数のみ表示されます`,
 			)
-			.button1("§a了解")
-			.button2("§7閉じる");
+			.button1("了解")
+			.button2("閉じる");
 
 		await form.show(player);
 	} catch (error) {
@@ -216,14 +215,14 @@ export async function showPlayerList(player: Player): Promise<void> {
 		const players = world.getAllPlayers();
 		const playerInfo = players.map((p) => {
 			const score = getPlayerScore(p);
-			return `§f${p.name} §6${score}pt`;
+			return `§j${p.name} §6${score}pt`;
 		});
 
 		const form = new MessageFormData()
-			.title("§l§eプレイヤー一覧")
-			.body(`§6総プレイヤー数: §f${players.length}\n\n` + playerInfo.join("\n"))
-			.button1("§a了解")
-			.button2("§7閉じる");
+			.title("§lプレイヤー一覧")
+			.body(`§6総プレイヤー数: §j${players.length}\n\n` + playerInfo.join("\n"))
+			.button1("了解")
+			.button2("閉じる");
 
 		await form.show(player);
 	} catch (error) {
@@ -237,17 +236,15 @@ export async function showPlayerList(player: Player): Promise<void> {
  */
 async function showPhaseChangeMenu(player: Player): Promise<void> {
 	try {
-		const form = new ActionFormData()
-			.title("§l§bフェーズ変更")
-			.body("§7変更したいフェーズを選択してください")
-			.button("§a準備フェーズ", "textures/ui/gear")
-			.button("§e生活フェーズ", "textures/ui/heart")
-			.button("§6調査フェーズ", "textures/ui/magnifyingGlass")
-			.button("§c会議フェーズ", "textures/ui/chat")
-			.button("§d再調査フェーズ", "textures/ui/magnifyingGlass")
-			.button("§b推理フェーズ", "textures/ui/book_edit_default")
-			.button("§4投票フェーズ", "textures/ui/vote")
-			.button("§8エンディング", "textures/ui/check");
+		const form = createActionForm("$1", "$2")
+			.button("準備フェーズ", "textures/ui/gear")
+			.button("生活フェーズ", "textures/ui/heart")
+			.button("調査フェーズ", "textures/ui/magnifyingGlass")
+			.button("会議フェーズ", "textures/ui/chat")
+			.button("再調査フェーズ", "textures/ui/magnifyingGlass")
+			.button("推理フェーズ", "textures/ui/book_edit_default")
+			.button("投票フェーズ", "textures/ui/vote")
+			.button("エンディング", "textures/ui/check");
 
 		const response = await form.show(player);
 
@@ -269,7 +266,7 @@ async function showPhaseChangeMenu(player: Player): Promise<void> {
 
 		if (result.success) {
 			player.sendMessage(
-				`§aフェーズを ${getPhaseDisplayName(selectedPhase)} に変更しました`,
+				`§2フェーズを ${getPhaseDisplayName(selectedPhase)} に変更しました`,
 			);
 		} else {
 			player.sendMessage(`§cフェーズ変更エラー: ${result.error}`);
@@ -289,7 +286,7 @@ async function showPhaseChangeMenu(player: Player): Promise<void> {
 async function showResetConfirmation(player: Player): Promise<void> {
 	try {
 		const form = new MessageFormData()
-			.title("§l§cゲームリセット確認")
+			.title("§lゲームリセット確認")
 			.body(
 				"§cゲームをリセットしますか？\n\n" +
 					"§7この操作により以下がリセットされます:\n" +
@@ -298,13 +295,13 @@ async function showResetConfirmation(player: Player): Promise<void> {
 					"§7- 証拠・スコア\n" +
 					"§7- その他全てのゲーム状態",
 			)
-			.button1("§cリセット実行")
-			.button2("§aキャンセル");
+			.button1("リセット実行")
+			.button2("キャンセル");
 
 		const response = await form.show(player);
 
 		if (response.canceled || response.selection === 1) {
-			player.sendMessage("§aリセットをキャンセルしました");
+			player.sendMessage("§2リセットをキャンセルしました");
 			return;
 		}
 
@@ -380,18 +377,18 @@ export async function showBGMControlMenu(player: Player): Promise<void> {
 	try {
 		const currentBGM = getCurrentBGM();
 		const currentStatus = currentBGM
-			? `§a再生中: ${currentBGM.track.name}`
+			? `§2再生中: ${currentBGM.track.name}`
 			: "§7停止中";
 
 		const form = new ActionFormData()
-			.title("§l§d♪ BGMコントロール ♪")
+			.title("§l♪ BGMコントロール ♪")
 			.body(
-				`§7現在の状態: ${currentStatus}\n\n§eBGMの再生・停止・選曲ができます`,
+				`§7現在の状態: ${currentStatus}\n\n§6BGMの再生・停止・選曲ができます`,
 			)
-			.button("§a▶ BGM再生", "textures/ui/play")
-			.button("§c⏹ BGM停止", "textures/ui/stop")
-			.button("§e♪ 楽曲選択", "textures/ui/sound_glyph")
-			.button("§8← 戻る", "textures/ui/back");
+			.button("▶ BGM再生", "textures/ui/play")
+			.button("⏹ BGM停止", "textures/ui/stop")
+			.button("♪ 楽曲選択", "textures/ui/sound_glyph")
+			.button("← 戻る", "textures/ui/back");
 
 		const response = await form.show(player);
 
@@ -424,14 +421,12 @@ export async function showBGMControlMenu(player: Player): Promise<void> {
  */
 export async function showBGMPlayMenu(player: Player): Promise<void> {
 	try {
-		const form = new ActionFormData()
-			.title("§l§a▶ BGM再生")
-			.body("§7カテゴリを選択してください")
-			.button("§d探偵・推理", "textures/ui/book_edit_default")
-			.button("§6クラシック", "textures/ui/sound_glyph")
-			.button("§bゲーム用BGM", "textures/ui/clock")
-			.button("§c効果音・ファンファーレ", "textures/ui/debug_glyph")
-			.button("§8← 戻る", "textures/ui/back");
+		const form = createActionForm("$1", "$2")
+			.button("探偵・推理", "textures/ui/book_edit_default")
+			.button("クラシック", "textures/ui/sound_glyph")
+			.button("ゲーム用BGM", "textures/ui/clock")
+			.button("効果音・ファンファーレ", "textures/ui/debug_glyph")
+			.button("← 戻る", "textures/ui/back");
 
 		const response = await form.show(player);
 
@@ -467,9 +462,9 @@ export async function showBGMSelectionMenu(player: Player): Promise<void> {
 	try {
 		const trackList = Object.values(MELODIES);
 		const form = new ActionFormData()
-			.title("§l§e♪ 楽曲選択")
+			.title("§l♪ 楽曲選択")
 			.body(
-				`§7利用可能な楽曲: ${trackList.length}曲\n§e楽曲を選択して再生します`,
+				`§7利用可能な楽曲: ${trackList.length}曲\n§6楽曲を選択して再生します`,
 			);
 
 		// 楽曲をソートして表示（優先度の高い順）
@@ -479,10 +474,10 @@ export async function showBGMSelectionMenu(player: Player): Promise<void> {
 
 		for (const track of sortedTracks) {
 			const icon = getBGMIcon(track.id);
-			form.button(`§f${track.name}\n§7${track.description}`, icon);
+			form.button(`§j${track.name}\n§7${track.description}`, icon);
 		}
 
-		form.button("§8← 戻る", "textures/ui/back");
+		form.button("← 戻る", "textures/ui/back");
 
 		const response = await form.show(player);
 
@@ -499,7 +494,7 @@ export async function showBGMSelectionMenu(player: Player): Promise<void> {
 		const success = playBGM(selectedTrack.id);
 
 		if (success) {
-			player.sendMessage(`§a♪ 再生開始: ${selectedTrack.name}`);
+			player.sendMessage(`§2♪ 再生開始: ${selectedTrack.name}`);
 		} else {
 			player.sendMessage(`§c楽曲の再生に失敗しました: ${selectedTrack.name}`);
 		}
@@ -559,10 +554,10 @@ export async function showBGMCategoryMenu(
 
 		for (const track of filteredTracks) {
 			const icon = getBGMIcon(track.id);
-			form.button(`§f${track.name}\n§7${track.description}`, icon);
+			form.button(`§j${track.name}\n§7${track.description}`, icon);
 		}
 
-		form.button("§8← 戻る", "textures/ui/back");
+		form.button("← 戻る", "textures/ui/back");
 
 		const response = await form.show(player);
 
@@ -579,7 +574,7 @@ export async function showBGMCategoryMenu(
 		const success = playBGM(selectedTrack.id);
 
 		if (success) {
-			player.sendMessage(`§a♪ 再生開始: ${selectedTrack.name}`);
+			player.sendMessage(`§2♪ 再生開始: ${selectedTrack.name}`);
 		} else {
 			player.sendMessage(`§c楽曲の再生に失敗しました: ${selectedTrack.name}`);
 		}

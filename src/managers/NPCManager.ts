@@ -1,4 +1,5 @@
-import { type Entity, system, type Vector3, world } from "@minecraft/server";
+import type { Player } from "@minecraft/server";
+import { type Entity, system, world } from "@minecraft/server";
 import {
 	getAreaInfo,
 	getAreaRiskLevel,
@@ -10,9 +11,9 @@ import {
 } from "../data/NPCDefinitions";
 import { ActionType } from "../types/ActionTypes";
 import { RoleType } from "../types/RoleTypes";
+import { calculateDistance } from "../utils/CommonUtils";
 import { recordAction } from "./ActionTrackingManager";
 import { getGamePhase, getPlayerRole } from "./ScoreboardManager";
-import { calculateDistance } from "../utils/CommonUtils";
 
 /**
  * スポーンされたNPCの情報
@@ -310,23 +311,19 @@ async function notifyMurderers(): Promise<void> {
 	try {
 		const murderers = world
 			.getAllPlayers()
-			.filter(
-				(player) =>
-					getPlayerRole(player) ===
-					RoleType.MURDERER,
-			);
+			.filter((player) => getPlayerRole(player) === RoleType.MURDERER);
 
 		for (const murderer of murderers) {
 			const areaInfo = getAreaInfo(targetNPC.spawnLocation.area);
 			const riskLevel = getAreaRiskLevel(targetNPC.spawnLocation.area);
 
 			murderer.sendMessage("§l§c=== 殺害指令 ===");
-			murderer.sendMessage(`§e対象: §f${targetNPC.definition.name}`);
-			murderer.sendMessage(`§e場所: §f${targetNPC.spawnLocation.description}`);
+			murderer.sendMessage(`§6対象: §j${targetNPC.definition.name}`);
+			murderer.sendMessage(`§6場所: §j${targetNPC.spawnLocation.description}`);
 			murderer.sendMessage(
-				`§eエリア: §f${targetNPC.spawnLocation.area} (§c目撃リスク: ${riskLevel}§f)`,
+				`§6エリア: §j${targetNPC.spawnLocation.area} (§c目撃リスク: ${riskLevel}§j)`,
 			);
-			murderer.sendMessage(`§e説明: §7${targetNPC.definition.description}`);
+			murderer.sendMessage(`§6説明: §7${targetNPC.definition.description}`);
 
 			// エリア情報による戦略的アドバイス
 			if (areaInfo) {
@@ -353,7 +350,7 @@ function announceNPCSpawn(npc: SpawnedNPC): void {
 	const areaInfo = getAreaInfo(npc.spawnLocation.area);
 	const riskLevel = getAreaRiskLevel(npc.spawnLocation.area);
 
-	world.sendMessage("§l§e=== 新たな人物が到着しました ===");
+	world.sendMessage("§l§6=== 新たな人物が到着しました ===");
 	world.sendMessage(
 		`§6${npc.definition.name}§r が §6${npc.spawnLocation.area}§r に現れました`,
 	);
@@ -379,7 +376,7 @@ function announceNPCSpawn(npc: SpawnedNPC): void {
 function announceMurderEvent(npc: SpawnedNPC): void {
 	world.sendMessage("§l§c=== 事件発生！ ===");
 	world.sendMessage(`§c${npc.definition.name}§r が殺害されました！`);
-	world.sendMessage(`§e場所: §f${npc.spawnLocation.description}`);
+	world.sendMessage(`§6場所: §j${npc.spawnLocation.description}`);
 	world.sendMessage("§7現場には証拠が残されているかもしれません...");
 
 	// フェーズ遷移トリガー
@@ -429,7 +426,6 @@ function generateEvidenceAtLocation(npc: SpawnedNPC): void {
  * 距離計算
  */
 
-
 /**
  * イベントリスナーを設定
  */
@@ -441,7 +437,7 @@ function setupEventListeners(): void {
 				event.damagingEntity?.typeId === "minecraft:player" &&
 				event.hitEntity?.typeId === "minecraft:villager"
 			) {
-				const player = event.damagingEntity as any; // Player型にキャスト
+				const player = event.damagingEntity as Player; // Player型にキャスト
 				const targetEntity = event.hitEntity;
 
 				// NPCかどうかチェック
@@ -452,7 +448,7 @@ function setupEventListeners(): void {
 				if (npc && canPlayerKillNPC(player.id, npc.id)) {
 					killNPC(npc.id, player.id);
 				} else if (npc && getPlayerRole(player) === RoleType.MURDERER) {
-					(player as any).sendMessage("§c生活フェーズ中のみ殺害可能です");
+					player.sendMessage("§c生活フェーズ中のみ殺害可能です");
 				}
 			}
 		} catch (error) {

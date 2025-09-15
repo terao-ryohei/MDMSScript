@@ -3,18 +3,18 @@
  */
 
 import type { Player } from "@minecraft/server";
-import { ActionFormData, MessageFormData } from "@minecraft/server-ui";
-import { createActionForm, handleUIError } from "../utils/UIHelpers";
-import { ROLES } from "../constants/RoleConfigs";
+import { MessageFormData } from "@minecraft/server-ui";
+import { ROLE_DEFINITIONS as ROLES } from "../data/RoleDefinitions";
 import { RoleType } from "../types/RoleTypes";
+import { createActionForm, handleUIError } from "../utils/UIHelpers";
 import {
 	assignRolesToAllPlayers,
 	debugRoleAssignments,
 	getAccomplices,
-	getVillagers,
-	getDetectives,
 	getCurrentRoleComposition,
+	getDetectives,
 	getMurderers,
+	getVillagers,
 	notifyAllPlayersRoles,
 } from "./RoleAssignmentManager";
 import { getPlayerRole } from "./ScoreboardManager";
@@ -27,28 +27,37 @@ export async function showRoleDetails(player: Player): Promise<void> {
 		const role = getPlayerRole(player);
 
 		if (!role) {
-			player.sendMessage("§cロールが設定されていません");
+			player.sendMessage("§c役職が設定されていません");
+			player.sendMessage("ゲーム管理者に役職の割り当てを依頼してください");
 			return;
 		}
 
 		const roleConfig = ROLES[role];
 
+		if (!roleConfig) {
+			player.sendMessage("§c役職の設定情報が見つかりません");
+			console.error(`Role config not found for role: ${role}`);
+			return;
+		}
+
 		const form = new MessageFormData()
-			.title(`§l§6あなたのロール: ${roleConfig.name}`)
+			.title(`§6あなたの役職: ${roleConfig.name}`)
 			.body(
-				`§e${roleConfig.name}\n\n` +
-					`§6説明: §f${roleConfig.description}\n\n` +
-					`§6特殊ルール:\n` +
-					roleConfig.specialRules.map((rule) => `§f- ${rule}`).join("\n") +
+				`§6${roleConfig.name}\n\n` +
+					`§9説明: ${roleConfig.description}\n\n` +
+					`§9特殊ルール:\n` +
+					roleConfig.specialRules.map((rule) => `- ${rule}`).join("\n") +
 					"\n\n" +
-					`§6基本能力ID: §f${roleConfig.baseAbilityId}\n` +
-					`§6基本目的ID: §f${roleConfig.baseObjectiveId}`,
+					`§9基本能力ID: ${roleConfig.baseAbilityId}\n` +
+					`§9基本目的ID: ${roleConfig.baseObjectiveId}`,
 			)
-			.button1("§a了解")
-			.button2("§7閉じる");
+			.button1("了解")
+			.button2("閉じる");
 
 		await form.show(player);
 	} catch (error) {
+		console.error(`Failed to show role details for ${player.name}:`, error);
+		player.sendMessage("§c役職詳細の表示に失敗しました");
 		handleUIError(player, error as Error);
 	}
 }
@@ -64,21 +73,21 @@ export async function showRoleStatistics(player: Player): Promise<void> {
 		const citizens = getVillagers().concat(getDetectives());
 
 		const form = new MessageFormData()
-			.title("§l§eロール統計")
+			.title("§6役職統計")
 			.body(
-				`§6現在のロール構成:\n\n` +
-					`§c犯人: §f${composition.murderers}人\n` +
-					`§6共犯者: §f${composition.accomplices}人\n` +
-					`§b一般人: §f${composition.villagers + composition.detectives}人\n\n` +
-					`§7※詳細な情報は管理者のみ表示されます`,
+				`§9現在の役職構成:\n\n` +
+					`§c犯人: §6${composition.murderers}人\n` +
+					`§6共犯者: §6${composition.accomplices}人\n` +
+					`§3一般人: §6${composition.villagers + composition.detectives}人\n\n` +
+					`※詳細な情報は管理者のみ表示されます`,
 			)
-			.button1("§a了解")
-			.button2("§7閉じる");
+			.button1("了解")
+			.button2("閉じる");
 
 		await form.show(player);
 	} catch (error) {
 		console.error(`Failed to show role statistics for ${player.name}:`, error);
-		player.sendMessage("§cロール統計の表示に失敗しました");
+		player.sendMessage("§c役職統計の表示に失敗しました");
 	}
 }
 
@@ -90,53 +99,66 @@ export async function showRoleAbilities(player: Player): Promise<void> {
 		const role = getPlayerRole(player);
 
 		if (!role) {
-			player.sendMessage("§cロールが設定されていません");
+			player.sendMessage("§c役職が設定されていません");
+			player.sendMessage("ゲーム管理者に役職の割り当てを依頼してください");
+			// 管理者に自動割り当てを促すメニューを提案
+			const form = new MessageFormData()
+				.title("§c役職未設定")
+				.body(
+					"役職が設定されていません。\n管理者にゲームの初期化を依頼するか、\n管理者権限があるならば役職を割り当ててください。",
+				)
+				.button1("§a了解")
+				.button2("閉じる");
+			await form.show(player);
 			return;
 		}
 
-		let abilityDescription = "";
+		let skillDescription = "";
 
 		switch (role) {
 			case RoleType.MURDERER:
-				abilityDescription =
+				skillDescription =
 					`§c【殺人能力】\n` +
-					`§f- 半径4ブロック以内のプレイヤーをキルできます\n` +
-					`§f- 生活フェーズ中の任意のタイミングで使用可能\n` +
-					`§f- 事件発生タイミングを自由に選択できます\n\n` +
+					`- 半径4ブロック以内のプレイヤーをキルできます\n` +
+					`- 生活フェーズ中の任意のタイミングで使用可能\n` +
+					`- 事件発生タイミングを自由に選択できます\n\n` +
 					`§c【勝利条件】\n` +
-					`§f- 投票で最多票を避けて逃げ切ること`;
+					`投票で最多票を避けて逃げ切ること`;
 				break;
 
 			case RoleType.ACCOMPLICE:
-				abilityDescription =
+				skillDescription =
 					`§6【内部情報】\n` +
-					`§f- 犯人の名前または犯行時間のいずれかを知ることができます\n` +
-					`§f- 犯人と密談が可能です\n` +
-					`§f- 証拠隠滅行動が可能です\n\n` +
+					`- 犯人の名前または犯行時間のいずれかを知ることができます\n` +
+					`- 犯人と密談が可能です\n` +
+					`- 証拠隠滅行動が可能です\n\n` +
 					`§6【勝利条件】\n` +
-					`§f- 犯人の勝利をサポートすること`;
+					`犯人の勝利をサポートすること`;
 				break;
 
 			case RoleType.VILLAGER:
-				abilityDescription =
+				skillDescription =
 					`§b【推理強化】\n` +
-					`§f- 証拠の信頼性が10%向上します\n` +
-					`§f- 探偵役がいる場合は推理力がさらに強化されます\n\n` +
+					`- 証拠の信頼性が10%向上します\n` +
+					`- 探偵役がいる場合は推理力がさらに強化されます\n\n` +
 					`§b【勝利条件】\n` +
-					`§f- 真犯人を特定すること`;
+					`真犯人を特定すること`;
 				break;
+
+			default:
+				skillDescription = `未知の役職です\n役職: ${role}`;
 		}
 
 		const form = new MessageFormData()
-			.title("§l§aロール能力")
-			.body(abilityDescription)
+			.title("§e役職能力")
+			.body(skillDescription)
 			.button1("§a了解")
-			.button2("§7閉じる");
+			.button2("閉じる");
 
 		await form.show(player);
 	} catch (error) {
-		console.error(`Failed to show role abilities for ${player.name}:`, error);
-		player.sendMessage("§cロール能力の表示に失敗しました");
+		console.error(`Failed to show role skills for ${player.name}:`, error);
+		player.sendMessage("§c役職能力の表示に失敗しました");
 	}
 }
 
@@ -145,13 +167,14 @@ export async function showRoleAbilities(player: Player): Promise<void> {
  */
 export async function showRoleHelpMenu(player: Player): Promise<void> {
 	try {
-		const form = new ActionFormData()
-			.title("§l§6ロールヘルプ")
-			.body("§7ロールに関する情報を表示します")
-			.button("§eあなたのロール詳細", "textures/ui/person")
-			.button("§aロール能力説明", "textures/ui/absorption_effect")
-			.button("§bロール統計", "textures/ui/friend_glyph")
-			.button("§7閉じる", "textures/ui/cancel");
+		const form = createActionForm(
+			"§6役職ヘルプ",
+			"役職に関する情報を表示します",
+		)
+			.button("あなたの役職詳細", "textures/ui/person")
+			.button("役職能力説明", "textures/ui/absorption_effect")
+			.button("役職統計", "textures/ui/friend_glyph")
+			.button("閉じる", "textures/ui/cancel");
 
 		const response = await form.show(player);
 
@@ -170,7 +193,7 @@ export async function showRoleHelpMenu(player: Player): Promise<void> {
 		}
 	} catch (error) {
 		console.error(`Failed to show role help menu for ${player.name}:`, error);
-		player.sendMessage("§cロールヘルプメニューの表示に失敗しました");
+		player.sendMessage("§c役職ヘルプメニューの表示に失敗しました");
 	}
 }
 
@@ -179,14 +202,15 @@ export async function showRoleHelpMenu(player: Player): Promise<void> {
  */
 export async function showAdminRoleMenu(player: Player): Promise<void> {
 	try {
-		const form = new ActionFormData()
-			.title("§l§cロール管理")
-			.body("§7管理者向けのロール管理機能です")
-			.button("§aロール再割り当て", "textures/ui/refresh")
-			.button("§eロール構成確認", "textures/ui/book_edit_default")
-			.button("§bロール統計", "textures/ui/friend_glyph")
-			.button("§6デバッグ情報", "textures/ui/debug_glyph")
-			.button("§7閉じる", "textures/ui/cancel");
+		const form = createActionForm(
+			"§lロール管理",
+			"§7管理者向けのロール管理機能です",
+		)
+			.button("ロール再割り当て", "textures/ui/refresh")
+			.button("ロール構成確認", "textures/ui/book_edit_default")
+			.button("ロール統計", "textures/ui/friend_glyph")
+			.button("デバッグ情報", "textures/ui/debug_glyph")
+			.button("閉じる", "textures/ui/cancel");
 
 		const response = await form.show(player);
 
@@ -204,7 +228,7 @@ export async function showAdminRoleMenu(player: Player): Promise<void> {
 				break;
 			case 3: // デバッグ情報
 				debugRoleAssignments();
-				player.sendMessage("§aロールデバッグ情報をコンソールに出力しました");
+				player.sendMessage("§2ロールデバッグ情報をコンソールに出力しました");
 				break;
 		}
 	} catch (error) {
@@ -219,26 +243,26 @@ export async function showAdminRoleMenu(player: Player): Promise<void> {
 async function confirmRoleReassignment(player: Player): Promise<void> {
 	try {
 		const form = new MessageFormData()
-			.title("§l§cロール再割り当て確認")
+			.title("§lロール再割り当て確認")
 			.body(
 				"§cロールを再割り当てしますか？\n\n" +
 					"§7この操作により全プレイヤーのロールが\n" +
 					"§7ランダムに再設定されます。",
 			)
-			.button1("§c実行")
-			.button2("§aキャンセル");
+			.button1("実行")
+			.button2("キャンセル");
 
 		const response = await form.show(player);
 
 		if (response.canceled || response.selection === 1) {
-			player.sendMessage("§aロール再割り当てをキャンセルしました");
+			player.sendMessage("§2ロール再割り当てをキャンセルしました");
 			return;
 		}
 
 		// ロール再割り当て実行
 		const result = assignRolesToAllPlayers();
 		if (result.success) {
-			player.sendMessage("§aロールの再割り当てが完了しました");
+			player.sendMessage("§2ロールの再割り当てが完了しました");
 			notifyAllPlayersRoles();
 		} else {
 			player.sendMessage(`§cロール再割り当てエラー: ${result.error}`);
@@ -263,17 +287,18 @@ async function showDetailedRoleComposition(player: Player): Promise<void> {
 
 		const murdererNames = murderers.map((p) => p.name).join(", ") || "なし";
 		const accompliceNames = accomplices.map((p) => p.name).join(", ") || "なし";
-		const citizenNames = citizens.map((p: any) => p.name).join(", ") || "なし";
+		const citizenNames =
+			citizens.map((p: Player) => p.name).join(", ") || "なし";
 
 		const form = new MessageFormData()
-			.title("§l§c詳細ロール構成")
+			.title("§l詳細ロール構成")
 			.body(
-				`§c犯人 (${murderers.length}人):\n§f${murdererNames}\n\n` +
-					`§6共犯者 (${accomplices.length}人):\n§f${accompliceNames}\n\n` +
-					`§b一般人 (${citizens.length}人):\n§f${citizenNames}`,
+				`§c犯人 (${murderers.length}人):\n§j${murdererNames}\n\n` +
+					`§6共犯者 (${accomplices.length}人):\n§j${accompliceNames}\n\n` +
+					`§3一般人 (${citizens.length}人):\n§j${citizenNames}`,
 			)
-			.button1("§a了解")
-			.button2("§7閉じる");
+			.button1("了解")
+			.button2("閉じる");
 
 		await form.show(player);
 	} catch (error) {

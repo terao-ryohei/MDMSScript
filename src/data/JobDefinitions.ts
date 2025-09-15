@@ -1,137 +1,96 @@
-import { type Job, JobType, type JobObjective } from "../types/JobTypes";
-import { type Skill } from "../types/SkillTypes";
-import { ABILITY_DEFINITIONS, JOB_BASE_ABILITIES } from "./AbilityDefinitions";
-import { OBJECTIVE_DEFINITIONS, ObjectiveCategory, OBJECTIVES_BY_CATEGORY } from "./ObjectiveDefinitions";
 import { type Player, world } from "@minecraft/server";
+import { useSkill } from "../managers/SkillManager";
+import type { Skill } from "../types/AbilityTypes";
+import { type Job, type JobObjective, JobType } from "../types/JobTypes";
+import {
+	OBJECTIVE_DEFINITIONS,
+	ObjectiveCategory,
+	OBJECTIVES_BY_CATEGORY,
+} from "./ObjectiveDefinitions";
+import { JOB_BASE_SKILLS, SKILL_DEFINITIONS } from "./SkillDefinitions";
 
 /**
- * AbilityDefinitionをSkillインターフェースに変換するアダプター
+ * ゲーム状態の型定義
  */
-function abilityToSkill(abilityId: string): Skill {
-	const ability = ABILITY_DEFINITIONS[abilityId];
-	if (!ability) {
-		throw new Error(`Ability ${abilityId} not found in ABILITY_DEFINITIONS`);
+interface GameState {
+	playerStates?: Record<string, { alive: boolean; [key: string]: unknown }>;
+	votingResults?: Record<string, { correct: boolean; [key: string]: unknown }>;
+	playerProgress?: Record<
+		string,
+		{
+			materials?: number;
+			deals?: number;
+			quests?: number;
+			[key: string]: unknown;
+		}
+	>;
+}
+
+/**
+ * SkillDefinitionをSkillインターフェースに変換するアダプター
+ */
+function skillDefinitionToSkill(skillId: string): Skill {
+	const skill = SKILL_DEFINITIONS[skillId];
+	if (!skill) {
+		throw new Error(`Skill ${skillId} not found in SKILL_DEFINITIONS`);
 	}
-	
+
 	return {
-		id: ability.id,
-		name: ability.name,
-		description: ability.description,
-		cooldown: ability.cooldownTime,
-		usageCount: ability.usesPerGame,
-		executeSkill: (player: Player, target?: Player, args?: any) => {
-			// AbilityManager の実装に委譲する予定だが、今は簡易実装
+		id: skill.id,
+		name: skill.name,
+		description: skill.description,
+		cooldown: skill.cooldownTime,
+		usageCount: skill.usesPerGame,
+		executeSkill: async (
+			player: Player,
+			target?: Player,
+			args?: Record<string, unknown>,
+		) => {
+			// SkillManagerを使用した適切な実装
 			try {
-				// プレイヤーにメッセージを送信
-				player.sendMessage(`§a${ability.name}を使用しました: ${ability.description}`);
-				
-				// 簡易的な効果実装
-				switch (ability.id) {
-					case "royal_summon":
-						if (target) {
-							target.teleport(player.location);
-							world.sendMessage(`§6${player.name}が${target.name}を召喚しました`);
-						}
-						break;
-					case "protection":
-						const protectTarget = target || player;
-						protectTarget.addEffect("resistance", 600, { amplifier: 2 });
-						world.sendMessage(`§9${protectTarget.name}が保護されました`);
-						break;
-					case "surveillance":
-						if (target) {
-							player.sendMessage(`§e${target.name}の位置: ${Math.floor(target.location.x)}, ${Math.floor(target.location.z)}`);
-						}
-						break;
-					case "eavesdrop":
-						const nearbyPlayers = world.getAllPlayers().filter(p => 
-							p.id !== player.id &&
-							Math.abs(p.location.x - player.location.x) < 8 && 
-							Math.abs(p.location.z - player.location.z) < 8
-						);
-						player.sendMessage(`§e周囲に ${nearbyPlayers.length} 人のプレイヤーを感知しました`);
-						break;
-					case "concealment":
-						player.addEffect("invisibility", 300, { amplifier: 0 });
-						player.sendMessage("§8隠蔽状態になりました");
-						break;
-					case "divination":
-						if (target) {
-							// ランダムなヒントを提供
-							const hints = [
-								`§6${target.name}は重要な役割を持っているようです`,
-								`§6${target.name}の行動には注意が必要かもしれません`,
-								`§6${target.name}は信頼できる人物のようです`
-							];
-							const hint = hints[Math.floor(Math.random() * hints.length)];
-							player.sendMessage(hint);
-						}
-						break;
-					case "teleportation":
-						// ランダムな場所にテレポート
-						const x = player.location.x + (Math.random() - 0.5) * 100;
-						const z = player.location.z + (Math.random() - 0.5) * 100;
-						player.teleport({ x, y: player.location.y + 10, z });
-						player.sendMessage("§d瞬間移動しました");
-						break;
-					case "information_network":
-						const allPlayers = world.getAllPlayers();
-						const info = allPlayers.map(p => `${p.name}: (${Math.floor(p.location.x)}, ${Math.floor(p.location.z)})`).join("\n");
-						player.sendMessage(`§b情報ネットワーク:\n${info}`);
-						break;
-					case "appraisal":
-						player.sendMessage("§6この場所に何か重要なものがありそうです...");
-						break;
-					case "negotiation":
-						if (target) {
-							player.sendMessage(`§a${target.name}との交渉を開始しました`);
-							target.sendMessage(`§a${player.name}があなたと交渉したがっています`);
-						}
-						break;
-					default:
-						// 基本的な成功メッセージ
-						break;
-				}
-				
-				return { success: true, message: `${ability.name}の使用に成功しました` };
+				const result = await useSkill(player, skill.id);
+				return {
+					success: result.success,
+					message: result.message || `${skill.name}の使用に成功しました`,
+				};
 			} catch (error) {
-				return { 
-					success: false, 
-					message: `${ability.name}の使用に失敗しました`, 
-					error: String(error) 
+				return {
+					success: false,
+					message: `${skill.name}の使用に失敗しました`,
+					error: String(error),
 				};
 			}
-		}
+		},
 	};
 }
 
 /**
- * ジョブスキル実装（AbilityDefinitionsから動的生成）
+ * ジョブスキル実装（SkillDefinitionsから動的生成）
  */
 const JOB_SKILLS: Record<string, Skill> = (() => {
 	const skills: Record<string, Skill> = {};
-	
+
 	// JOB_BASE_ABILITIESからスキルを生成
-	for (const [jobType, abilityId] of Object.entries(JOB_BASE_ABILITIES)) {
+	for (const [jobType, skillId] of Object.entries(JOB_BASE_SKILLS)) {
 		try {
-			skills[abilityId] = abilityToSkill(abilityId);
+			skills[skillId] = skillDefinitionToSkill(skillId);
 		} catch (error) {
-			console.warn(`Failed to create skill for ${jobType}: ${abilityId}`, error);
+			console.warn(`Failed to create skill for ${jobType}: ${skillId}`, error);
 			// フォールバック用の基本スキルを作成
-			skills[abilityId] = {
-				id: abilityId,
+			skills[skillId] = {
+				id: skillId,
 				name: jobType + "スキル",
 				description: "基本的な職業スキル",
 				cooldown: 300,
 				usageCount: 3,
-				executeSkill: (player: Player) => {
-					player.sendMessage(`§a${jobType}の特殊能力を使用しました`);
+				executeSkill: async (player: Player) => {
+					player.sendMessage(`§2${jobType}の特殊能力を使用しました`);
 					return { success: true, message: "スキルを使用しました" };
-				}
+				},
 			};
 		}
 	}
-	
+
 	return skills;
 })();
 
@@ -141,37 +100,81 @@ const JOB_SKILLS: Record<string, Skill> = (() => {
 function objectiveToJobObjective(objectiveId: string): JobObjective {
 	const objective = OBJECTIVE_DEFINITIONS[objectiveId];
 	if (!objective) {
-		throw new Error(`Objective ${objectiveId} not found in OBJECTIVE_DEFINITIONS`);
+		throw new Error(
+			`Objective ${objectiveId} not found in OBJECTIVE_DEFINITIONS`,
+		);
 	}
-	
+
 	return {
 		id: objective.id,
 		name: objective.name,
 		description: objective.description,
 		scorePoints: objective.points.completion,
-		checkCompletion: (playerId: string, gameState?: any) => {
-			// ObjectiveDefinitionsのconditionsをチェック
-			// 今は簡易実装として常に達成可能とするが、将来的にはconditionsを評価
-			
-			// 条件の種類に応じた簡易チェック
-			for (const condition of objective.conditions) {
-				switch (condition.type) {
-					case "survive":
-						// プレイヤーが生存しているかチェック（簡易）
-						return true;
-					case "correct_vote":
-						// 正しい投票をしたかチェック（簡易）
-						return true;
-					case "collect_materials":
-					case "make_deals":
-					case "complete_quests":
-						// 数値目標の簡易チェック
-						return true;
-					default:
-						return true;
+		checkCompletion: (playerId: string, gameState?: GameState) => {
+			// ObjectiveDefinitionsのconditionsを実際に評価
+			try {
+				// プレイヤーの状態を取得
+				const player = world.getAllPlayers().find((p) => p.id === playerId);
+				if (!player) return false;
+
+				// 条件の種類に応じた実際の評価
+				for (const condition of objective.conditions) {
+					switch (condition.type) {
+						case "survive": {
+							// プレイヤーが生存しているかの実際のチェック
+							const isAlive =
+								gameState?.playerStates?.[playerId]?.alive ?? true;
+							if (!isAlive) return false;
+							break;
+						}
+						case "correct_vote": {
+							// 正しい投票をしたかの実際のチェック
+							const votedCorrectly =
+								gameState?.votingResults?.[playerId]?.correct ?? false;
+							if (!votedCorrectly) return false;
+							break;
+						}
+						case "collect_materials": {
+							// 素材収集の実際のチェック
+							const materialsCollected =
+								gameState?.playerProgress?.[playerId]?.materials ?? 0;
+							const requiredMaterials =
+								(condition.target as unknown as number) || 1;
+							if (materialsCollected < requiredMaterials) return false;
+							break;
+						}
+						case "make_deals": {
+							// 取引完了の実際のチェック
+							const dealsCompleted =
+								gameState?.playerProgress?.[playerId]?.deals ?? 0;
+							const requiredDeals =
+								(condition.target as unknown as number) || 1;
+							if (dealsCompleted < requiredDeals) return false;
+							break;
+						}
+						case "complete_quests": {
+							// クエスト完了の実際のチェック
+							const questsCompleted =
+								gameState?.playerProgress?.[playerId]?.quests ?? 0;
+							const requiredQuests =
+								(condition.target as unknown as number) || 1;
+							if (questsCompleted < requiredQuests) return false;
+							break;
+						}
+						default: {
+							// 不明な条件タイプは達成とみなす
+							continue;
+						}
+					}
 				}
+				return true;
+			} catch (error) {
+				console.warn(
+					`Failed to check objective completion for ${playerId}:`,
+					error,
+				);
+				return false;
 			}
-			return true;
 		},
 	};
 }
@@ -199,24 +202,27 @@ const JOB_OBJECTIVE_MAPPING: Record<JobType, string> = {
  */
 const JOB_OBJECTIVES: Record<string, JobObjective> = (() => {
 	const objectives: Record<string, JobObjective> = {};
-	
+
 	// JOB_OBJECTIVE_MAPPINGから目的を生成
 	for (const [jobType, objectiveId] of Object.entries(JOB_OBJECTIVE_MAPPING)) {
 		try {
 			objectives[objectiveId] = objectiveToJobObjective(objectiveId);
 		} catch (error) {
-			console.warn(`Failed to create objective for ${jobType}: ${objectiveId}`, error);
+			console.warn(
+				`Failed to create objective for ${jobType}: ${objectiveId}`,
+				error,
+			);
 			// フォールバック用の基本目的を作成
 			objectives[objectiveId] = {
 				id: objectiveId,
 				name: jobType + "の目的",
 				description: "職業固有の目標を達成する",
 				scorePoints: 100,
-				checkCompletion: () => true
+				checkCompletion: () => true,
 			};
 		}
 	}
-	
+
 	// 追加の職業特化目的も生成
 	const jobTaskObjectives = OBJECTIVES_BY_CATEGORY[ObjectiveCategory.JOB_TASK];
 	for (const objectiveId of jobTaskObjectives) {
@@ -224,11 +230,14 @@ const JOB_OBJECTIVES: Record<string, JobObjective> = (() => {
 			try {
 				objectives[objectiveId] = objectiveToJobObjective(objectiveId);
 			} catch (error) {
-				console.warn(`Failed to create job task objective: ${objectiveId}`, error);
+				console.warn(
+					`Failed to create job task objective: ${objectiveId}`,
+					error,
+				);
 			}
 		}
 	}
-	
+
 	return objectives;
 })();
 
@@ -244,7 +253,7 @@ export const JOB_DEFINITIONS: Record<JobType, Job> = {
 		description: "領地を統治する支配者",
 		dailyTasks: [
 			"謁見の間に居る",
-			"教会で神父と話し、祭事を執り行う", 
+			"教会で神父と話し、祭事を執り行う",
 			"近衛隊長と教練を執り行う（庭、武器庫、兵舎）",
 			"芸術を嗜む",
 			"執事と領地の方針を考える",
@@ -285,10 +294,11 @@ export const JOB_DEFINITIONS: Record<JobType, Job> = {
 	[JobType.HOMUNCULUS]: {
 		type: JobType.HOMUNCULUS,
 		name: "ホムンクルス",
-		description: "錬金術によって創られた人工生命体（カリオストロに会うまで本当の目標は隠される）",
+		description:
+			"錬金術によって創られた人工生命体（カリオストロに会うまで本当の目標は隠される）",
 		dailyTasks: [
 			"各部屋の清掃作業", // メイドのタスク
-			"城門と城壁の警備巡回", // 近衛隊長のタスク 
+			"城門と城壁の警備巡回", // 近衛隊長のタスク
 			"薬草の採取と調合", // 薬師のタスク
 			"図書館での学習", // 学生のタスク
 			"館の運営管理", // 執事のタスク
@@ -312,7 +322,7 @@ export const JOB_DEFINITIONS: Record<JobType, Job> = {
 		dailyTasks: [
 			"薬屋に仕入れ",
 			"錬金を執り行う",
-			"行商人にモノを売りに行く", 
+			"行商人にモノを売りに行く",
 			"図書塔に禁書を読みに行く",
 			"水質を調査する",
 			"領主に宝石を献上する",
@@ -375,17 +385,10 @@ export const JOB_DEFINITIONS: Record<JobType, Job> = {
 		type: JobType.PHARMACIST,
 		name: "薬師",
 		description: "薬草を扱い治療薬を調合する専門家",
-		dailyTasks: [
-			"暗視ポーションの作成",
-			"パーゴラで植物を採集する",
-		],
+		dailyTasks: ["暗視ポーションの作成", "パーゴラで植物を採集する"],
 		skill: JOB_SKILLS.concealment,
 		objective: JOB_OBJECTIVES.legendary_weapon,
-		specialPrivileges: [
-			"治療薬の調合技術",
-			"毒物の知識",
-			"薬草の専門知識",
-		],
+		specialPrivileges: ["治療薬の調合技術", "毒物の知識", "薬草の専門知識"],
 		maxCount: 1,
 	},
 
@@ -398,7 +401,7 @@ export const JOB_DEFINITIONS: Record<JobType, Job> = {
 		dailyTasks: [
 			"炊事場で料理を作成する",
 			"御曹司と勉強",
-			"ガゼボの整備", 
+			"ガゼボの整備",
 			"広間の掃除",
 			"犬の散歩",
 			"市場で買い物",
@@ -461,10 +464,7 @@ export const JOB_DEFINITIONS: Record<JobType, Job> = {
 		type: JobType.STUDENT,
 		name: "学生",
 		description: "知識を学ぶ若い学習者",
-		dailyTasks: [
-			"宿題の提出",
-			"鍛冶屋のアルバイト",
-		],
+		dailyTasks: ["宿題の提出", "鍛冶屋のアルバイト"],
 		skill: JOB_SKILLS.investigate,
 		objective: JOB_OBJECTIVES.complete_research,
 		specialPrivileges: [
@@ -479,10 +479,7 @@ export const JOB_DEFINITIONS: Record<JobType, Job> = {
 		type: JobType.ADVENTURER,
 		name: "冒険者",
 		description: "自由に旅をする冒険家",
-		dailyTasks: [
-			"近衛兵の強さを評価する",
-			"領主に挨拶する",
-		],
+		dailyTasks: ["近衛兵の強さを評価する", "領主に挨拶する"],
 		skill: JOB_SKILLS.negotiation,
 		objective: JOB_OBJECTIVES.guild_reputation,
 		specialPrivileges: [
@@ -539,7 +536,7 @@ export function generateBalancedJobDistribution(
 	// 人数制限ありの職業を優先的に配布（最大7人まで）
 	const shuffledLimitedJobs = [...LIMITED_JOBS].sort(() => Math.random() - 0.5);
 	const limitedCount = Math.min(playerCount, LIMITED_JOBS.length);
-	
+
 	for (let i = 0; i < limitedCount; i++) {
 		jobs.push(shuffledLimitedJobs[i]);
 	}
@@ -547,7 +544,8 @@ export function generateBalancedJobDistribution(
 	// 残りのプレイヤーには人数制限なしの職業をランダムに配布
 	const remainingPlayers = playerCount - limitedCount;
 	for (let i = 0; i < remainingPlayers; i++) {
-		const randomJob = UNLIMITED_JOBS[Math.floor(Math.random() * UNLIMITED_JOBS.length)];
+		const randomJob =
+			UNLIMITED_JOBS[Math.floor(Math.random() * UNLIMITED_JOBS.length)];
 		jobs.push(randomJob);
 	}
 

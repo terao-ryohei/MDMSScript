@@ -11,11 +11,7 @@ import {
 	type VotingStatistics,
 	type VotingSystemResult,
 } from "../types/VotingTypes";
-import {
-	getPlayerVotes,
-	isPlayerAlive,
-	setPlayerVotes,
-} from "./ScoreboardManager";
+import { getPlayerVotes, setPlayerVotes } from "./ScoreboardManager";
 
 /**
  * 投票管理マネージャー
@@ -57,9 +53,9 @@ export function startVotingSession(
 		// 犯人投票のみに固定
 		const voteType = VoteType.MURDER_SUSPECT;
 		const fullConfig = { ...DEFAULT_VOTING_CONFIGS[voteType], ...config };
-		const alivePlayers = world.getAllPlayers().filter((p) => isPlayerAlive(p));
+		const players = world.getAllPlayers();
 
-		if (alivePlayers.length === 0) {
+		if (players.length === 0) {
 			return {
 				success: false,
 				error: "投票可能なプレイヤーがいません",
@@ -68,8 +64,8 @@ export function startVotingSession(
 
 		// 候補者が指定されていない場合は全生存者を候補にする
 		const validCandidates = candidates
-			? candidates.filter((id) => alivePlayers.some((p) => p.id === id))
-			: alivePlayers.map((p) => p.id);
+			? candidates.filter((id) => players.some((p) => p.id === id))
+			: players.map((p) => p.id);
 
 		if (validCandidates.length === 0) {
 			return {
@@ -84,7 +80,7 @@ export function startVotingSession(
 			status: VoteStatus.IN_PROGRESS,
 			startTime: Date.now(),
 			duration: fullConfig.duration,
-			eligibleVoters: alivePlayers.map((p) => p.id),
+			eligibleVoters: players.map((p) => p.id),
 			candidates: validCandidates,
 			votes: [],
 			requiresAll: fullConfig.requiresAll,
@@ -480,7 +476,7 @@ function announceVotingResult(result: VotingResult): void {
 			world.sendMessage(`§l§c${winner.name} §rが犯人として選ばれました`);
 		}
 	} else if (result.isTie) {
-		world.sendMessage("§e同票のため犯人を決定できませんでした");
+		world.sendMessage("§6同票のため犯人を決定できませんでした");
 	} else {
 		world.sendMessage("§7有効な投票がありませんでした");
 	}

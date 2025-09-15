@@ -1,11 +1,6 @@
 import { system, world } from "@minecraft/server";
 import { GamePhase } from "../types/PhaseTypes";
 import {
-	clearAllData,
-	debugAbilitySystem,
-	getAbilityStatistics,
-} from "./AbilityManager";
-import {
 	clearAllRecords,
 	debugActionRecords,
 	getActionStatistics,
@@ -20,12 +15,16 @@ import {
 	debugPlayerStates,
 	getJobString,
 	getRoleString,
-	isPlayerAlive,
 	setPlayerAlive,
 	setPlayerJob,
 	setPlayerRole,
 } from "./ScoreboardManager";
 import { debugScoring, generateGameResult } from "./ScoringManager";
+import {
+	clearAllData,
+	debugSkillSystem,
+	getSkillStatistics,
+} from "./SkillManager";
 import {
 	clearAllVotes,
 	debugVotingStatus,
@@ -74,10 +73,49 @@ export enum AdminAction {
 /**
  * 管理者システム結果
  */
+/**
+ * 管理者アクションのパラメータ型
+ */
+export interface AdminActionParameters {
+	// ゲーム制御
+	[AdminAction.FORCE_PHASE]?: { phaseId: number; duration?: number };
+
+	// プレイヤー管理
+	[AdminAction.SET_ROLE]?: { playerId: string; roleId: number };
+	[AdminAction.SET_JOB]?: { playerId: string; jobId: number };
+	[AdminAction.KILL_PLAYER]?: { playerId: string };
+	[AdminAction.REVIVE_PLAYER]?: { playerId: string };
+	[AdminAction.TELEPORT_PLAYER]?: {
+		playerId: string;
+		x: number;
+		y: number;
+		z: number;
+	};
+
+	// システム制御
+	[AdminAction.RESTORE_DATA]?: { backupId: string };
+
+	// デバッグ
+	[AdminAction.INJECT_EVENT]?: {
+		eventType: string;
+		eventData: Record<string, unknown>;
+	};
+}
+
+/**
+ * 管理者アクション結果のデータ型
+ */
+export type AdminResultData =
+	| { type: "game_state"; players: number; phase: string }
+	| { type: "player_info"; playerId: string; role: string; job: string }
+	| { type: "system_stats"; uptime: number; actions: number }
+	| { type: "debug_info"; events: unknown[]; logs: string[] }
+	| Record<string, unknown>;
+
 export interface AdminResult {
 	success: boolean;
 	message: string;
-	data?: any;
+	data?: AdminResultData;
 	error?: string;
 }
 
@@ -88,7 +126,6 @@ export interface SystemStatistics {
 	gameInfo: {
 		currentPhase: GamePhase;
 		playerCount: number;
-		aliveCount: number;
 		gameStartTime: number;
 		uptime: number;
 	};
@@ -154,7 +191,7 @@ export function addAdmin(
 
 		const player = world.getAllPlayers().find((p) => p.id === playerId);
 		if (player) {
-			player.sendMessage("§a管理者権限が付与されました");
+			player.sendMessage("§2管理者権限が付与されました");
 		}
 
 		console.log(`Admin privileges granted to player ${playerId}`);
@@ -219,7 +256,7 @@ export function hasPermission(
 export async function executeAdminAction(
 	playerId: string,
 	action: AdminAction,
-	parameters?: any,
+	parameters?: Record<string, unknown>,
 ): Promise<AdminResult> {
 	try {
 		// 権限チェック
@@ -244,22 +281,28 @@ export async function executeAdminAction(
 				return executeResetGame();
 
 			case AdminAction.FORCE_PHASE:
-				return await executeForcePhase(parameters?.phase);
+				return await executeForcePhase((parameters as any)?.phaseId);
 
 			case AdminAction.SET_ROLE:
-				return executeSetRole(parameters?.targetId, parameters?.role);
+				return executeSetRole(
+					(parameters as any)?.playerId,
+					(parameters as any)?.roleId,
+				);
 
 			case AdminAction.SET_JOB:
-				return executeSetJob(parameters?.targetId, parameters?.job);
+				return executeSetJob(
+					(parameters as any)?.playerId,
+					(parameters as any)?.jobId,
+				);
 
 			case AdminAction.KILL_PLAYER:
-				return executeKillPlayer(parameters?.targetId);
+				return executeKillPlayer((parameters as any)?.playerId);
 
 			case AdminAction.REVIVE_PLAYER:
-				return executeRevivePlayer(parameters?.targetId);
+				return executeRevivePlayer((parameters as any)?.playerId);
 
 			case AdminAction.CLEAR_DATA:
-				return executeClearData(parameters?.dataType);
+				return executeClearData((parameters as any)?.dataType);
 
 			case AdminAction.SHOW_DEBUG:
 				return executeShowDebug();
@@ -384,7 +427,7 @@ async function executeForcePhase(phase: GamePhase): Promise<AdminResult> {
 		const result = await forcePhaseChange(phase);
 
 		if (result.success) {
-			world.sendMessage(`§e管理者によってフェーズが ${phase} に変更されました`);
+			world.sendMessage(`§6管理者によってフェーズが ${phase} に変更されました`);
 			return {
 				success: true,
 				message: `フェーズを ${phase} に変更しました`,
@@ -430,7 +473,7 @@ function executeSetRole(targetId: string, role: number): AdminResult {
 		setPlayerRole(target, role);
 
 		const roleString = getRoleString(role);
-		target.sendMessage(`§e管理者によって役職が ${roleString} に設定されました`);
+		target.sendMessage(`§6管理者によって役職が ${roleString} に設定されました`);
 
 		return {
 			success: true,
@@ -470,7 +513,7 @@ function executeSetJob(targetId: string, job: number): AdminResult {
 		setPlayerJob(target, job);
 
 		const jobString = getJobString(job);
-		target.sendMessage(`§e管理者によって職業が ${jobString} に設定されました`);
+		target.sendMessage(`§6管理者によって職業が ${jobString} に設定されました`);
 
 		return {
 			success: true,
@@ -547,8 +590,8 @@ function executeRevivePlayer(targetId: string): AdminResult {
 		}
 
 		setPlayerAlive(target, true);
-		target.sendMessage("§a管理者によって蘇生されました");
-		world.sendMessage(`§a${target.name}が管理者によって蘇生されました`);
+		target.sendMessage("§2管理者によって蘇生されました");
+		world.sendMessage(`§2${target.name}が管理者によって蘇生されました`);
 
 		return {
 			success: true,
@@ -575,7 +618,7 @@ function executeClearData(dataType: string): AdminResult {
 			case "votes":
 				clearAllVotes();
 				break;
-			case "abilities":
+			case "skills":
 				clearAllData();
 				break;
 			case "all":
@@ -617,7 +660,7 @@ function executeShowDebug(): AdminResult {
 		debugActionRecords();
 		debugVotingStatus();
 		debugScoring();
-		debugAbilitySystem();
+		debugSkillSystem();
 
 		return {
 			success: true,
@@ -661,14 +704,12 @@ function executeToggleTracking(): AdminResult {
 export function getSystemStatistics(): SystemStatistics {
 	try {
 		const playerCount = world.getAllPlayers().length;
-		const aliveCount = world
-			.getAllPlayers()
-			.filter((p) => isPlayerAlive(p)).length;
+		const aliveCount = world.getAllPlayers();
 		const currentPhase = getCurrentPhase();
 
 		const actionStats = getActionStatistics();
 		const votingStats = getVotingStatistics();
-		const abilityStats = getAbilityStatistics();
+		const skillStats = getSkillStatistics();
 
 		const uptime = Date.now() - systemStartTime;
 
@@ -676,14 +717,13 @@ export function getSystemStatistics(): SystemStatistics {
 			gameInfo: {
 				currentPhase,
 				playerCount,
-				aliveCount,
 				gameStartTime: systemStartTime,
 				uptime,
 			},
 			performance: {
 				totalActions: actionStats.totalActions,
 				totalVotes: votingStats.totalVotes,
-				totalAbilityUsages: abilityStats.totalUsages,
+				totalAbilityUsages: skillStats.totalUsages,
 				systemLoad: calculateSystemLoad(),
 				memoryUsage: getMemoryUsage(),
 			},
@@ -703,7 +743,6 @@ export function getSystemStatistics(): SystemStatistics {
 			gameInfo: {
 				currentPhase: GamePhase.PREPARATION,
 				playerCount: 0,
-				aliveCount: 0,
 				gameStartTime: systemStartTime,
 				uptime: Date.now() - systemStartTime,
 			},
@@ -764,9 +803,9 @@ function calculateSystemLoad(): number {
 	// 簡易的な負荷計算
 	const actionCount = getActionStatistics().totalActions;
 	const voteCount = getVotingStatistics().totalVotes;
-	const abilityCount = getAbilityStatistics().totalUsages;
+	const skillCount = getSkillStatistics().totalUsages;
 
-	const totalOperations = actionCount + voteCount + abilityCount;
+	const totalOperations = actionCount + voteCount + skillCount;
 	const uptimeHours = (Date.now() - systemStartTime) / (1000 * 60 * 60);
 
 	return uptimeHours > 0 ? Math.round(totalOperations / uptimeHours) : 0;

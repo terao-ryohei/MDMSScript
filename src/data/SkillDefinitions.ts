@@ -1,7 +1,7 @@
 import {
-	type AbilityDefinition,
-	AbilityTargetType,
-	AbilityType,
+	type SkillDefinition,
+	SkillTargetType,
+	SkillType,
 } from "../types/AbilityTypes";
 import { JobType } from "../types/JobTypes";
 import { GamePhase } from "../types/PhaseTypes";
@@ -11,14 +11,14 @@ import { RoleType } from "../types/RoleTypes";
  * 能力定義データ
  * ここを編集することで能力の設定を簡単に変更できます
  */
-export const ABILITY_DEFINITIONS: Record<string, AbilityDefinition> = {
+export const SKILL_DEFINITIONS: Record<string, SkillDefinition> = {
 	// === 役職基本能力 ===
 	deduction_boost: {
 		id: "deduction_boost",
 		name: "推理力強化",
 		description: "証拠の信頼性が向上し、推理能力が強化される",
-		type: AbilityType.OBSERVE,
-		targetType: AbilityTargetType.SELF,
+		type: SkillType.OBSERVE,
+		targetType: SkillTargetType.SELF,
 		cooldownTime: 0,
 		usesPerGame: 999,
 		usesPerPhase: 999,
@@ -38,8 +38,8 @@ export const ABILITY_DEFINITIONS: Record<string, AbilityDefinition> = {
 		id: "murder",
 		name: "殺人",
 		description: "指定したプレイヤーを殺害する",
-		type: AbilityType.MURDER,
-		targetType: AbilityTargetType.PLAYER,
+		type: SkillType.MURDER,
+		targetType: SkillTargetType.PLAYER,
 		cooldownTime: 0,
 		usesPerGame: 1,
 		usesPerPhase: 1,
@@ -55,8 +55,8 @@ export const ABILITY_DEFINITIONS: Record<string, AbilityDefinition> = {
 		id: "insider_info",
 		name: "内部情報",
 		description: "犯人に関する重要な情報を1つ知ることができる",
-		type: AbilityType.GATHER_INFO,
-		targetType: AbilityTargetType.SELF,
+		type: SkillType.GATHER_INFO,
+		targetType: SkillTargetType.SELF,
 		cooldownTime: 0,
 		usesPerGame: 1,
 		usesPerPhase: 1,
@@ -73,8 +73,8 @@ export const ABILITY_DEFINITIONS: Record<string, AbilityDefinition> = {
 		id: "royal_summon",
 		name: "王の召喚",
 		description: "指定したプレイヤーを自分の元に強制召喚する",
-		type: AbilityType.COMMUNICATE,
-		targetType: AbilityTargetType.PLAYER,
+		type: SkillType.COMMUNICATE,
+		targetType: SkillTargetType.PLAYER,
 		cooldownTime: 300,
 		usesPerGame: 3,
 		usesPerPhase: 1,
@@ -90,8 +90,8 @@ export const ABILITY_DEFINITIONS: Record<string, AbilityDefinition> = {
 		id: "protection",
 		name: "護衛",
 		description: "指定したプレイヤーを1フェーズ間保護する",
-		type: AbilityType.GUARD,
-		targetType: AbilityTargetType.PLAYER,
+		type: SkillType.GUARD,
+		targetType: SkillTargetType.PLAYER,
 		cooldownTime: 0,
 		usesPerGame: 2,
 		usesPerPhase: 1,
@@ -107,8 +107,8 @@ export const ABILITY_DEFINITIONS: Record<string, AbilityDefinition> = {
 		id: "prison_escort",
 		name: "牢獄連行",
 		description: "指定したプレイヤーを3分間地下牢に連行する",
-		type: AbilityType.DETAIN,
-		targetType: AbilityTargetType.PLAYER,
+		type: SkillType.DETAIN,
+		targetType: SkillTargetType.PLAYER,
 		cooldownTime: 0,
 		usesPerGame: 1,
 		usesPerPhase: 1,
@@ -128,8 +128,8 @@ export const ABILITY_DEFINITIONS: Record<string, AbilityDefinition> = {
 		id: "transmutation_catalyst",
 		name: "錬成触媒生成",
 		description: "特定の錬成陣を稼働させるアイテムを錬金する",
-		type: AbilityType.ALCHEMY,
-		targetType: AbilityTargetType.LOCATION,
+		type: SkillType.ALCHEMY,
+		targetType: SkillTargetType.LOCATION,
 		cooldownTime: 0,
 		usesPerGame: 3,
 		usesPerPhase: 1,
@@ -149,8 +149,8 @@ export const ABILITY_DEFINITIONS: Record<string, AbilityDefinition> = {
 		id: "basic_alchemy",
 		name: "錬金",
 		description: "基礎的な錬金術を行い、材料を変換・精製する",
-		type: AbilityType.ALCHEMY,
-		targetType: AbilityTargetType.LOCATION,
+		type: SkillType.ALCHEMY,
+		targetType: SkillTargetType.LOCATION,
 		cooldownTime: 300, // 5分
 		usesPerGame: -1, // 無制限
 		usesPerPhase: 3,
@@ -166,8 +166,8 @@ export const ABILITY_DEFINITIONS: Record<string, AbilityDefinition> = {
 		id: "auto_evidence_collect",
 		name: "証拠自動収集",
 		description: "清掃中に城内の証拠アイテムを一つ自動的に発見・入手する",
-		type: AbilityType.SEARCH_EVIDENCE,
-		targetType: AbilityTargetType.SELF,
+		type: SkillType.SEARCH_EVIDENCE,
+		targetType: SkillTargetType.SELF,
 		cooldownTime: 0,
 		usesPerGame: 1,
 		usesPerPhase: 1,
@@ -184,8 +184,8 @@ export const ABILITY_DEFINITIONS: Record<string, AbilityDefinition> = {
 		name: "社交的優位",
 		description:
 			"執事としての権威で買取価格と好感度上昇にバフを得る（領主を除く）",
-		type: AbilityType.COMMUNICATE,
-		targetType: AbilityTargetType.SELF,
+		type: SkillType.COMMUNICATE,
+		targetType: SkillTargetType.SELF,
 		cooldownTime: 0,
 		usesPerGame: -1, // 常時効果
 		usesPerPhase: -1,
@@ -206,8 +206,8 @@ export const ABILITY_DEFINITIONS: Record<string, AbilityDefinition> = {
 		id: "daily_wage",
 		name: "日当収入",
 		description: "一般兵士として毎日一定の日当を受け取る",
-		type: AbilityType.GATHER_INFO, // 経済系として分類
-		targetType: AbilityTargetType.SELF,
+		type: SkillType.GATHER_INFO, // 経済系として分類
+		targetType: SkillTargetType.SELF,
 		cooldownTime: 1440, // 24時間（1日1回）
 		usesPerGame: -1, // 毎日使用可能
 		usesPerPhase: 1,
@@ -228,8 +228,8 @@ export const ABILITY_DEFINITIONS: Record<string, AbilityDefinition> = {
 		id: "theft",
 		name: "盗み",
 		description: "他プレイヤーやエリアから貴重品を盗む",
-		type: AbilityType.GATHER_INFO, // 物品収集として分類
-		targetType: AbilityTargetType.PLAYER,
+		type: SkillType.GATHER_INFO, // 物品収集として分類
+		targetType: SkillTargetType.PLAYER,
 		cooldownTime: 0,
 		usesPerGame: 2,
 		usesPerPhase: 1,
@@ -249,8 +249,8 @@ export const ABILITY_DEFINITIONS: Record<string, AbilityDefinition> = {
 		id: "compounding",
 		name: "調合",
 		description: "薬草や材料を調合してポーションや特殊アイテムを作成する",
-		type: AbilityType.ALCHEMY,
-		targetType: AbilityTargetType.LOCATION,
+		type: SkillType.ALCHEMY,
+		targetType: SkillTargetType.LOCATION,
 		cooldownTime: 180, // 3分
 		usesPerGame: -1, // 無制限
 		usesPerPhase: 2,
@@ -266,8 +266,8 @@ export const ABILITY_DEFINITIONS: Record<string, AbilityDefinition> = {
 		id: "divination",
 		name: "占い",
 		description: "指定したプレイヤーの役職か職業のヒントを得る",
-		type: AbilityType.ANALYZE_CLUE,
-		targetType: AbilityTargetType.PLAYER,
+		type: SkillType.ANALYZE_CLUE,
+		targetType: SkillTargetType.PLAYER,
 		cooldownTime: 600,
 		usesPerGame: 2,
 		usesPerPhase: 1,
@@ -283,8 +283,8 @@ export const ABILITY_DEFINITIONS: Record<string, AbilityDefinition> = {
 		id: "negotiation",
 		name: "交渉",
 		description: "他プレイヤーと有利な取引や情報交換を行う",
-		type: AbilityType.COMMUNICATE,
-		targetType: AbilityTargetType.PLAYER,
+		type: SkillType.COMMUNICATE,
+		targetType: SkillTargetType.PLAYER,
 		cooldownTime: 180,
 		usesPerGame: 5,
 		usesPerPhase: 2,
@@ -300,8 +300,8 @@ export const ABILITY_DEFINITIONS: Record<string, AbilityDefinition> = {
 		id: "information_network",
 		name: "情報ネットワーク",
 		description: "広範囲の情報を収集し、プレイヤーの行動履歴を確認",
-		type: AbilityType.GATHER_INFO,
-		targetType: AbilityTargetType.AREA,
+		type: SkillType.GATHER_INFO,
+		targetType: SkillTargetType.AREA,
 		cooldownTime: 300,
 		usesPerGame: 3,
 		usesPerPhase: 1,
@@ -317,8 +317,8 @@ export const ABILITY_DEFINITIONS: Record<string, AbilityDefinition> = {
 		id: "appraisal",
 		name: "鑑定",
 		description: "アイテムや証拠の真偽を見極める",
-		type: AbilityType.ANALYZE_CLUE,
-		targetType: AbilityTargetType.LOCATION,
+		type: SkillType.ANALYZE_CLUE,
+		targetType: SkillTargetType.LOCATION,
 		cooldownTime: 240,
 		usesPerGame: 4,
 		usesPerPhase: 2,
@@ -334,8 +334,8 @@ export const ABILITY_DEFINITIONS: Record<string, AbilityDefinition> = {
 		id: "eavesdrop",
 		name: "盗聴",
 		description: "近くのプレイヤーの会話を密かに聞く",
-		type: AbilityType.GATHER_INFO,
-		targetType: AbilityTargetType.AREA,
+		type: SkillType.GATHER_INFO,
+		targetType: SkillTargetType.AREA,
 		cooldownTime: 200,
 		usesPerGame: 5,
 		usesPerPhase: 2,
@@ -351,8 +351,8 @@ export const ABILITY_DEFINITIONS: Record<string, AbilityDefinition> = {
 		id: "concealment",
 		name: "隠蔽",
 		description: "証拠を隠したり、自分の行動を隠したりできる",
-		type: AbilityType.HIDE,
-		targetType: AbilityTargetType.SELF,
+		type: SkillType.HIDE,
+		targetType: SkillTargetType.SELF,
 		cooldownTime: 300,
 		usesPerGame: 3,
 		usesPerPhase: 1,
@@ -368,8 +368,8 @@ export const ABILITY_DEFINITIONS: Record<string, AbilityDefinition> = {
 		id: "surveillance",
 		name: "監視",
 		description: "指定エリアを監視し、プレイヤーの行動を記録する",
-		type: AbilityType.OBSERVE,
-		targetType: AbilityTargetType.AREA,
+		type: SkillType.OBSERVE,
+		targetType: SkillTargetType.AREA,
 		cooldownTime: 180,
 		usesPerGame: 6,
 		usesPerPhase: 2,
@@ -385,8 +385,8 @@ export const ABILITY_DEFINITIONS: Record<string, AbilityDefinition> = {
 		id: "teleportation",
 		name: "瞬間移動",
 		description: "指定した場所に瞬間移動する",
-		type: AbilityType.HIDE, // 移動は隠れる系統として分類
-		targetType: AbilityTargetType.LOCATION,
+		type: SkillType.HIDE, // 移動は隠れる系統として分類
+		targetType: SkillTargetType.LOCATION,
 		cooldownTime: 400,
 		usesPerGame: 2,
 		usesPerPhase: 1,
@@ -407,8 +407,8 @@ export const ABILITY_DEFINITIONS: Record<string, AbilityDefinition> = {
 		id: "investigate",
 		name: "調査",
 		description: "指定した場所で詳細な調査を行い、隠された証拠を発見",
-		type: AbilityType.INVESTIGATE,
-		targetType: AbilityTargetType.LOCATION,
+		type: SkillType.INVESTIGATE,
+		targetType: SkillTargetType.LOCATION,
 		cooldownTime: 300,
 		usesPerGame: 3,
 		usesPerPhase: 1,
@@ -424,8 +424,8 @@ export const ABILITY_DEFINITIONS: Record<string, AbilityDefinition> = {
 		id: "search_evidence",
 		name: "証拠捜索",
 		description: "広範囲で証拠を捜索し、重要な手がかりを発見",
-		type: AbilityType.SEARCH_EVIDENCE,
-		targetType: AbilityTargetType.AREA,
+		type: SkillType.SEARCH_EVIDENCE,
+		targetType: SkillTargetType.AREA,
 		cooldownTime: 240,
 		usesPerGame: 4,
 		usesPerPhase: 2,
@@ -441,8 +441,8 @@ export const ABILITY_DEFINITIONS: Record<string, AbilityDefinition> = {
 		id: "observe",
 		name: "観察",
 		description: "他プレイヤーの行動を注意深く観察する",
-		type: AbilityType.OBSERVE,
-		targetType: AbilityTargetType.PLAYER,
+		type: SkillType.OBSERVE,
+		targetType: SkillTargetType.PLAYER,
 		cooldownTime: 120,
 		usesPerGame: 8,
 		usesPerPhase: 3,
@@ -462,8 +462,8 @@ export const ABILITY_DEFINITIONS: Record<string, AbilityDefinition> = {
 		id: "communicate",
 		name: "秘密通信",
 		description: "指定したプレイヤーと秘密のメッセージを交換",
-		type: AbilityType.COMMUNICATE,
-		targetType: AbilityTargetType.PLAYER,
+		type: SkillType.COMMUNICATE,
+		targetType: SkillTargetType.PLAYER,
 		cooldownTime: 300,
 		usesPerGame: 3,
 		usesPerPhase: 1,
@@ -479,8 +479,8 @@ export const ABILITY_DEFINITIONS: Record<string, AbilityDefinition> = {
 		id: "hide",
 		name: "隠れる",
 		description: "一定時間、他プレイヤーから見つかりにくくなる",
-		type: AbilityType.HIDE,
-		targetType: AbilityTargetType.SELF,
+		type: SkillType.HIDE,
+		targetType: SkillTargetType.SELF,
 		cooldownTime: 600,
 		usesPerGame: 2,
 		usesPerPhase: 1,
@@ -497,8 +497,8 @@ export const ABILITY_DEFINITIONS: Record<string, AbilityDefinition> = {
 		id: "sabotage",
 		name: "妨害工作",
 		description: "他プレイヤーの能力を一時的に無効化する",
-		type: AbilityType.SABOTAGE,
-		targetType: AbilityTargetType.PLAYER,
+		type: SkillType.SABOTAGE,
+		targetType: SkillTargetType.PLAYER,
 		cooldownTime: 450,
 		usesPerGame: 2,
 		usesPerPhase: 1,
@@ -514,8 +514,8 @@ export const ABILITY_DEFINITIONS: Record<string, AbilityDefinition> = {
 		id: "disguise",
 		name: "変装",
 		description: "他プレイヤーになりすまして行動できる",
-		type: AbilityType.DISGUISE,
-		targetType: AbilityTargetType.PLAYER,
+		type: SkillType.DISGUISE,
+		targetType: SkillTargetType.PLAYER,
 		cooldownTime: 800,
 		usesPerGame: 1,
 		usesPerPhase: 1,
@@ -531,8 +531,8 @@ export const ABILITY_DEFINITIONS: Record<string, AbilityDefinition> = {
 		id: "assist",
 		name: "協力",
 		description: "犯人の能力を強化し、成功率を向上させる",
-		type: AbilityType.ASSIST,
-		targetType: AbilityTargetType.PLAYER,
+		type: SkillType.ASSIST,
+		targetType: SkillTargetType.PLAYER,
 		cooldownTime: 300,
 		usesPerGame: 3,
 		usesPerPhase: 1,
@@ -548,8 +548,8 @@ export const ABILITY_DEFINITIONS: Record<string, AbilityDefinition> = {
 		id: "distract",
 		name: "注意逸らし",
 		description: "他プレイヤーの注意を逸らして調査を妨害",
-		type: AbilityType.DISTRACT,
-		targetType: AbilityTargetType.PLAYER,
+		type: SkillType.DISTRACT,
+		targetType: SkillTargetType.PLAYER,
 		cooldownTime: 200,
 		usesPerGame: 4,
 		usesPerPhase: 2,
@@ -565,8 +565,8 @@ export const ABILITY_DEFINITIONS: Record<string, AbilityDefinition> = {
 		id: "cover_up",
 		name: "隠蔽工作",
 		description: "証拠を隠蔽し、痕跡を消去する",
-		type: AbilityType.COVER_UP,
-		targetType: AbilityTargetType.LOCATION,
+		type: SkillType.COVER_UP,
+		targetType: SkillTargetType.LOCATION,
 		cooldownTime: 400,
 		usesPerGame: 2,
 		usesPerPhase: 1,
@@ -582,8 +582,8 @@ export const ABILITY_DEFINITIONS: Record<string, AbilityDefinition> = {
 		id: "student_discount",
 		name: "学割が効く",
 		description: "各種サービスや商品を学生割引価格で利用できる",
-		type: AbilityType.PASSIVE,
-		targetType: AbilityTargetType.SELF,
+		type: SkillType.PASSIVE,
+		targetType: SkillTargetType.SELF,
 		cooldownTime: 0,
 		usesPerGame: -1, // 常時効果
 		usesPerPhase: -1,
@@ -599,8 +599,8 @@ export const ABILITY_DEFINITIONS: Record<string, AbilityDefinition> = {
 		id: "guild_quest_mastery",
 		name: "ギルドクエスト熟練",
 		description: "ギルドクエスト成功回数によって追加で得られる証拠が増える",
-		type: AbilityType.PASSIVE,
-		targetType: AbilityTargetType.SELF,
+		type: SkillType.PASSIVE,
+		targetType: SkillTargetType.SELF,
 		cooldownTime: 0,
 		usesPerGame: -1, // 常時効果
 		usesPerPhase: -1,
@@ -616,7 +616,7 @@ export const ABILITY_DEFINITIONS: Record<string, AbilityDefinition> = {
 /**
  * 能力カテゴリ分類
  */
-export const ABILITIES_BY_CATEGORY = {
+export const SKILLS_BY_CATEGORY = {
 	ROLE_BASIC: ["deduction_boost", "murder", "insider_info"],
 	JOB_SPECIFIC: [
 		"royal_summon",
@@ -705,7 +705,7 @@ export const ABILITIES_BY_PHASE: Record<GamePhase, string[]> = {
 /**
  * 役職別基本能力マッピング
  */
-export const ROLE_BASE_ABILITIES: Record<RoleType, string> = {
+export const ROLE_BASE_SKILLS: Record<RoleType, string> = {
 	[RoleType.MURDERER]: "murder",
 	[RoleType.VILLAGER]: "deduction_boost",
 	[RoleType.DETECTIVE]: "investigation_boost",
@@ -715,7 +715,7 @@ export const ROLE_BASE_ABILITIES: Record<RoleType, string> = {
 /**
  * 職業別基本能力マッピング
  */
-export const JOB_BASE_ABILITIES: Record<JobType, string> = {
+export const JOB_BASE_SKILLS: Record<JobType, string> = {
 	[JobType.LORD]: "royal_summon", // royal_commandから修正
 	[JobType.CAPTAIN]: "prison_escort",
 	[JobType.HOMUNCULUS]: "transmutation_catalyst", // artificial_lifeは存在しないためteleportationに変更
@@ -733,35 +733,32 @@ export const JOB_BASE_ABILITIES: Record<JobType, string> = {
 /**
  * ランダム能力プールから選択
  */
-export function getRandomCommonAbility(): string {
-	const commonAbilities = ABILITIES_BY_CATEGORY.COMMON_RANDOM;
+export function getRandomCommonSkill(): string {
+	const commonAbilities = SKILLS_BY_CATEGORY.COMMON_RANDOM;
 	return commonAbilities[Math.floor(Math.random() * commonAbilities.length)];
 }
 
 /**
  * フェーズで使用可能な能力を取得
  */
-export function getAvailableAbilitiesForPhase(phase: GamePhase): string[] {
+export function getAvailableSkillsForPhase(phase: GamePhase): string[] {
 	return ABILITIES_BY_PHASE[phase] || [];
 }
 
 /**
  * 能力の使用可能性をチェック
  */
-export function canUseAbility(
-	abilityId: string,
+export function canUseSkill(
+	skillId: string,
 	role: RoleType,
 	job: JobType,
 	phase: GamePhase,
 ): boolean {
-	const ability = ABILITY_DEFINITIONS[abilityId];
-	if (!ability) return false;
+	const skill = SKILL_DEFINITIONS[skillId];
+	if (!skill) return false;
 
 	// フェーズチェック
-	if (
-		ability.allowedPhases.length > 0 &&
-		!ability.allowedPhases.includes(phase)
-	) {
+	if (skill.allowedPhases.length > 0 && !skill.allowedPhases.includes(phase)) {
 		return false;
 	}
 

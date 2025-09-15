@@ -1,4 +1,4 @@
-import { type Skill } from "./SkillTypes";
+import type { Skill } from "./AbilityTypes";
 
 /**
  * ジョブタイプ（職業）
@@ -12,7 +12,7 @@ export enum JobType {
 	ROGUE_ALCHEMIST = "rogue_alchemist", // 野良錬金術師
 	THIEF = "thief", // 盗賊
 	PHARMACIST = "pharmacist", // 薬師
-	
+
 	// 人数制限なしの職業
 	MAID = "maid", // メイド
 	BUTLER = "butler", // 執事
@@ -20,7 +20,6 @@ export enum JobType {
 	STUDENT = "student", // 学生
 	ADVENTURER = "adventurer", // 冒険者
 }
-
 
 /**
  * ジョブ目的定義
@@ -30,7 +29,10 @@ export interface JobObjective {
 	name: string;
 	description: string;
 	scorePoints: number; // 達成時の得点
-	checkCompletion: (playerId: string, gameState?: any) => boolean;
+	checkCompletion: (
+		playerId: string,
+		gameState?: Record<string, unknown>,
+	) => boolean;
 }
 
 /**

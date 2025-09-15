@@ -2,22 +2,26 @@
  * 証拠表示UI管理関数群（関数ベース版）
  */
 import { type Player, world } from "@minecraft/server";
-import { ActionFormData, MessageFormData } from "@minecraft/server-ui";
+import { MessageFormData } from "@minecraft/server-ui";
 import { GamePhase } from "../types/PhaseTypes";
-import { getEvidenceData, getPlayerAlibi, getAllPlayers, getPlayerActions } from "./EvidenceAnalyzer";
+import { createActionForm } from "../utils/UIHelpers";
+import {
+	getAllPlayers,
+	getEvidenceData,
+	getPlayerActions,
+	getPlayerAlibi,
+} from "./EvidenceAnalyzer";
 
 /**
  * 証拠メインメニューを表示
  */
 export async function showEvidenceMenu(player: Player): Promise<void> {
 	try {
-		const form = new ActionFormData()
-			.title("§l§d証拠システム")
-			.body("§7証拠とアリバイの確認を行います")
-			.button("§a証拠一覧", "textures/ui/book_edit_default")
-			.button("§bプレイヤー行動履歴", "textures/ui/friend_glyph")
-			.button("§6アリバイ確認", "textures/ui/clock")
-			.button("§7閉じる", "textures/ui/cancel");
+		const form = createActionForm("$1", "$2")
+			.button("証拠一覧", "textures/ui/book_edit_default")
+			.button("プレイヤー行動履歴", "textures/ui/friend_glyph")
+			.button("アリバイ確認", "textures/ui/clock")
+			.button("閉じる", "textures/ui/cancel");
 
 		const response = await form.show(player);
 
@@ -57,22 +61,24 @@ export async function showEvidenceList(player: Player): Promise<void> {
 
 		let content = "§7発見された証拠：\n\n";
 		evidence.forEach((record, index) => {
-			const timeStr = new Date(record.timestamp * 1000).toLocaleTimeString("ja-JP");
-			content += `§e${index + 1}. ${timeStr}\n`;
-			content += `§7プレイヤー: §f${getPlayerName(record.playerId)}\n`;
-			content += `§7行動: §f${record.actionType}\n`;
-			content += `§7場所: §f(${Math.round(record.location.x)}, ${Math.round(record.location.y)}, ${Math.round(record.location.z)})\n`;
+			const timeStr = new Date(record.timestamp * 1000).toLocaleTimeString(
+				"ja-JP",
+			);
+			content += `§6${index + 1}. ${timeStr}\n`;
+			content += `§7プレイヤー: §j${getPlayerName(record.playerId)}\n`;
+			content += `§7行動: §j${record.actionType}\n`;
+			content += `§7場所: §j(${Math.round(record.location.x)}, ${Math.round(record.location.y)}, ${Math.round(record.location.z)})\n`;
 			if (record.witnessIds.length > 0) {
-				content += `§7目撃者: §f${record.witnessIds.length}人\n`;
+				content += `§7目撃者: §j${record.witnessIds.length}人\n`;
 			}
 			content += "\n";
 		});
 
 		const form = new MessageFormData()
-			.title("§a証拠一覧")
+			.title("§2証拠一覧")
 			.body(content)
-			.button1("§7戻る")
-			.button2("§a閉じる");
+			.button1("戻る")
+			.button2("閉じる");
 
 		const response = await form.show(player);
 		if (response.selection === 0) {
@@ -90,15 +96,13 @@ export async function showEvidenceList(player: Player): Promise<void> {
 export async function showPlayerActionHistory(player: Player): Promise<void> {
 	try {
 		const allPlayers = getAllPlayers();
-		
-		const form = new ActionFormData()
-			.title("§b行動履歴")
-			.body("§7確認したいプレイヤーを選択してください");
 
-		allPlayers.forEach(p => {
-			form.button(`§f${p.name}`, "textures/ui/friend_glyph");
+		const form = createActionForm("$1", "$2");
+
+		allPlayers.forEach((p) => {
+			form.button(`§j${p.name}`, "textures/ui/friend_glyph");
 		});
-		form.button("§7戻る", "textures/ui/cancel");
+		form.button("戻る", "textures/ui/cancel");
 
 		const response = await form.show(player);
 		if (response.canceled) return;
@@ -113,11 +117,11 @@ export async function showPlayerActionHistory(player: Player): Promise<void> {
 
 		if (actions.length === 0) {
 			const messageForm = new MessageFormData()
-				.title(`§b${selectedPlayer.name}の行動履歴`)
+				.title(`§3${selectedPlayer.name}の行動履歴`)
 				.body("§7行動履歴が見つかりませんでした。")
-				.button1("§7戻る")
-				.button2("§a閉じる");
-			
+				.button1("戻る")
+				.button2("閉じる");
+
 			const messageResponse = await messageForm.show(player);
 			if (messageResponse.selection === 0) {
 				await showPlayerActionHistory(player);
@@ -127,28 +131,33 @@ export async function showPlayerActionHistory(player: Player): Promise<void> {
 
 		let content = `§7${selectedPlayer.name}の最近の行動：\n\n`;
 		actions.forEach((action, index) => {
-			const timeStr = new Date(action.timestamp * 1000).toLocaleTimeString("ja-JP");
-			content += `§e${index + 1}. ${timeStr}\n`;
-			content += `§7行動: §f${action.actionType}\n`;
-			content += `§7場所: §f(${Math.round(action.location.x)}, ${Math.round(action.location.y)}, ${Math.round(action.location.z)})\n`;
+			const timeStr = new Date(action.timestamp * 1000).toLocaleTimeString(
+				"ja-JP",
+			);
+			content += `§6${index + 1}. ${timeStr}\n`;
+			content += `§7行動: §j${action.actionType}\n`;
+			content += `§7場所: §j(${Math.round(action.location.x)}, ${Math.round(action.location.y)}, ${Math.round(action.location.z)})\n`;
 			if (action.witnessIds.length > 0) {
-				content += `§7目撃者: §f${action.witnessIds.length}人\n`;
+				content += `§7目撃者: §j${action.witnessIds.length}人\n`;
 			}
 			content += "\n";
 		});
 
 		const messageForm = new MessageFormData()
-			.title(`§b${selectedPlayer.name}の行動履歴`)
+			.title(`§3${selectedPlayer.name}の行動履歴`)
 			.body(content)
-			.button1("§7戻る")
-			.button2("§a閉じる");
-		
+			.button1("戻る")
+			.button2("閉じる");
+
 		const messageResponse = await messageForm.show(player);
 		if (messageResponse.selection === 0) {
 			await showPlayerActionHistory(player);
 		}
 	} catch (error) {
-		console.error(`Failed to show player action history for ${player.name}:`, error);
+		console.error(
+			`Failed to show player action history for ${player.name}:`,
+			error,
+		);
 		player.sendMessage("§c行動履歴の表示に失敗しました");
 	}
 }
@@ -159,15 +168,13 @@ export async function showPlayerActionHistory(player: Player): Promise<void> {
 export async function showAlibiList(player: Player): Promise<void> {
 	try {
 		const allPlayers = getAllPlayers();
-		
-		const form = new ActionFormData()
-			.title("§6アリバイ確認")
-			.body("§7アリバイを確認したいプレイヤーを選択してください");
 
-		allPlayers.forEach(p => {
-			form.button(`§f${p.name}`, "textures/ui/friend_glyph");
+		const form = createActionForm("$1", "$2");
+
+		allPlayers.forEach((p) => {
+			form.button(`§j${p.name}`, "textures/ui/friend_glyph");
 		});
-		form.button("§7戻る", "textures/ui/cancel");
+		form.button("戻る", "textures/ui/cancel");
 
 		const response = await form.show(player);
 		if (response.canceled) return;
@@ -178,23 +185,26 @@ export async function showAlibiList(player: Player): Promise<void> {
 		}
 
 		const selectedPlayer = allPlayers[response.selection!];
-		
+
 		// 事件発生時刻の推定（簡易版）
 		const evidence = getEvidenceData();
-		const crimeTime = evidence.length > 0 ? evidence[0].timestamp : Math.floor(Date.now() / 1000);
-		
+		const crimeTime =
+			evidence.length > 0
+				? evidence[0].timestamp
+				: Math.floor(Date.now() / 1000);
+
 		const alibiData = getPlayerAlibi(selectedPlayer.id, {
 			start: crimeTime - 600, // 10分前から
-			end: crimeTime + 600,   // 10分後まで
+			end: crimeTime + 600, // 10分後まで
 		});
 
 		if (alibiData.length === 0) {
 			const messageForm = new MessageFormData()
 				.title(`§6${selectedPlayer.name}のアリバイ`)
 				.body("§7該当時間のアリバイが見つかりませんでした。")
-				.button1("§7戻る")
-				.button2("§a閉じる");
-			
+				.button1("戻る")
+				.button2("閉じる");
+
 			const messageResponse = await messageForm.show(player);
 			if (messageResponse.selection === 0) {
 				await showAlibiList(player);
@@ -204,12 +214,14 @@ export async function showAlibiList(player: Player): Promise<void> {
 
 		let content = `§7${selectedPlayer.name}の事件時刻前後の行動：\n\n`;
 		alibiData.forEach((action, index) => {
-			const timeStr = new Date(action.timestamp * 1000).toLocaleTimeString("ja-JP");
-			content += `§e${index + 1}. ${timeStr}\n`;
-			content += `§7行動: §f${action.actionType}\n`;
-			content += `§7場所: §f(${Math.round(action.location.x)}, ${Math.round(action.location.y)}, ${Math.round(action.location.z)})\n`;
+			const timeStr = new Date(action.timestamp * 1000).toLocaleTimeString(
+				"ja-JP",
+			);
+			content += `§6${index + 1}. ${timeStr}\n`;
+			content += `§7行動: §j${action.actionType}\n`;
+			content += `§7場所: §j(${Math.round(action.location.x)}, ${Math.round(action.location.y)}, ${Math.round(action.location.z)})\n`;
 			if (action.witnessIds.length > 0) {
-				content += `§7目撃者: §f${action.witnessIds.length}人\n`;
+				content += `§7目撃者: §j${action.witnessIds.length}人\n`;
 			}
 			content += "\n";
 		});
@@ -217,9 +229,9 @@ export async function showAlibiList(player: Player): Promise<void> {
 		const messageForm = new MessageFormData()
 			.title(`§6${selectedPlayer.name}のアリバイ`)
 			.body(content)
-			.button1("§7戻る")
-			.button2("§a閉じる");
-		
+			.button1("戻る")
+			.button2("閉じる");
+
 		const messageResponse = await messageForm.show(player);
 		if (messageResponse.selection === 0) {
 			await showAlibiList(player);
@@ -234,7 +246,7 @@ export async function showAlibiList(player: Player): Promise<void> {
  * プレイヤー名を取得（IDから）
  */
 function getPlayerName(playerId: string): string {
-	const player = world.getAllPlayers().find(p => p.id === playerId);
+	const player = world.getAllPlayers().find((p) => p.id === playerId);
 	return player ? player.name : "不明";
 }
 

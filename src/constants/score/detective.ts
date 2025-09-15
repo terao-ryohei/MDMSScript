@@ -1,10 +1,10 @@
 import {
 	Instrument,
 	Key,
-	note,
 	NoteDuration,
-	part,
 	Pitch,
+	note,
+	part,
 	rest,
 } from "src/types/AudioTypes";
 

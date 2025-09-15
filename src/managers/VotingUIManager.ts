@@ -10,8 +10,8 @@ import {
 	VoteType,
 	type VotingSession,
 } from "../types/VotingTypes";
-import { getEvidenceData, getAllPlayers } from "./EvidenceAnalyzer";
-import { isPlayerAlive } from "./ScoreboardManager";
+import { createActionForm } from "../utils/UIHelpers";
+import { getEvidenceData } from "./EvidenceAnalyzer";
 import {
 	calculateVotingResult,
 	castVote,
@@ -44,13 +44,11 @@ export async function showVotingMenu(player: Player): Promise<void> {
  */
 export async function showStartVotingMenu(player: Player): Promise<void> {
 	try {
-		const form = new ActionFormData()
-			.title("§l§c投票開始")
-			.body("§7開始する投票の種類を選択してください")
-			.button("§c犯人投票", "textures/ui/redX1")
-			.button("§6追放投票", "textures/ui/warning")
-			.button("§d最終審判", "textures/ui/book_edit_default")
-			.button("§7キャンセル", "textures/ui/cancel");
+		const form = createActionForm("$1", "$2")
+			.button("犯人投票", "textures/ui/redX1")
+			.button("追放投票", "textures/ui/warning")
+			.button("最終審判", "textures/ui/book_edit_default")
+			.button("キャンセル", "textures/ui/cancel");
 
 		const response = await form.show(player);
 
@@ -81,9 +79,9 @@ export async function showCandidateSelection(
 	voteType: VoteType,
 ): Promise<void> {
 	try {
-		const alivePlayers = world.getAllPlayers().filter((p) => isPlayerAlive(p));
+		const players = world.getAllPlayers();
 
-		if (alivePlayers.length < 2) {
+		if (players.length < 2) {
 			player.sendMessage("§c投票可能なプレイヤーが不足しています");
 			return;
 		}
@@ -93,24 +91,24 @@ export async function showCandidateSelection(
 			.body(
 				"§7投票対象の候補者を選択してください\n\n" +
 					"§6参加者一覧:\n" +
-					alivePlayers
+					players
 						.map((p, index) => {
 							return `§7${index + 1}. ${p.name}`;
 						})
 						.join("\n"),
 			);
 
-		for (const candidate of alivePlayers) {
-			form.button(`§f${candidate.name}`, "textures/ui/friend_glyph");
+		for (const candidate of players) {
+			form.button(`§j${candidate.name}`, "textures/ui/friend_glyph");
 		}
 
-		form.button("§7キャンセル", "textures/ui/cancel");
+		form.button("キャンセル", "textures/ui/cancel");
 
 		const response = await form.show(player);
 
-		if (response.canceled || response.selection === alivePlayers.length) return;
+		if (response.canceled || response.selection === players.length) return;
 
-		const selectedPlayer = alivePlayers[response.selection!];
+		const selectedPlayer = players[response.selection!];
 		await confirmStartVoting(player, voteType, [selectedPlayer.id]);
 	} catch (error) {
 		console.error(
@@ -138,15 +136,15 @@ async function confirmStartVoting(
 			.join(", ");
 
 		const form = new MessageFormData()
-			.title("§l§c投票開始確認")
+			.title("§l投票開始確認")
 			.body(
-				`§6投票タイプ: §f${getVoteTypeDisplayName(voteType)}\n` +
-					`§6候補者: §f${candidateNames}\n` +
-					`§6制限時間: §f${Math.floor(config.duration / 60)}分\n\n` +
+				`§6投票タイプ: §j${getVoteTypeDisplayName(voteType)}\n` +
+					`§6候補者: §j${candidateNames}\n` +
+					`§6制限時間: §j${Math.floor(config.duration / 60)}分\n\n` +
 					"§7この設定で投票を開始しますか？",
 			)
-			.button1("§a開始")
-			.button2("§cキャンセル");
+			.button1("開始")
+			.button2("キャンセル");
 
 		const response = await form.show(player);
 
@@ -157,7 +155,7 @@ async function confirmStartVoting(
 
 		const result = startVotingSession(candidates);
 		if (result.success) {
-			player.sendMessage("§a投票を開始しました");
+			player.sendMessage("§2投票を開始しました");
 		} else {
 			player.sendMessage(`§c投票開始エラー: ${result.error}`);
 		}
@@ -194,7 +192,7 @@ export async function showVotingInterface(player: Player): Promise<void> {
 		}
 
 		const form = new ActionFormData()
-			.title("§l§c犯人投票")
+			.title("§l犯人投票")
 			.body(
 				`§7犯人だと思うプレイヤーを選択してください\n\n` +
 					`§6制限時間内に投票してください`,
@@ -203,7 +201,7 @@ export async function showVotingInterface(player: Player): Promise<void> {
 		for (const candidateId of currentSession.candidates) {
 			const candidate = world.getAllPlayers().find((p) => p.id === candidateId);
 			if (candidate && candidate.id !== player.id) {
-				form.button(`§f${candidate.name}`, "textures/ui/friend_glyph");
+				form.button(`§j${candidate.name}`, "textures/ui/friend_glyph");
 			}
 		}
 
@@ -240,14 +238,14 @@ async function showVoteConfirmation(
 		const targetName = target ? target.name : "不明";
 
 		const form = new MessageFormData()
-			.title("§l§e投票確認")
+			.title("§l投票確認")
 			.body(
-				`§6犯人として選択: §f${targetName}\n\n` +
+				`§6犯人として選択: §j${targetName}\n\n` +
 					"§7この人を犯人として投票しますか？\n" +
 					"§7投票後は変更できません。",
 			)
-			.button1("§a投票する")
-			.button2("§cキャンセル");
+			.button1("投票する")
+			.button2("キャンセル");
 
 		const response = await form.show(player);
 
@@ -258,7 +256,7 @@ async function showVoteConfirmation(
 
 		if (result.success) {
 			player.sendMessage(
-				`§a${targetName}に投票しました (確信度: ${confidence})`,
+				`§2${targetName}に投票しました (確信度: ${confidence})`,
 			);
 		} else {
 			player.sendMessage(`§c投票エラー: ${result.error}`);
@@ -299,23 +297,23 @@ export async function showVotingStatus(player: Player): Promise<void> {
 		const resultText = result.results
 			.slice(0, 5)
 			.map((r, index) => {
-				return `§f${index + 1}. ${r.candidateName}: ${r.votes}票 (${Math.round(r.percentage)}%)`;
+				return `§j${index + 1}. ${r.candidateName}: ${r.votes}票 (${Math.round(r.percentage)}%)`;
 			})
 			.join("\n");
 
 		const form = new MessageFormData()
 			.title(
-				`§l§b投票状況 - ${getVoteTypeDisplayName(currentSession.voteType)}`,
+				`§l§3投票状況 - ${getVoteTypeDisplayName(currentSession.voteType)}`,
 			)
 			.body(
-				`§6残り時間: §f${Math.floor(timeRemaining / 60)}:${(timeRemaining % 60).toString().padStart(2, "0")}\n` +
-					`§6進捗: §f${currentSession.votes.length}/${currentSession.eligibleVoters.length}人投票済み\n\n` +
+				`§6残り時間: §j${Math.floor(timeRemaining / 60)}:${(timeRemaining % 60).toString().padStart(2, "0")}\n` +
+					`§6進捗: §j${currentSession.votes.length}/${currentSession.eligibleVoters.length}人投票済み\n\n` +
 					`§6現在の得票状況:\n${resultText}\n\n` +
-					`§6投票済み: §f${votedPlayers || "なし"}\n` +
-					`§6未投票: §f${notVotedPlayers || "なし"}`,
+					`§6投票済み: §j${votedPlayers || "なし"}\n` +
+					`§6未投票: §j${notVotedPlayers || "なし"}`,
 			)
-			.button1("§a了解")
-			.button2("§7閉じる");
+			.button1("了解")
+			.button2("閉じる");
 
 		await form.show(player);
 	} catch (error) {
@@ -333,10 +331,10 @@ export async function showVotingHistory(player: Player): Promise<void> {
 
 		if (playerVotes.length === 0) {
 			const form = new MessageFormData()
-				.title("§l§e投票履歴")
+				.title("§l投票履歴")
 				.body("§7まだ投票記録がありません。")
-				.button1("§a了解")
-				.button2("§7閉じる");
+				.button1("了解")
+				.button2("閉じる");
 
 			await form.show(player);
 			return;
@@ -347,18 +345,18 @@ export async function showVotingHistory(player: Player): Promise<void> {
 			.map((vote, index) => {
 				const date = new Date(vote.timestamp).toLocaleString();
 				const voteTypeName = getVoteTypeDisplayName(vote.voteType);
-				return `§6[${index + 1}] §f${voteTypeName}\n§7${vote.targetName}に投票 (確信度: ${vote.confidence}) - ${date}`;
+				return `§6[${index + 1}] §j${voteTypeName}\n§7${vote.targetName}に投票 (確信度: ${vote.confidence}) - ${date}`;
 			})
 			.join("\n\n");
 
 		const form = new MessageFormData()
-			.title("§l§e投票履歴")
+			.title("§l投票履歴")
 			.body(
-				`§6投票回数: §f${playerVotes.length}回\n\n` +
+				`§6投票回数: §j${playerVotes.length}回\n\n` +
 					`§6最近の投票 (最大10件):\n${historyText}`,
 			)
-			.button1("§a了解")
-			.button2("§7閉じる");
+			.button1("了解")
+			.button2("閉じる");
 
 		await form.show(player);
 	} catch (error) {
@@ -375,7 +373,7 @@ export async function showVotingStatistics(player: Player): Promise<void> {
 		const stats = getVotingStatistics();
 
 		const typeStatsText = Array.from(stats.votesByType.entries())
-			.map(([type, count]) => `§f- ${getVoteTypeDisplayName(type)}: ${count}回`)
+			.map(([type, count]) => `§j- ${getVoteTypeDisplayName(type)}: ${count}回`)
 			.join("\n");
 
 		const topVoters = Array.from(stats.votesByPlayer.entries())
@@ -386,22 +384,22 @@ export async function showVotingStatistics(player: Player): Promise<void> {
 					.getAllPlayers()
 					.find((player) => player.id === playerId);
 				const playerName = p ? p.name : "不明";
-				return `§f${index + 1}. ${playerName}: ${count}票`;
+				return `§j${index + 1}. ${playerName}: ${count}票`;
 			})
 			.join("\n");
 
 		const form = new MessageFormData()
-			.title("§l§d投票統計")
+			.title("§l投票統計")
 			.body(
-				`§6総セッション数: §f${stats.totalSessions}回\n` +
-					`§6完了セッション: §f${stats.completedSessions}回\n` +
-					`§6総投票数: §f${stats.totalVotes}票\n` +
-					`§6平均参加率: §f${Math.round(stats.averageParticipation)}%\n\n` +
+				`§6総セッション数: §j${stats.totalSessions}回\n` +
+					`§6完了セッション: §j${stats.completedSessions}回\n` +
+					`§6総投票数: §j${stats.totalVotes}票\n` +
+					`§6平均参加率: §j${Math.round(stats.averageParticipation)}%\n\n` +
 					`§6投票タイプ別:\n${typeStatsText}\n\n` +
 					`§6活発な投票者 (上位5名):\n${topVoters}`,
 			)
-			.button1("§a了解")
-			.button2("§7閉じる");
+			.button1("了解")
+			.button2("閉じる");
 
 		await form.show(player);
 	} catch (error) {
@@ -426,15 +424,15 @@ export async function showVotingRecommendation(player: Player): Promise<void> {
 		}
 
 		const form = new MessageFormData()
-			.title("§l§6証拠確認")
+			.title("§l証拠確認")
 			.body(
 				`§6現在の証拠情報:\n\n` +
-					`§7発見された証拠数: §f${evidence.length}件\n\n` +
+					`§7発見された証拠数: §j${evidence.length}件\n\n` +
 					`§7※証拠の詳細は証拠システムから確認してください\n` +
 					`§7※投票は各自の推理と判断で行ってください`,
 			)
-			.button1("§a投票画面へ")
-			.button2("§7閉じる");
+			.button1("投票画面へ")
+			.button2("閉じる");
 
 		const response = await form.show(player);
 

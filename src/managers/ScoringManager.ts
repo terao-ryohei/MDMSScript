@@ -1,4 +1,5 @@
 import { type Player, world } from "@minecraft/server";
+import { ActionType } from "../types/ActionTypes";
 import { GamePhase } from "../types/PhaseTypes";
 import { RoleType } from "../types/RoleTypes";
 import {
@@ -18,10 +19,13 @@ import {
 	getPlayerJob,
 	getPlayerRole,
 	getRoleString,
-	isPlayerAlive,
 	roleTypeToNumber,
 } from "./ScoreboardManager";
-import { getCurrentVotingStatus, getPlayerVoteHistory, getVotingStatistics } from "./VotingManager";
+import {
+	getCurrentVotingStatus,
+	getPlayerVoteHistory,
+	getVotingStatistics,
+} from "./VotingManager";
 
 /**
  * スコアリング・勝利判定管理マネージャー
@@ -30,7 +34,7 @@ import { getCurrentVotingStatus, getPlayerVoteHistory, getVotingStatistics } fro
 // let config: ScoringConfig = DEFAULT_SCORING_CONFIG; // 3点満点システムでは未使用
 let gameStartTime: number = 0;
 let currentGameResult: GameResult | null = null;
-let playerRandomObjectives: Map<string, RandomObjective> = new Map();
+const playerRandomObjectives: Map<string, RandomObjective> = new Map();
 let isInitialized: boolean = false;
 
 export function initialize(): void {
@@ -42,7 +46,7 @@ export function initialize(): void {
 		checkMostActive,
 		checkCorrectVote,
 		checkSurvival,
-		checkEvidenceCollector
+		checkEvidenceCollector,
 	});
 
 	isInitialized = true;
@@ -65,12 +69,14 @@ export function initializeGame(): void {
  */
 function assignRandomObjectives(): void {
 	const players = world.getAllPlayers();
-	
+
 	for (const player of players) {
 		const randomIndex = Math.floor(Math.random() * RANDOM_OBJECTIVES.length);
 		const objective = RANDOM_OBJECTIVES[randomIndex];
 		playerRandomObjectives.set(player.id, objective);
-		console.log(`Assigned objective "${objective.description}" to ${player.name}`);
+		console.log(
+			`Assigned objective "${objective.description}" to ${player.name}`,
+		);
 	}
 }
 
@@ -79,7 +85,7 @@ function assignRandomObjectives(): void {
  */
 export function checkVictoryConditions(): VictoryCheckResult {
 	try {
-		const alivePlayers = world.getAllPlayers().filter((p) => isPlayerAlive(p));
+		const alivePlayers = world.getAllPlayers();
 
 		// プレイヤー不足チェック（1人になったら終了）
 		if (alivePlayers.length < 1) {
@@ -111,7 +117,8 @@ export function checkVictoryConditions(): VictoryCheckResult {
 				return {
 					isGameOver: true,
 					victoryCondition: VictoryCondition.CITIZEN_VICTORY,
-					winningTeam: role === RoleType.ACCOMPLICE ? "共犯者チーム" : "市民チーム",
+					winningTeam:
+						role === RoleType.ACCOMPLICE ? "共犯者チーム" : "市民チーム",
 					winnerIds: [survivor.id],
 					reason: "最後の生存者になりました",
 					shouldEndGame: true,
@@ -121,9 +128,15 @@ export function checkVictoryConditions(): VictoryCheckResult {
 
 		// 生存者の役職分析
 		const aliveRoles = alivePlayers.map((p) => getPlayerRole(p));
-		const aliveMurderers = aliveRoles.filter((role) => role === RoleType.MURDERER).length;
-		const aliveAccomplices = aliveRoles.filter((role) => role === RoleType.ACCOMPLICE).length;
-		const aliveCitizens = aliveRoles.filter((role) => role === RoleType.VILLAGER).length;
+		const aliveMurderers = aliveRoles.filter(
+			(role) => role === RoleType.MURDERER,
+		).length;
+		const aliveAccomplices = aliveRoles.filter(
+			(role) => role === RoleType.ACCOMPLICE,
+		).length;
+		const aliveCitizens = aliveRoles.filter(
+			(role) => role === RoleType.VILLAGER,
+		).length;
 
 		// 犯人勝利条件：犯人・共犯者数 >= 市民数
 		if (
@@ -250,17 +263,21 @@ export function calculateAllPlayerScores(): PlayerScore[] {
 export function calculatePlayerScore(player: Player): PlayerScore | null {
 	try {
 		const role = getPlayerRole(player);
-		const job = getPlayerJob(player);
+		const jobId = getPlayerJob(player);
 
 		const roleString = getRoleString(roleTypeToNumber(role));
-		const jobString = getJobString(job);
+		const jobString = getJobString(jobId);
 
 		// 3点満点評価システム
-		const jobGoalAchieved = checkJobGoal(player, job);
+		const jobGoalAchieved = checkJobGoal(player, jobId);
 		const roleGoalAchieved = checkRoleGoal(player, role);
 		const randomObjective = playerRandomObjectives.get(player.id);
-		const randomGoalAchieved = randomObjective ? randomObjective.checkCondition(player.id) : false;
-		const randomGoalDescription = randomObjective ? randomObjective.description : "目標なし";
+		const randomGoalAchieved = randomObjective
+			? randomObjective.checkCondition(player.id)
+			: false;
+		const randomGoalDescription = randomObjective
+			? randomObjective.description
+			: "目標なし";
 
 		// 最終スコア（0-3点）
 		let totalScore = 0;
@@ -288,50 +305,50 @@ export function calculatePlayerScore(player: Player): PlayerScore | null {
 /**
  * 職業目標の達成をチェック
  */
-function checkJobGoal(player: Player, job: any): boolean {
-	const jobString = getJobString(job);
+function checkJobGoal(player: Player, jobId: number): boolean {
+	const jobString = getJobString(jobId);
 	const actionRecords = getActionStatistics();
 	const playerActions = actionRecords.actionsByPlayer.get(player.id) || 0;
-	
+
 	switch (jobString.toLowerCase()) {
 		case "lord": // 領主: 会議で発言し、秩序を保つ
 			return playerActions >= 10;
-			
+
 		case "captain": // 近衛隊長: 他のプレイヤーを守る行動を取る
 			return playerActions >= 15;
-			
+
 		case "homunculus": // ホムンクルス: 特殊な行動を多数実行
 			return playerActions >= 20;
-			
+
 		case "court_alchemist": // 宮廷錬金術師: 証拠を科学的に分析
 			// 証拠に関連する行動が5回以上
 			return playerActions >= 8;
-			
+
 		case "rogue_alchemist": // 野良錬金術師: 独自の調査を行う
 			return playerActions >= 12;
-			
+
 		case "thief": // 盗賊: 隠密行動で情報収集
 			// 移動系アクションが多い
 			return playerActions >= 15;
-			
+
 		case "pharmacist": // 薬師: 毒や治療に関する知識で貢献
 			return playerActions >= 8;
-			
+
 		case "maid": // メイド: 清掃や整理で証拠を発見
 			return playerActions >= 6;
-			
+
 		case "butler": // 執事: プレイヤー間の調整役
 			return playerActions >= 8;
-			
+
 		case "soldier": // 一般兵士: 基本的な警備任務
 			return playerActions >= 5;
-			
+
 		case "student": // 学生: 学習意欲で情報収集
 			return playerActions >= 7;
-			
+
 		case "adventurer": // 冒険者: 積極的な探索
 			return playerActions >= 10;
-			
+
 		default:
 			return playerActions >= 5; // デフォルト目標
 	}
@@ -343,32 +360,33 @@ function checkJobGoal(player: Player, job: any): boolean {
 function checkRoleGoal(player: Player, role: RoleType): boolean {
 	const votingStats = getVotingStatistics();
 	const playerVotes = getPlayerVoteHistory(player.id);
-	
+
 	switch (role) {
-		case RoleType.MURDERER:
+		case RoleType.MURDERER: {
 			// 殺人者: 投票で発覚しなかった場合に達成
 			const murdererVotedOut = checkIfPlayerWasVotedOut(player.id);
 			return !murdererVotedOut;
-			
-		case RoleType.VILLAGER:
+		}
+		case RoleType.VILLAGER: {
 			// 村人: 投票で犯人を正しく特定した場合に達成
 			const villagerVotedCorrectly = checkIfVotedForMurderer(player.id);
 			return villagerVotedCorrectly;
-			
-		case RoleType.DETECTIVE:
+		}
+		case RoleType.DETECTIVE: {
 			// 探偵: 証拠を多く発見し、犯人を特定した場合に達成
 			const detecitveVotedCorrectly = checkIfVotedForMurderer(player.id);
 			const actionStats = getActionStatistics();
 			const detectiveActions = actionStats.actionsByPlayer.get(player.id) || 0;
 			return detecitveVotedCorrectly && detectiveActions >= 8;
-			
-		case RoleType.ACCOMPLICE:
+		}
+		case RoleType.ACCOMPLICE: {
 			// 共犯者: 犯人をサポートし、自分も発覚しなかった場合に達成
 			const accompliceVotedOut = checkIfPlayerWasVotedOut(player.id);
 			return !accompliceVotedOut;
-			
-		default:
+		}
+		default: {
 			return false;
+		}
 	}
 }
 
@@ -377,8 +395,9 @@ function checkRoleGoal(player: Player, role: RoleType): boolean {
  */
 function checkIfPlayerWasVotedOut(playerId: string): boolean {
 	const votingStats = getVotingStatistics();
-	const completedSessions = votingStats.totalSessions - (getCurrentVotingStatus() ? 1 : 0);
-	
+	const completedSessions =
+		votingStats.totalSessions - (getCurrentVotingStatus() ? 1 : 0);
+
 	// 投票結果で最多得票者になったかをチェック
 	// TODO: 実際の投票結果データから判定する必要がある
 	// 現在は仮実装として、確率的に判定
@@ -390,7 +409,7 @@ function checkIfPlayerWasVotedOut(playerId: string): boolean {
  */
 function checkIfVotedForMurderer(playerId: string): boolean {
 	const playerVotes = getPlayerVoteHistory(playerId);
-	
+
 	// 実際の犯人を特定する必要がある
 	// TODO: 実際の犯人データから判定する必要がある
 	// 現在は仮実装として、投票した場合に確率的に正解とする
@@ -403,7 +422,9 @@ function checkIfVotedForMurderer(playerId: string): boolean {
 /**
  * プレイヤーの汎用目標を取得
  */
-export function getPlayerRandomObjective(playerId: string): RandomObjective | null {
+export function getPlayerRandomObjective(
+	playerId: string,
+): RandomObjective | null {
 	return playerRandomObjectives.get(playerId) || null;
 }
 
@@ -425,13 +446,13 @@ export function checkFirstEvidence(playerId: string): boolean {
 export function checkMostActive(playerId: string): boolean {
 	const actionStats = getActionStatistics();
 	const playerActions = actionStats.actionsByPlayer.get(playerId) || 0;
-	
+
 	// 全プレイヤー中で最も行動数が多いかをチェック
 	let maxActions = 0;
 	for (const [_, actions] of actionStats.actionsByPlayer) {
 		maxActions = Math.max(maxActions, actions);
 	}
-	
+
 	return playerActions === maxActions && playerActions > 0;
 }
 
@@ -449,7 +470,7 @@ export function checkCorrectVote(playerId: string): boolean {
 export function checkSurvival(playerId: string): boolean {
 	// 現在のところ、全員生存している前提
 	// TODO: 実際の生存データから判定
-	const player = world.getAllPlayers().find(p => p.id === playerId);
+	const player = world.getAllPlayers().find((p) => p.id === playerId);
 	return player !== undefined; // プレイヤーが存在する場合は生存とする
 }
 
@@ -459,7 +480,7 @@ export function checkSurvival(playerId: string): boolean {
 export function checkEvidenceCollector(playerId: string): boolean {
 	const actionStats = getActionStatistics();
 	const playerActions = actionStats.actionsByPlayer.get(playerId) || 0;
-	
+
 	// TODO: 実際の証拠発見データから判定
 	// 現在は行動数から推定 (行動数の1/3が証拠発見と仮定)
 	const estimatedEvidenceCount = Math.floor(playerActions / 3);
@@ -552,7 +573,6 @@ export function generateGameResult(): GameResult {
 	}
 }
 
-
 /**
  * チーム名取得
  */
@@ -580,8 +600,8 @@ function calculateTeamBonus(members: PlayerScore[]): number {
  * MVP選出（3点満点システム用）
  */
 function selectMVP(playerScores: PlayerScore[]): PlayerScore | undefined {
-	const maxScore = Math.max(...playerScores.map(p => p.totalScore));
-	return playerScores.find(p => p.totalScore === maxScore);
+	const maxScore = Math.max(...playerScores.map((p) => p.totalScore));
+	return playerScores.find((p) => p.totalScore === maxScore);
 }
 
 /**
@@ -589,7 +609,7 @@ function selectMVP(playerScores: PlayerScore[]): PlayerScore | undefined {
  */
 function getMurderCount(): number {
 	const stats = getActionStatistics();
-	return stats.actionsByType.get("murder" as any) || 0;
+	return stats.actionsByType.get(ActionType.MURDER) || 0;
 }
 
 /**
@@ -598,7 +618,6 @@ function getMurderCount(): number {
 export function getCurrentGameResult(): GameResult | null {
 	return currentGameResult;
 }
-
 
 /**
  * デバッグ用：スコア情報出力

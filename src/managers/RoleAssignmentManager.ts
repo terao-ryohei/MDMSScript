@@ -2,7 +2,7 @@ import { type Player, world } from "@minecraft/server";
 import {
 	getRoleComposition,
 	validateRoleComposition,
-} from "../constants/RoleConfigs";
+} from "../data/RoleDefinitions";
 import {
 	type RoleAssignmentResult,
 	type RoleComposition,
@@ -11,13 +11,19 @@ import {
 import {
 	getPlayerRole,
 	getRoleString,
-	setPlayerRole,
-	roleTypeToNumber,
 	numberToRoleType,
+	roleTypeToNumber,
+	setPlayerRole,
 } from "./ScoreboardManager";
 
 // ScoreboardManagerの関数を再export
-export { getPlayerRole, getRoleString, setPlayerRole, roleTypeToNumber, numberToRoleType };
+export {
+	getPlayerRole,
+	getRoleString,
+	numberToRoleType,
+	roleTypeToNumber,
+	setPlayerRole,
+};
 
 /**
  * プレイヤーロール割り当てマネージャー
@@ -50,7 +56,12 @@ export function assignRolesToAllPlayers(): RoleAssignmentResult {
 			return {
 				success: false,
 				assignments: new Map(),
-				composition: { murderers: 0, villagers: 0, detectives: 0, accomplices: 0 },
+				composition: {
+					murderers: 0,
+					villagers: 0,
+					detectives: 0,
+					accomplices: 0,
+				},
 				error: "最低1人のプレイヤーが必要です",
 			};
 		}
@@ -59,7 +70,12 @@ export function assignRolesToAllPlayers(): RoleAssignmentResult {
 			return {
 				success: false,
 				assignments: new Map(),
-				composition: { murderers: 0, villagers: 0, detectives: 0, accomplices: 0 },
+				composition: {
+					murderers: 0,
+					villagers: 0,
+					detectives: 0,
+					accomplices: 0,
+				},
 				error: "プレイヤー数が多すぎます（最大20人）",
 			};
 		}
@@ -128,7 +144,12 @@ export function assignRolesToAllPlayers(): RoleAssignmentResult {
 		return {
 			success: false,
 			assignments: new Map(),
-			composition: { murderers: 0, villagers: 0, detectives: 0, accomplices: 0 },
+			composition: {
+				murderers: 0,
+				villagers: 0,
+				detectives: 0,
+				accomplices: 0,
+			},
 			error: errorMessage,
 		};
 	}
@@ -200,8 +221,8 @@ export function notifyPlayerRole(player: Player): boolean {
 
 		const roleString = getRoleString(convertRoleToId(role));
 
-		player.sendMessage("§a=== あなたのロール ===");
-		player.sendMessage(`§e${roleString}`);
+		player.sendMessage("§2=== あなたのロール ===");
+		player.sendMessage(`§6${roleString}`);
 
 		// ロール別の追加情報
 		switch (role) {
@@ -216,7 +237,7 @@ export function notifyPlayerRole(player: Player): boolean {
 				break;
 
 			case RoleType.VILLAGER:
-				player.sendMessage("§b目標: 真犯人を特定する");
+				player.sendMessage("§3目標: 真犯人を特定する");
 				player.sendMessage("§7証拠を集めて推理してください");
 				break;
 		}

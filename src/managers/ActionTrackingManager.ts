@@ -3,8 +3,13 @@
  * ScriptEventベースで全プレイヤーの行動を記録・管理
  */
 
-import { type Player, system, type Vector3, world } from "@minecraft/server";
-import { calculateDistance } from "../utils/CommonUtils";
+import {
+	type Player,
+	type PlayerBreakBlockBeforeEvent,
+	system,
+	type Vector3,
+	world,
+} from "@minecraft/server";
 import {
 	getAreaFromCoordinates,
 	getNearestLandmark,
@@ -20,6 +25,7 @@ import {
 } from "../types/ActionTypes";
 import { GamePhase } from "../types/PhaseTypes";
 import { RoleType } from "../types/RoleTypes";
+import { calculateDistance } from "../utils/CommonUtils";
 import { getCurrentPhase } from "./PhaseManager";
 import { getGameDay, getPlayerRole } from "./ScoreboardManager";
 
@@ -310,7 +316,7 @@ export function getActionWitnesses(actionId: string): Player[] {
  */
 function setupEventListeners(): void {
 	// チャットイベント（APIに存在しない場合はコメントアウト）
-	// world.beforeEvents.chatSend.subscribe((event: any) => {
+	// world.beforeEvents.chatSend.subscribe((event: ChatSendBeforeEvent) => {
 	//   if (isTracking) {
 	//     recordAction(event.sender, ActionType.CHAT, {
 	//       message: event.message
@@ -319,17 +325,19 @@ function setupEventListeners(): void {
 	// });
 
 	// ブロック破壊イベント
-	world.beforeEvents.playerBreakBlock.subscribe((event: any) => {
-		if (isTracking) {
-			recordAction(event.player, ActionType.BLOCK_BREAK, {
-				blockType: event.block.typeId,
-				location: event.block.location,
-			});
-		}
-	});
+	world.beforeEvents.playerBreakBlock.subscribe(
+		(event: PlayerBreakBlockBeforeEvent) => {
+			if (isTracking) {
+				recordAction(event.player, ActionType.BLOCK_BREAK, {
+					blockType: event.block.typeId,
+					location: event.block.location,
+				});
+			}
+		},
+	);
 
 	// ブロック設置イベント（イベントが存在しない場合はコメントアウト）
-	// world.beforeEvents.playerPlaceBlock.subscribe((event: any) => {
+	// world.beforeEvents.playerPlaceBlock.subscribe((event: PlayerPlaceBlockBeforeEvent) => {
 	//   if (isTracking) {
 	//     recordAction(event.player, ActionType.BLOCK_PLACE, {
 	//       blockType: event.block.typeId,
@@ -345,6 +353,28 @@ function setupEventListeners(): void {
 				itemType: event.itemStack.typeId,
 				amount: event.itemStack.amount,
 			});
+		}
+	});
+
+	// ブロックとの相互作用イベント（チェスト、竈等）
+	world.afterEvents.playerInteractWithBlock.subscribe((event) => {
+		if (isTracking) {
+			const blockType = event.block.typeId;
+			const isContainer =
+				blockType.includes("chest") ||
+				blockType.includes("furnace") ||
+				blockType.includes("barrel") ||
+				blockType.includes("shulker_box") ||
+				blockType.includes("hopper");
+
+			if (isContainer) {
+				recordAction(event.player, ActionType.BLOCK_INTERACT, {
+					blockType: blockType,
+					location: event.block.location,
+					interactionType: "container_access",
+					containerType: getContainerType(blockType),
+				});
+			}
 		}
 	});
 
@@ -401,16 +431,16 @@ function setupEventListeners(): void {
 			}
 		}
 
-		if (event.id === "mdms:ability_use") {
+		if (event.id === "mdms:skill_use") {
 			const data = JSON.parse(event.message || "{}");
 			const player = world.getAllPlayers().find((p) => p.id === data.playerId);
 
 			if (player) {
 				recordAction(
 					player,
-					ActionType.ABILITY_USE,
+					ActionType.SKILL_USE,
 					{
-						abilityId: data.abilityId,
+						skillId: data.skillId,
 						targetId: data.targetId,
 						result: data.result,
 					},
@@ -560,6 +590,87 @@ function isInDailyLifePhase(): boolean {
 	const currentPhase = getCurrentPhase();
 	return currentPhase === GamePhase.DAILY_LIFE;
 }
+
+/**
+ * コンテナタイプを判定
+ */
+function getContainerType(blockType: string): string {
+	if (blockType.includes("chest")) return "chest";
+	if (blockType.includes("furnace")) return "furnace";
+	if (blockType.includes("barrel")) return "barrel";
+	if (blockType.includes("shulker_box")) return "shulker_box";
+	if (blockType.includes("hopper")) return "hopper";
+	return "unknown_container";
+}
+
+/**
+ * プレイヤー座標ベースのエリア検知
+ */
+function checkAreaTransition(player: Player, newLocation: Vector3): void {
+	const playerId = player.id;
+	const lastLocation = playerLastLocations.get(playerId);
+
+	if (lastLocation) {
+		const newArea = getAreaName(newLocation);
+		const lastArea = getAreaName(lastLocation);
+
+		if (newArea !== lastArea && newArea !== "unknown") {
+			recordAction(player, ActionType.AREA_ENTER, {
+				areaName: newArea,
+				previousArea: lastArea,
+				coordinates: newLocation,
+			});
+		}
+	}
+
+	playerLastLocations.set(playerId, {
+		x: newLocation.x,
+		y: newLocation.y,
+		z: newLocation.z,
+	});
+}
+
+/**
+ * 座標からエリア名を取得
+ */
+export function getAreaName(location: Vector3): string {
+	const x = Math.floor(location.x);
+	const z = Math.floor(location.z);
+
+	// 座標範囲でエリアを判定（日本語名）
+	if (x >= -50 && x <= 50 && z >= -50 && z <= 50) return "城の中庭";
+	if (x >= 60 && x <= 100 && z >= -20 && z <= 20) return "図書館";
+	if (x >= -100 && x <= -60 && z >= -20 && z <= 20) return "武器庫";
+	if (x >= -20 && x <= 20 && z >= 60 && z <= 100) return "寝室エリア";
+	if (x >= -20 && x <= 20 && z >= -100 && z <= -60) return "厨房";
+	if (x >= -60 && x <= -20 && z >= -60 && z <= -20) return "牢獄";
+	if (x >= 20 && x <= 60 && z >= 20 && z <= 60) return "大広間";
+	if (x >= -40 && x <= 0 && z >= -40 && z <= 0) return "聖堂";
+	if (x >= 30 && x <= 70 && z >= 30 && z <= 70) return "庭園";
+	if (x >= -10 && x <= 10 && z >= -30 && z <= -10) return "バルコニー";
+
+	return "unknown";
+}
+
+// プレイヤーの最後の位置を記録するマップ
+const playerLastLocations = new Map<string, Vector3>();
+
+/**
+ * プレイヤー移動の定期チェック（エリア検知用）
+ */
+function startLocationTracking(): void {
+	system.runInterval(() => {
+		if (isTracking) {
+			const players = world.getAllPlayers();
+			for (const player of players) {
+				checkAreaTransition(player, player.location);
+			}
+		}
+	}, 60); // 3秒間隔でチェック
+}
+
+// 位置追跡を開始
+startLocationTracking();
 
 /**
  * 詳細証拠データを生成
@@ -757,8 +868,8 @@ function generateActionDescription(
 			return `${data.fromArea || ""}から移動した`;
 		case ActionType.CHAT:
 			return `チャットで発言した: "${data.message || ""}"`;
-		case ActionType.ABILITY_USE:
-			return `${data.abilityName || "特殊能力"}を使用した`;
+		case ActionType.SKILL_USE:
+			return `${data.skillName || "特殊スキル"}を使用した`;
 		default:
 			return `${actionType}を実行した`;
 	}
@@ -767,4 +878,3 @@ function generateActionDescription(
 /**
  * 距離計算（Vector3 | {x, y, z}両方に対応）
  */
-

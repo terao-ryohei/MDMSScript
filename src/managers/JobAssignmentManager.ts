@@ -1,5 +1,8 @@
 import { type Player, world } from "@minecraft/server";
-import { generateBalancedJobDistribution, JOBS } from "../constants/JobConfigs";
+import {
+	generateBalancedJobDistribution,
+	JOB_DEFINITIONS as JOBS,
+} from "../data/JobDefinitions";
 import { type JobAssignmentResult, JobType } from "../types/JobTypes";
 import {
 	getJobString,
@@ -121,14 +124,14 @@ export function notifyPlayerJob(player: Player): boolean {
 		}
 		const jobConfig = JOBS[job];
 		const jobString = getJobString(convertJobToId(job));
-		player.sendMessage("§a=== あなたのジョブ ===");
-		player.sendMessage(`§e${jobString}`);
+		player.sendMessage("§2=== あなたのジョブ ===");
+		player.sendMessage(`§6${jobString}`);
 		player.sendMessage(`§7${jobConfig.description}`);
 		// 日常タスクを表示
 		if (jobConfig.dailyTasks.length > 0) {
 			player.sendMessage("§6日常タスク:");
 			for (const task of jobConfig.dailyTasks) {
-				player.sendMessage(`§f- ${task}`);
+				player.sendMessage(`§j- ${task}`);
 			}
 		}
 		return true;
@@ -162,10 +165,7 @@ export function getPlayerJobAbility(player: Player): string | null {
 		if (!job) return null;
 		return JOBS[job].skill.id;
 	} catch (error) {
-		console.error(
-			`Failed to get job ability for player ${player.name}:`,
-			error,
-		);
+		console.error(`Failed to get job skill for player ${player.name}:`, error);
 		return null;
 	}
 }

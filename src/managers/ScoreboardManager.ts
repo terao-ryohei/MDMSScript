@@ -25,7 +25,7 @@ const GAME_OBJECTIVES = {
 
 	// 証拠・能力関連
 	EVIDENCE_COUNT: "mdms_evidence", // 収集証拠数
-	ABILITY_USES: "mdms_ability_uses", // 能力使用回数
+	SKILL_USES: "mdms_skill_uses", // スキル使用回数
 	COOLDOWN_TIMER: "mdms_cooldown", // クールダウン残り時間
 
 	// スコアリング
@@ -36,7 +36,7 @@ const GAME_OBJECTIVES = {
 
 // ロール・ジョブ・能力のマッピング
 const ROLE_IDS = {
-	CITIZEN: 0,
+	VILLAGER: 0,
 	MURDERER: 1,
 	ACCOMPLICE: 2,
 } as const;
@@ -117,7 +117,7 @@ function setDefaultValues(): void {
 
 	// 全プレイヤーの初期状態設定
 	for (const player of world.getAllPlayers()) {
-		setPlayerRole(player, ROLE_IDS.CITIZEN);
+		setPlayerRole(player, ROLE_IDS.VILLAGER);
 		setPlayerJob(player, 0);
 		setPlayerAlive(player, true);
 		setPlayerVotes(player, 0);
@@ -241,20 +241,28 @@ export function setPlayerRole(player: Player, roleId: number): void {
 // RoleTypeをnumberに変換
 export function roleTypeToNumber(role: RoleType): number {
 	switch (role) {
-		case RoleType.VILLAGER: return 0;
-		case RoleType.MURDERER: return 1;
-		case RoleType.ACCOMPLICE: return 2;
-		default: return 0;
+		case RoleType.VILLAGER:
+			return 0;
+		case RoleType.MURDERER:
+			return 1;
+		case RoleType.ACCOMPLICE:
+			return 2;
+		default:
+			return 0;
 	}
 }
 
 // numberをRoleTypeに変換
 export function numberToRoleType(roleId: number): RoleType {
 	switch (roleId) {
-		case 0: return RoleType.VILLAGER;
-		case 1: return RoleType.MURDERER;
-		case 2: return RoleType.ACCOMPLICE;
-		default: return RoleType.VILLAGER;
+		case 0:
+			return RoleType.VILLAGER;
+		case 1:
+			return RoleType.MURDERER;
+		case 2:
+			return RoleType.ACCOMPLICE;
+		default:
+			return RoleType.VILLAGER;
 	}
 }
 
@@ -262,17 +270,21 @@ export function getPlayerRole(player: Player): RoleType {
 	const scoreValue = world.scoreboard
 		.getObjective(GAME_OBJECTIVES.PLAYER_ROLE)
 		?.getScore(player);
-	
+
 	if (scoreValue === undefined || scoreValue === null) {
 		return RoleType.VILLAGER;
 	}
-	
+
 	// number to RoleType conversion
 	switch (scoreValue) {
-		case 0: return RoleType.VILLAGER;
-		case 1: return RoleType.MURDERER;
-		case 2: return RoleType.ACCOMPLICE;
-		default: return RoleType.VILLAGER;
+		case 0:
+			return RoleType.VILLAGER;
+		case 1:
+			return RoleType.MURDERER;
+		case 2:
+			return RoleType.ACCOMPLICE;
+		default:
+			return RoleType.VILLAGER;
 	}
 }
 
@@ -294,14 +306,6 @@ export function setPlayerAlive(player: Player, alive: boolean): void {
 	world.scoreboard
 		.getObjective(GAME_OBJECTIVES.PLAYER_ALIVE)
 		?.setScore(player, alive ? 1 : 0);
-}
-
-export function isPlayerAlive(player: Player): boolean {
-	return (
-		(world.scoreboard
-			.getObjective(GAME_OBJECTIVES.PLAYER_ALIVE)
-			?.getScore(player) ?? 1) === 1
-	);
 }
 
 export function setPlayerVotes(player: Player, votes: number): void {
@@ -334,14 +338,14 @@ export function getEvidenceCount(player: Player): number {
 
 export function setAbilityUses(player: Player, uses: number): void {
 	world.scoreboard
-		.getObjective(GAME_OBJECTIVES.ABILITY_USES)
+		.getObjective(GAME_OBJECTIVES.SKILL_USES)
 		?.setScore(player, uses);
 }
 
 export function getAbilityUses(player: Player): number {
 	return (
 		world.scoreboard
-			.getObjective(GAME_OBJECTIVES.ABILITY_USES)
+			.getObjective(GAME_OBJECTIVES.SKILL_USES)
 			?.getScore(player) ?? 0
 	);
 }
@@ -441,12 +445,11 @@ export function debugPlayerStates(): void {
 	for (const player of world.getAllPlayers()) {
 		const role = getPlayerRole(player);
 		const job = getPlayerJob(player);
-		const alive = isPlayerAlive(player);
 		const score = getPlayerScore(player);
 		const evidence = getEvidenceCount(player);
 
 		console.log(
-			`${player.name}: Role=${getRoleString(roleTypeToNumber(role))}, Job=${getJobString(job)}, Alive=${alive}, Score=${score}, Evidence=${evidence}`,
+			`${player.name}: Role=${getRoleString(roleTypeToNumber(role))}, Job=${getJobString(job)}, Score=${score}, Evidence=${evidence}`,
 		);
 	}
 }

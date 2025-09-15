@@ -209,7 +209,7 @@ export enum BGMEvent {
 	PHASE_VOTING = "phase_vote", // 投票フェーズ
 	GAME_END_WIN = "game_end_win", // ゲーム終了（勝利）
 	GAME_END_LOSE = "game_end_lose", // ゲーム終了（敗北）
-	ABILITY_USE = "ability_use", // 能力使用
+	SKILL_USE = "skill_use", // スキル使用
 	EVIDENCE_FOUND = "evidence_found", // 証拠発見
 	SUSPICION_HIGH = "suspicion_high", // 高い疑惑
 	DRAMATIC_MOMENT = "dramatic_moment", // ドラマチックな瞬間
@@ -298,10 +298,7 @@ export function transposePitch(originalPitch: Pitch, targetKey: Key): Pitch {
 	if (semitones === 0) return originalPitch; // C調はそのまま
 
 	const pitchValue = originalPitch as number;
-	const newPitchValue = adjustPitchBySemitones(
-		pitchValue,
-		semitones,
-	);
+	const newPitchValue = adjustPitchBySemitones(pitchValue, semitones);
 
 	// 最も近いPitchを見つける
 	return findClosestPitch(newPitchValue);
@@ -316,7 +313,10 @@ export function transposeNote(note: Note, targetKey: Key): Note {
 }
 
 // C調のパートを指定調性に変換
-export function transposePart(part: InstrumentPart, targetKey: Key): InstrumentPart {
+export function transposePart(
+	part: InstrumentPart,
+	targetKey: Key,
+): InstrumentPart {
 	return {
 		...part,
 		notes: part.notes.map((noteOrChord) => {
@@ -329,9 +329,7 @@ export function transposePart(part: InstrumentPart, targetKey: Key): InstrumentP
 export function transposeMelody(melody: Melody, targetKey: Key): Melody {
 	const transposedMelody: Melody = {
 		...melody,
-		parts: melody.parts.map((part) =>
-			transposePart(part, targetKey),
-		),
+		parts: melody.parts.map((part) => transposePart(part, targetKey)),
 	};
 
 	return transposedMelody;
@@ -356,7 +354,11 @@ export function getKeyDisplayName(key: Key): string {
 /**
  * 音符作成
  */
-export function note(pitch: Pitch, duration: NoteDuration, volume?: number): Note {
+export function note(
+	pitch: Pitch,
+	duration: NoteDuration,
+	volume?: number,
+): Note {
 	return { pitch, duration, volume };
 }
 

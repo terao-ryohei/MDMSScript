@@ -9,11 +9,11 @@ import {
 	Instrument,
 	Key,
 	type Melody,
-	note,
 	type Note,
 	NoteDuration,
-	part,
 	Pitch,
+	note,
+	part,
 	rest,
 } from "../types/AudioTypes";
 
@@ -170,10 +170,6 @@ export const COMPOSITION_PRESETS = {
 };
 
 /**
- * 楽曲生成用のヘルパー関数
- */
-
-/**
  * 基本的なメロディーを生成
  */
 export function generateSimpleMelody(
@@ -322,7 +318,7 @@ export const BGM_TRACKS: Record<string, BGMTrack> = {
 		melodies: [MELODIES.peaceful_daily],
 		priority: 5,
 		uiDisplayInfo: {
-			colorCode: "§a",
+			colorCode: "§2",
 			iconPath: "textures/ui/sound_glyph",
 		},
 	},
@@ -335,7 +331,7 @@ export const BGM_TRACKS: Record<string, BGMTrack> = {
 		melodies: [KEY_E_TEST_MELODY],
 		priority: 1,
 		uiDisplayInfo: {
-			colorCode: "§e",
+			colorCode: "§6",
 			iconPath: "textures/ui/sound_glyph",
 		},
 	},
@@ -354,7 +350,7 @@ export const BGM_EVENT_MAPPING: Record<BGMEvent, string> = {
 	[BGMEvent.PHASE_VOTING]: "detective_theme",
 	[BGMEvent.GAME_END_WIN]: "peaceful_daily",
 	[BGMEvent.GAME_END_LOSE]: "detective_theme",
-	[BGMEvent.ABILITY_USE]: "detective_theme",
+	[BGMEvent.SKILL_USE]: "detective_theme",
 	[BGMEvent.EVIDENCE_FOUND]: "detective_theme",
 	[BGMEvent.SUSPICION_HIGH]: "detective_theme",
 	[BGMEvent.DRAMATIC_MOMENT]: "detective_theme",

@@ -1,7 +1,9 @@
+import type { Player } from "@minecraft/server";
+
 /**
  * 能力タイプ
  */
-export enum AbilityType {
+export enum SkillType {
 	// 探偵専用能力
 	INVESTIGATE = "investigate", // 調査
 	SEARCH_EVIDENCE = "search_evidence", // 証拠捜索
@@ -48,7 +50,7 @@ export enum AbilityType {
 /**
  * 能力状態
  */
-export enum AbilityStatus {
+export enum SkillStatus {
 	AVAILABLE = "available", // 使用可能
 	COOLDOWN = "cooldown", // クールダウン中
 	DISABLED = "disabled", // 使用不可
@@ -58,7 +60,7 @@ export enum AbilityStatus {
 /**
  * 能力対象タイプ
  */
-export enum AbilityTargetType {
+export enum SkillTargetType {
 	SELF = "self", // 自分
 	PLAYER = "player", // プレイヤー
 	LOCATION = "location", // 場所
@@ -69,12 +71,12 @@ export enum AbilityTargetType {
 /**
  * 能力定義
  */
-export interface AbilityDefinition {
+export interface SkillDefinition {
 	id: string;
 	name: string;
 	description: string;
-	type: AbilityType;
-	targetType: AbilityTargetType;
+	type: SkillType;
+	targetType: SkillTargetType;
 
 	// 制限
 	cooldownTime: number; // クールダウン時間（秒）
@@ -95,12 +97,12 @@ export interface AbilityDefinition {
 /**
  * 能力使用記録
  */
-export interface AbilityUsage {
+export interface SkillUsage {
 	id: string;
 	userId: string;
 	userName: string;
-	abilityId: string;
-	abilityType: AbilityType;
+	skillId: string;
+	skillType: SkillType;
 	targetId?: string;
 	targetName?: string;
 	location?: {
@@ -111,16 +113,16 @@ export interface AbilityUsage {
 	};
 	timestamp: number;
 	phaseId: number;
-	result: AbilityResult;
+	result: SkillResult;
 }
 
 /**
  * 能力使用結果
  */
-export interface AbilityResult {
+export interface SkillResult {
 	success: boolean;
 	message: string;
-	data?: any;
+	data?: Record<string, unknown>;
 	effectDuration?: number;
 	discoveredEvidence?: string[];
 	affectedPlayers?: string[];
@@ -130,10 +132,10 @@ export interface AbilityResult {
 /**
  * プレイヤー能力状態
  */
-export interface PlayerAbilityState {
+export interface PlayerSkillState {
 	playerId: string;
-	abilities: Map<string, AbilityInstanceState>;
-	activeEffects: Map<string, AbilityEffect>;
+	skills: Map<string, SkillInstanceState>;
+	activeEffects: Map<string, SkillEffect>;
 	lastUsage: Map<string, number>; // 最後の使用時刻
 	usageCount: Map<string, number>; // 使用回数
 }
@@ -141,9 +143,9 @@ export interface PlayerAbilityState {
 /**
  * 能力インスタンス状態
  */
-export interface AbilityInstanceState {
-	abilityId: string;
-	status: AbilityStatus;
+export interface SkillInstanceState {
+	skillId: string;
+	status: SkillStatus;
 	cooldownEnd: number;
 	usesRemaining: number;
 	usesThisPhase: number;
@@ -152,36 +154,97 @@ export interface AbilityInstanceState {
 /**
  * 能力効果
  */
-export interface AbilityEffect {
+export interface SkillEffect {
 	id: string;
-	abilityId: string;
+	skillId: string;
 	targetId: string;
 	startTime: number;
 	endTime: number;
 	effectType: string;
-	data: any;
+	data: Record<string, unknown>;
 	isActive: boolean;
 }
 
 /**
  * 能力システム結果
  */
-export interface AbilitySystemResult {
+export interface SkillSystemResult {
 	success: boolean;
 	message?: string;
-	data?: any;
+	data?: Record<string, unknown>;
 	error?: string;
 }
 
 /**
  * 能力統計
  */
-export interface AbilityStatistics {
+export interface SkillStatistics {
 	totalUsages: number;
-	usagesByType: Map<AbilityType, number>;
+	usagesByType: Map<SkillType, number>;
 	usagesByPlayer: Map<string, number>;
 	usagesByPhase: Map<number, number>;
 	successRate: number;
-	mostUsedAbility: string;
+	mostUsedSkill: string;
 	mostActivePlayer: string;
+}
+
+/**
+ * スキル（SkillTypes.tsから移行）
+ */
+export interface Skill {
+	id: string;
+	name: string;
+	description: string;
+	cooldown: number; // クールダウン時間（秒）
+	usageCount: number; // 使用可能回数（-1で無制限）
+	executeSkill: (
+		player: Player,
+		target?: Player,
+		args?: Record<string, unknown>,
+	) => Promise<SkillExecutionResult>;
+}
+
+/**
+ * スキル実行結果（SkillTypes.tsから移行）
+ */
+export interface SkillExecutionResult {
+	success: boolean;
+	message: string;
+	cooldownTime?: number;
+	error?: string;
+}
+
+/**
+ * プレイヤースキル情報（SkillTypes.tsから移行）
+ */
+export interface PlayerSkills {
+	playerId: string;
+	jobSkill: Skill; // 職業スキル
+	roleSkill: Skill; // ロールスキル
+	randomSkill: Skill; // 汎用スキル
+
+	// 使用状況
+	jobSkillUses: number;
+	roleSkillUses: number;
+	randomSkillUses: number;
+
+	// クールダウン管理
+	jobSkillCooldown: number;
+	roleSkillCooldown: number;
+	randomSkillCooldown: number;
+}
+
+/**
+ * スキル使用履歴（SkillTypes.tsから移行）
+ */
+export interface SkillUsageRecord {
+	playerId: string;
+	playerName: string;
+	skillId: string;
+	skillName: string;
+	targetId?: string;
+	targetName?: string;
+	timestamp: number;
+	success: boolean;
+	result: string;
 }

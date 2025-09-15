@@ -1,5 +1,5 @@
 import { type Player, world } from "@minecraft/server";
-import { type ActionRecord } from "../types/ActionTypes";
+import type { ActionRecord } from "../types/ActionTypes";
 
 /**
  * 証拠管理マネージャー
@@ -25,7 +25,9 @@ export function initialize(): void {
  */
 export function getEvidenceData(): ActionRecord[] {
 	try {
-		return getActionTrackingManager().extractEvidenceFromDailyLife().evidence || [];
+		return (
+			getActionTrackingManager().extractEvidenceFromDailyLife().evidence || []
+		);
 	} catch (error) {
 		console.error("Failed to get evidence data:", error);
 		return [];
@@ -54,7 +56,10 @@ export function getPlayerAlibi(
 /**
  * 特定の時間範囲の全行動データを取得
  */
-export function getActionsInTimeRange(timeRange: { start: number; end: number }): ActionRecord[] {
+export function getActionsInTimeRange(timeRange: {
+	start: number;
+	end: number;
+}): ActionRecord[] {
 	try {
 		return getActionTrackingManager().searchActions({
 			startTime: timeRange.start,
@@ -69,7 +74,10 @@ export function getActionsInTimeRange(timeRange: { start: number; end: number })
 /**
  * プレイヤーの行動履歴を取得
  */
-export function getPlayerActions(playerId: string, limit?: number): ActionRecord[] {
+export function getPlayerActions(
+	playerId: string,
+	limit?: number,
+): ActionRecord[] {
 	try {
 		return getActionTrackingManager().getPlayerActions(playerId, limit);
 	} catch (error) {
