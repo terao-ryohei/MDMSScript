@@ -20,7 +20,6 @@ import { transposeNote } from "../types/AudioTypes";
 // モジュールスコープの状態変数
 let currentBGM: PlayingBGM | null = null;
 const playbackTimers: Map<string, number> = new Map();
-let isInitialized: boolean = false;
 
 let audioSettings: AudioSettings = {
 	masterVolume: 1.0,
@@ -30,16 +29,6 @@ let audioSettings: AudioSettings = {
 	enableSFX: true,
 	maxSimultaneousNotes: 50,
 };
-
-/**
- * BGMManagerを初期化
- */
-export function initializeBGMManager(): void {
-	if (isInitialized) return;
-
-	isInitialized = true;
-	console.log("BGMManager initialized");
-}
 
 /**
  * BGMを再生
@@ -260,5 +249,4 @@ export function getCurrentBGM(): PlayingBGM | null {
  */
 export function dispose(): void {
 	stopBGM();
-	isInitialized = false;
 }

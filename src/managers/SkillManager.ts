@@ -1,5 +1,7 @@
 import { type Player, system, type Vector3, world } from "@minecraft/server";
 import { SKILL_DEFINITIONS } from "../data/SkillDefinitions";
+import { ActionType } from "../types/ActionTypes";
+import { GamePhase } from "../types/PhaseTypes";
 import {
 	type PlayerSkillState,
 	type SkillDefinition,
@@ -10,9 +12,7 @@ import {
 	SkillStatus,
 	type SkillType,
 	type SkillUsage,
-} from "../types/AbilityTypes";
-import { ActionType } from "../types/ActionTypes";
-import { GamePhase } from "../types/PhaseTypes";
+} from "../types/SkillTypes";
 import { calculateDistance } from "../utils/CommonUtils";
 import { getPlayerActions, recordAction } from "./ActionTrackingManager";
 import { getCurrentPhase } from "./PhaseManager";

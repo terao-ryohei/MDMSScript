@@ -3,7 +3,7 @@ import type {
 	SkillDefinition,
 	SkillEffect,
 	SkillResult,
-} from "../../types/AbilityTypes";
+} from "../../types/SkillTypes";
 
 /**
  * アビリティ実行関数の型定義

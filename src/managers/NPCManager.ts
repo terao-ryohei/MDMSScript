@@ -40,18 +40,6 @@ export interface SpawnedNPC {
 const spawnedNPCs: Map<string, SpawnedNPC> = new Map();
 let targetNPC: SpawnedNPC | null = null;
 let murdererNotified: boolean = false;
-let isInitialized: boolean = false;
-
-/**
- * NPCManagerを初期化
- */
-export function initializeNPCManager(): void {
-	if (isInitialized) return;
-
-	setupEventListeners();
-	isInitialized = true;
-	console.log("NPCManager initialized");
-}
 
 /**
  * 殺害対象NPCをスポーンし、犯人に通知

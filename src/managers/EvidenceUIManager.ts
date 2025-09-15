@@ -11,6 +11,7 @@ import {
 	getPlayerActions,
 	getPlayerAlibi,
 } from "./EvidenceAnalyzer";
+import { getCurrentPhase } from "./PhaseManager";
 
 /**
  * 証拠メインメニューを表示
@@ -248,19 +249,6 @@ export async function showAlibiList(player: Player): Promise<void> {
 function getPlayerName(playerId: string): string {
 	const player = world.getAllPlayers().find((p) => p.id === playerId);
 	return player ? player.name : "不明";
-}
-
-/**
- * 現在のゲームフェーズを取得
- */
-function getCurrentPhase(): GamePhase {
-	try {
-		const PhaseManager = require("./PhaseManager");
-		return PhaseManager.getCurrentPhase();
-	} catch (error) {
-		console.error("Failed to get current phase:", error);
-		return GamePhase.INVESTIGATION;
-	}
 }
 
 /**

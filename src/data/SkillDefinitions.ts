@@ -1,11 +1,11 @@
+import { JobType } from "../types/JobTypes";
+import { GamePhase } from "../types/PhaseTypes";
+import { RoleType } from "../types/RoleTypes";
 import {
 	type SkillDefinition,
 	SkillTargetType,
 	SkillType,
-} from "../types/AbilityTypes";
-import { JobType } from "../types/JobTypes";
-import { GamePhase } from "../types/PhaseTypes";
-import { RoleType } from "../types/RoleTypes";
+} from "../types/SkillTypes";
 
 /**
  * 能力定義データ

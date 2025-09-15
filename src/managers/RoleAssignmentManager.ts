@@ -30,19 +30,6 @@ export {
  * マダミス役職（犯人・共犯者・一般人）の割り当てを管理
  */
 
-// モジュールスコープの状態変数
-let isInitialized: boolean = false;
-
-/**
- * RoleAssignmentManagerを初期化
- */
-export function initializeRoleAssignmentManager(): void {
-	if (isInitialized) return;
-
-	isInitialized = true;
-	console.log("RoleAssignmentManager initialized");
-}
-
 /**
  * 全プレイヤーにロールを割り当て
  */

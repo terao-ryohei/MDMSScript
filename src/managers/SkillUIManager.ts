@@ -10,7 +10,7 @@ import {
 	type SkillInstanceState,
 	SkillStatus,
 	SkillTargetType,
-} from "../types/AbilityTypes";
+} from "../types/SkillTypes";
 import { calculateDistance } from "../utils/CommonUtils";
 import { createActionForm, handleUIError } from "../utils/UIHelpers";
 import {

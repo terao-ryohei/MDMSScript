@@ -149,21 +149,9 @@ export interface SystemStatistics {
  */
 const admins: Set<string> = new Set(); // 管理者のプレイヤーID
 const adminPermissions: Map<string, Set<AdminPermission>> = new Map();
-let systemStartTime: number = Date.now();
+const systemStartTime: number = Date.now();
 let errorCount: number = 0;
 let lastError: string = "";
-let isInitialized: boolean = false;
-
-/**
- * AdminManagerを初期化
- */
-export function initializeAdminManager(): void {
-	if (isInitialized) return;
-
-	systemStartTime = Date.now();
-	isInitialized = true;
-	console.log("AdminManager initialized");
-}
 
 // Singleton パターンの削除が完了
 

@@ -1,11 +1,11 @@
 import type { Player } from "@minecraft/server";
 import { system, world } from "@minecraft/server";
+import { RoleType } from "../../types/RoleTypes";
 import type {
 	SkillDefinition,
 	SkillEffect,
 	SkillResult,
-} from "../../types/AbilityTypes";
-import { RoleType } from "../../types/RoleTypes";
+} from "../../types/SkillTypes";
 import { getPlayerRole, setPlayerAlive } from "../ScoreboardManager";
 import {
 	createEffect,

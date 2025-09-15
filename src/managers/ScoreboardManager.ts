@@ -65,19 +65,6 @@ const PHASE_IDS = {
 	ENDING: 7,
 } as const;
 
-// モジュールスコープの初期化状態
-let isInitialized: boolean = false;
-
-/**
- * ScoreboardManagerを初期化
- */
-export function initializeScoreboardManager(): void {
-	if (isInitialized) return;
-
-	isInitialized = true;
-	console.log("ScoreboardManager initialized");
-}
-
 /**
  * 全Scoreboardオブジェクトを初期化
  */
@@ -472,5 +459,4 @@ export function debugGameState(): void {
  */
 export function dispose(): void {
 	console.log("ScoreboardManager disposed");
-	isInitialized = false;
 }

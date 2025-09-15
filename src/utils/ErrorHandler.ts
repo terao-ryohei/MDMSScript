@@ -119,41 +119,87 @@ export const safeAsync = async <T>(
 };
 
 /**
- * バリデーションエラー
+ * Function-based error creators (recommended approach)
  */
-export class ValidationError extends Error {
-	constructor(
-		message: string,
-		public field: string,
-	) {
-		super(message);
-		this.name = "ValidationError";
-	}
-}
 
 /**
- * ゲーム状態エラー
+ * バリデーションエラーの作成
  */
-export class GameStateError extends Error {
-	constructor(
-		message: string,
-		public state: string,
-	) {
-		super(message);
-		this.name = "GameStateError";
-	}
+export interface ValidationErrorData {
+	message: string;
+	field: string;
+	name: "ValidationError";
 }
 
+export const createValidationError = (
+	message: string,
+	field: string,
+): ValidationErrorData => ({
+	message,
+	field,
+	name: "ValidationError" as const,
+});
+
 /**
- * プレイヤー操作エラー
+ * ゲーム状態エラーの作成
  */
-export class PlayerActionError extends Error {
-	constructor(
-		message: string,
-		public playerId: string,
-		public action: string,
-	) {
-		super(message);
-		this.name = "PlayerActionError";
-	}
+export interface GameStateErrorData {
+	message: string;
+	state: string;
+	name: "GameStateError";
 }
+
+export const createGameStateError = (
+	message: string,
+	state: string,
+): GameStateErrorData => ({
+	message,
+	state,
+	name: "GameStateError" as const,
+});
+
+/**
+ * プレイヤー操作エラーの作成
+ */
+export interface PlayerActionErrorData {
+	message: string;
+	playerId: string;
+	action: string;
+	name: "PlayerActionError";
+}
+
+export const createPlayerActionError = (
+	message: string,
+	playerId: string,
+	action: string,
+): PlayerActionErrorData => ({
+	message,
+	playerId,
+	action,
+	name: "PlayerActionError" as const,
+});
+
+/**
+ * エラーデータの判定関数
+ */
+export const isValidationError = (error: any): error is ValidationErrorData =>
+	error && error.name === "ValidationError";
+
+export const isGameStateError = (error: any): error is GameStateErrorData =>
+	error && error.name === "GameStateError";
+
+export const isPlayerActionError = (
+	error: any,
+): error is PlayerActionErrorData =>
+	error && error.name === "PlayerActionError";
+
+/**
+ * エラーのログ出力（function-based errors用）
+ */
+export const logErrorData = (
+	errorData: ValidationErrorData | GameStateErrorData | PlayerActionErrorData,
+	severity: ErrorSeverity = ErrorSeverity.ERROR,
+	context?: ErrorContext,
+): void => {
+	logError(errorData.message, undefined, severity, context);
+};

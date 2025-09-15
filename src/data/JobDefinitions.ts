@@ -1,7 +1,7 @@
 import { type Player, world } from "@minecraft/server";
 import { useSkill } from "../managers/SkillManager";
-import type { Skill } from "../types/AbilityTypes";
 import { type Job, type JobObjective, JobType } from "../types/JobTypes";
+import type { Skill } from "../types/SkillTypes";
 import {
 	OBJECTIVE_DEFINITIONS,
 	ObjectiveCategory,

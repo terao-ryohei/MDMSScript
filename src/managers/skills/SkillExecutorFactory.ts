@@ -1,5 +1,5 @@
-import type { SkillEffect } from "../../types/AbilityTypes";
-import { SkillType } from "../../types/AbilityTypes";
+import type { SkillEffect } from "../../types/SkillTypes";
+import { SkillType } from "../../types/SkillTypes";
 import type { SkillExecutorFunction } from "./BaseSkillExecutor";
 import {
 	createAssistExecutor,

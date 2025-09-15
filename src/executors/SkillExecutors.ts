@@ -8,7 +8,7 @@
  */
 
 import type { Player } from "@minecraft/server";
-import type { SkillExecutionResult } from "../types/AbilityTypes";
+import type { SkillExecutionResult } from "../types/SkillTypes";
 
 /**
  * スキル実行関数の型定義

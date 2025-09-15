@@ -1,4 +1,4 @@
-import type { Skill } from "./AbilityTypes";
+import type { Skill } from "./SkillTypes";
 
 /**
  * ジョブタイプ（職業）

@@ -4,7 +4,7 @@ import type {
 	SkillDefinition,
 	SkillEffect,
 	SkillResult,
-} from "../../types/AbilityTypes";
+} from "../../types/SkillTypes";
 import { getPlayerActions } from "../ActionTrackingManager";
 import {
 	getJobString,

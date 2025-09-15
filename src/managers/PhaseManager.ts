@@ -12,6 +12,11 @@ import {
 	type TimerDisplay,
 } from "../types/PhaseTypes";
 import {
+	extractEvidenceFromDailyLife,
+	getAreaName,
+} from "./ActionTrackingManager";
+import { initialize } from "./EvidenceDiscoveryManager";
+import {
 	getCrimeTime,
 	getPhaseTimer,
 	setAbilityUses,
@@ -60,31 +65,6 @@ function setEvidencePlacements(placements: EvidencePlacement[]): void {
  */
 export function getEvidencePlacements(): EvidencePlacement[] {
 	return evidencePlacements;
-}
-
-// 依存Managerの取得関数
-function getActionTrackingManager() {
-	return require("./ActionTrackingManager");
-}
-
-function getAreaName(location: Vector3): string {
-	// ActionTrackingManager のgetAreaName関数を使用
-	const actionTracker = getActionTrackingManager();
-	if (actionTracker.getAreaName) {
-		return actionTracker.getAreaName(location);
-	}
-
-	// フォールバック実装
-	const x = Math.floor(location.x);
-	const z = Math.floor(location.z);
-
-	if (x >= -50 && x <= 50 && z >= -50 && z <= 50) return "城の中庭";
-	if (x >= 60 && x <= 100 && z >= -20 && z <= 20) return "図書館";
-	if (x >= -100 && x <= -60 && z >= -20 && z <= 20) return "武器庫";
-	if (x >= -20 && x <= 20 && z >= 60 && z <= 100) return "寝室エリア";
-	if (x >= -20 && x <= 20 && z >= -100 && z <= -60) return "厨房";
-
-	return "unknown";
 }
 
 /**
@@ -323,8 +303,7 @@ async function handlePhaseSpecialActions(phase: GamePhase): Promise<void> {
 			// 調査フェーズ：証拠抽出開始
 			await startEvidenceCollection();
 			// 証拠発見システムを初期化
-			const evidenceDiscovery = require("./EvidenceDiscoveryManager");
-			evidenceDiscovery.initialize();
+			initialize();
 			break;
 		}
 
@@ -398,8 +377,7 @@ async function startEvidenceCollection(): Promise<void> {
 		console.log("Starting evidence collection and distribution...");
 
 		// 生活フェーズから証拠を抽出
-		const evidenceResult =
-			getActionTrackingManager().extractEvidenceFromDailyLife();
+		const evidenceResult = extractEvidenceFromDailyLife();
 
 		if (!evidenceResult.success || evidenceResult.evidence.length === 0) {
 			console.warn("No evidence found from daily life phase");

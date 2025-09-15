@@ -15,19 +15,6 @@ import {
  * 中世ファンタジー職業の割り当てを管理
  */
 
-// モジュールスコープの状態変数
-let isInitialized: boolean = false;
-
-/**
- * JobAssignmentManagerを初期化
- */
-export function initializeJobAssignmentManager(): void {
-	if (isInitialized) return;
-
-	isInitialized = true;
-	console.log("JobAssignmentManager initialized");
-}
-
 /**
  * 全プレイヤーにジョブを割り当て
  */

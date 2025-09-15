@@ -23,17 +23,6 @@ let currentSession: VotingSession | null = null;
 let completedSessions: VotingSession[] = [];
 let sessionCounter: number = 0;
 let voteTimer: number | null = null;
-let isInitialized: boolean = false;
-
-/**
- * VotingManagerを初期化
- */
-export function initializeVotingManager(): void {
-	if (isInitialized) return;
-
-	isInitialized = true;
-	console.log("VotingManager initialized");
-}
 
 /**
  * 投票セッションを開始（簡素化：犯人投票のみ）

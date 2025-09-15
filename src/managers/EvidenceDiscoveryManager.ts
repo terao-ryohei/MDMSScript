@@ -11,7 +11,9 @@ import {
 	world,
 } from "@minecraft/server";
 import type { ActionRecord } from "../types/ActionTypes";
-import { getEvidencePlacements } from "./PhaseManager";
+import { extractEvidenceFromDailyLife } from "./ActionTrackingManager";
+import { getCurrentPhase, getEvidencePlacements } from "./PhaseManager";
+import { setEvidenceCount } from "./ScoreboardManager";
 
 interface EvidencePlacement {
 	evidenceId: string;
@@ -214,8 +216,7 @@ export function clearAllDiscoveredEvidence(): void {
  */
 function getEvidenceDetails(evidenceId: string): ActionRecord | null {
 	try {
-		const actionTracker = require("./ActionTrackingManager");
-		const allEvidence = actionTracker.extractEvidenceFromDailyLife();
+		const allEvidence = extractEvidenceFromDailyLife();
 
 		if (allEvidence.success) {
 			return (
@@ -239,29 +240,6 @@ function calculateDistance(loc1: Vector3, loc2: Vector3): number {
 	const dy = loc1.y - loc2.y;
 	const dz = loc1.z - loc2.z;
 	return Math.sqrt(dx * dx + dy * dy + dz * dz);
-}
-
-/**
- * 現在のフェーズを取得
- */
-function getCurrentPhase(): string {
-	try {
-		const phaseManager = require("./PhaseManager");
-		const phase = phaseManager.getCurrentPhase();
-		return phase === "investigation" ? "investigation" : "other";
-	} catch (error) {
-		return "other";
-	}
-}
-
-// ヘルパー関数のインポート
-function setEvidenceCount(player: Player, count: number): void {
-	try {
-		const scoreboardManager = require("./ScoreboardManager");
-		scoreboardManager.setEvidenceCount(player, count);
-	} catch (error) {
-		console.error("Error setting evidence count:", error);
-	}
 }
 
 function formatGameTime(timestamp: number): string {
