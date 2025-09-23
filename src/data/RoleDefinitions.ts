@@ -1,8 +1,8 @@
 import { type Role, type RoleComposition, RoleType } from "../types/RoleTypes";
 
 /**
- * 役職定義データ
- * ここを編集することで役職の設定を簡単に変更できます
+ * ロール定義データ
+ * ここを編集することでロールの設定を簡単に変更できます
  */
 export const ROLE_DEFINITIONS: Record<RoleType, Role> = {
 	[RoleType.MURDERER]: {
@@ -64,7 +64,7 @@ export const ROLE_DEFINITIONS: Record<RoleType, Role> = {
 };
 
 /**
- * プレイヤー数に応じた役職構成設定
+ * プレイヤー数に応じたロール構成設定
  * ゲームバランスを調整する場合はここを編集
  */
 export const ROLE_COMPOSITION_RULES = {
@@ -150,7 +150,7 @@ export const ROLE_COMPOSITION_RULES = {
 };
 
 /**
- * プレイヤー数に応じた役職構成を取得
+ * プレイヤー数に応じたロール構成を取得
  */
 export function getRoleComposition(playerCount: number): RoleComposition {
 	if (playerCount < ROLE_COMPOSITION_RULES.MIN_PLAYERS) {
@@ -194,7 +194,7 @@ export function getRoleComposition(playerCount: number): RoleComposition {
 }
 
 /**
- * 役職構成の妥当性チェック
+ * ロール構成の妥当性チェック
  */
 export function validateRoleComposition(
 	composition: RoleComposition,
@@ -209,7 +209,7 @@ export function validateRoleComposition(
 }
 
 /**
- * 役職の勝利条件
+ * ロールの勝利条件
  */
 export const ROLE_VICTORY_CONDITIONS = {
 	[RoleType.MURDERER]: {

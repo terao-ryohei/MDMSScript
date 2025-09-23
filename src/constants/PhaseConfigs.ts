@@ -125,31 +125,31 @@ export function getAdjustedPhaseConfig(
 
 	// 3人以下の場合は時間を短縮
 	if (playerCount <= 3) {
-		const reductionFactor = 0.6; // 40%短縮
+		const reductionFactor = 0.1; // 90%短縮
 		baseConfig.duration = Math.floor(baseConfig.duration * reductionFactor);
 
 		// 最小時間を保証
 		switch (phase) {
 			case GamePhase.PREPARATION:
-				baseConfig.duration = Math.max(baseConfig.duration, 180); // 最低3分
+				baseConfig.duration = Math.max(baseConfig.duration, 30); // 最低30秒
 				break;
 			case GamePhase.DAILY_LIFE:
-				baseConfig.duration = Math.max(baseConfig.duration, 360); // 最低6分
+				baseConfig.duration = Math.max(baseConfig.duration, 30); // 最低30秒
 				break;
 			case GamePhase.INVESTIGATION:
-				baseConfig.duration = Math.max(baseConfig.duration, 240); // 最低4分
+				baseConfig.duration = Math.max(baseConfig.duration, 30); // 最低30秒
 				break;
 			case GamePhase.DISCUSSION:
-				baseConfig.duration = Math.max(baseConfig.duration, 180); // 最低3分
+				baseConfig.duration = Math.max(baseConfig.duration, 30); // 最低30秒
 				break;
 			case GamePhase.REINVESTIGATION:
-				baseConfig.duration = Math.max(baseConfig.duration, 150); // 最低2.5分
+				baseConfig.duration = Math.max(baseConfig.duration, 30); // 最低30秒
 				break;
 			case GamePhase.DEDUCTION:
-				baseConfig.duration = Math.max(baseConfig.duration, 120); // 最低2分
+				baseConfig.duration = Math.max(baseConfig.duration, 30); // 最低30秒
 				break;
 			case GamePhase.VOTING:
-				baseConfig.duration = Math.max(baseConfig.duration, 90); // 最低1.5分
+				baseConfig.duration = Math.max(baseConfig.duration, 30); // 最低30秒
 				break;
 		}
 	}

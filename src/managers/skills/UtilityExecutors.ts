@@ -130,27 +130,6 @@ export const executeBroadcast: SkillExecutorFunction = async (
 };
 
 /**
- * 巡回アビリティ実行関数
- */
-export const createPatrolExecutor =
-	(activeEffects: Map<string, SkillEffect>): SkillExecutorFunction =>
-	async (player: Player, definition: SkillDefinition): Promise<SkillResult> => {
-		const effect = createEffect(definition, player.id, "detection", {
-			range: definition.detectRange,
-		});
-		activeEffects.set(effect.id, effect);
-
-		player.sendMessage(
-			`§2巡回モードが有効になりました（${Math.floor(definition.duration / 60)}分間）`,
-		);
-		player.sendMessage("§7異常行動を検出しやすくなります");
-
-		return createSuccessResult("巡回能力を発動しました", {
-			effectDuration: definition.duration,
-		});
-	};
-
-/**
  * 注意逸らしアビリティ実行関数
  */
 export const createDistractExecutor =

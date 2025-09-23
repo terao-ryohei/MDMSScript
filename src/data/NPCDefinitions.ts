@@ -149,14 +149,14 @@ export const NPC_SPAWN_LOCATIONS: NPCSpawnLocation[] = [
 	// 商業地区
 	{
 		area: "商業地区",
-		coordinates: { x: 150, y: 64, z: 120 },
+		coordinates: { x: 50, y: 64, z: 30 },
 		description: "市場の路地",
 		isSecluded: true,
 		nearbyLandmarks: ["中央市場"],
 	},
 	{
 		area: "商業地区",
-		coordinates: { x: 130, y: 64, z: 170 },
+		coordinates: { x: 30, y: 64, z: 35 },
 		description: "商人ギルド前",
 		isSecluded: false,
 		nearbyLandmarks: ["商人ギルド"],
@@ -181,14 +181,14 @@ export const NPC_SPAWN_LOCATIONS: NPCSpawnLocation[] = [
 	// 港湾地区
 	{
 		area: "港湾地区",
-		coordinates: { x: 0, y: 64, z: 130 },
+		coordinates: { x: 15, y: 64, z: 20 },
 		description: "桟橋の端",
 		isSecluded: true,
 		nearbyLandmarks: ["大桟橋"],
 	},
 	{
 		area: "港湾地区",
-		coordinates: { x: -20, y: 80, z: 160 },
+		coordinates: { x: -20, y: 64, z: 25 },
 		description: "灯台の下",
 		isSecluded: true,
 		nearbyLandmarks: ["灯台"],
@@ -213,7 +213,7 @@ export const NPC_SPAWN_LOCATIONS: NPCSpawnLocation[] = [
 	// 貴族区
 	{
 		area: "貴族区",
-		coordinates: { x: -120, y: 64, z: 80 },
+		coordinates: { x: -30, y: 64, z: 20 },
 		description: "庭園の東屋",
 		isSecluded: true,
 		nearbyLandmarks: ["貴族庭園"],

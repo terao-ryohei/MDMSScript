@@ -162,7 +162,7 @@ export async function showGameControlMenu(player: Player): Promise<void> {
 export async function showPlayerManagementMenu(player: Player): Promise<void> {
 	try {
 		const form = createActionForm("$1", "$2")
-			.button("役職変更", "textures/ui/book_edit_default")
+			.button("ロール変更", "textures/ui/book_edit_default")
 			.button("職業変更", "textures/ui/hammer")
 			.button("戻る", "textures/ui/cancel");
 
@@ -174,7 +174,7 @@ export async function showPlayerManagementMenu(player: Player): Promise<void> {
 		}
 
 		switch (response.selection) {
-			case 0: // 役職変更
+			case 0: // ロール変更
 				await showRoleChangeMenu(player);
 				break;
 			case 1: // 職業変更
@@ -417,7 +417,7 @@ async function showPhaseChangeMenu(player: Player): Promise<void> {
 }
 
 /**
- * 役職変更メニューを表示
+ * ロール変更メニューを表示
  */
 async function showRoleChangeMenu(player: Player): Promise<void> {
 	try {
@@ -449,12 +449,12 @@ async function showRoleChangeMenu(player: Player): Promise<void> {
 		await showRoleSelectionMenu(player, selectedPlayer);
 	} catch (error) {
 		console.error(`Failed to show role change menu for ${player.name}:`, error);
-		player.sendMessage("§c役職変更メニューの表示に失敗しました");
+		player.sendMessage("§cロール変更メニューの表示に失敗しました");
 	}
 }
 
 /**
- * 役職選択メニューを表示
+ * ロール選択メニューを表示
  */
 async function showRoleSelectionMenu(
 	player: Player,
@@ -462,11 +462,11 @@ async function showRoleSelectionMenu(
 ): Promise<void> {
 	try {
 		const form = new ActionFormData()
-			.title(`§l§c${target.name}の役職変更`)
-			.body("§7新しい役職を選択してください")
+			.title(`§l§c${target.name}のロール変更`)
+			.body("§7新しいロールを選択してください")
 			.button("犯人", "textures/ui/redX1")
 			.button("共犯者", "textures/ui/warning")
-			.button("一般人", "textures/ui/check")
+			.button("村人", "textures/ui/check")
 			.button("キャンセル", "textures/ui/cancel");
 
 		const response = await form.show(player);
@@ -492,7 +492,7 @@ async function showRoleSelectionMenu(
 			`Failed to show role selection menu for ${player.name}:`,
 			error,
 		);
-		player.sendMessage("§c役職選択メニューの表示に失敗しました");
+		player.sendMessage("§cロール選択メニューの表示に失敗しました");
 	}
 }
 

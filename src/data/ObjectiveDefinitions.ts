@@ -18,7 +18,7 @@ export interface ObjectiveDefinition {
 }
 
 export enum ObjectiveCategory {
-	ROLE_PRIMARY = "role_primary", // 役職の主目的
+	ROLE_PRIMARY = "role_primary", // ロールの主目的
 	JOB_TASK = "job_task", // 職業課題
 	PERSONAL = "personal", // 個人的目標
 	SOCIAL = "social", // 社会的目標
@@ -43,7 +43,7 @@ export interface ObjectiveCondition {
  * 目的定義データベース
  */
 export const OBJECTIVE_DEFINITIONS: Record<string, ObjectiveDefinition> = {
-	// === 役職関連の主目的 ===
+	// === ロール関連の主目的 ===
 	identify_murderer: {
 		id: "identify_murderer",
 		name: "真犯人の特定",
@@ -141,14 +141,17 @@ export const OBJECTIVE_DEFINITIONS: Record<string, ObjectiveDefinition> = {
 
 	find_criminal_roles: {
 		id: "find_criminal_roles",
-		name: "犯罪者役職の発見",
-		description: "犯罪者の役職を持つプレイヤーを特定し、証拠を集める",
+		name: "犯罪者ロールの発見",
+		description: "犯罪者のロールを持つプレイヤーを特定し、証拠を集める",
 		category: ObjectiveCategory.JOB_TASK,
 		difficulty: ObjectiveDifficulty.HARD,
 		points: { completion: 130, bonus: 80 },
 		conditions: [
-			{ type: "identify_murderer_role", description: "殺人者役職を特定する" },
-			{ type: "identify_accomplice_role", description: "共犯者役職を特定する" },
+			{ type: "identify_murderer_role", description: "殺人者ロールを特定する" },
+			{
+				type: "identify_accomplice_role",
+				description: "共犯者ロールを特定する",
+			},
 			{
 				type: "gather_evidence",
 				value: 3,

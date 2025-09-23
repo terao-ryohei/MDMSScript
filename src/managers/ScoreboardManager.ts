@@ -1,4 +1,5 @@
 import { type Player, world } from "@minecraft/server";
+import { JobType } from "src/types/JobTypes";
 import { RoleType } from "src/types/RoleTypes";
 
 /**
@@ -281,12 +282,47 @@ export function setPlayerJob(player: Player, jobId: number): void {
 		?.setScore(player, jobId);
 }
 
-export function getPlayerJob(player: Player): number {
-	return (
+export function getPlayerJob(player: Player): JobType {
+	const scoreValue =
 		world.scoreboard
 			.getObjective(GAME_OBJECTIVES.PLAYER_JOB)
-			?.getScore(player) ?? 0
-	);
+			?.getScore(player) ?? 0;
+
+	if (scoreValue === undefined || scoreValue === null) {
+		return JobType.ADVENTURER;
+	}
+
+	// number to JobqType conversion
+	switch (scoreValue) {
+		case 0:
+			return JobType.LORD;
+		case 1:
+			return JobType.CAPTAIN;
+		case 2:
+			return JobType.HOMUNCULUS;
+		case 3:
+			return JobType.ADVENTURER;
+		case 4:
+			return JobType.COURT_ALCHEMIST;
+		case 5:
+			return JobType.ROGUE_ALCHEMIST;
+		case 6:
+			return JobType.THIEF;
+		case 7:
+			return JobType.PHARMACIST;
+		case 8:
+			return JobType.MAID;
+		case 9:
+			return JobType.BUTLER;
+		case 10:
+			return JobType.SOLDIER;
+		case 11:
+			return JobType.STUDENT;
+		case 12:
+			return JobType.ADVENTURER;
+		default:
+			return JobType.ADVENTURER;
+	}
 }
 
 export function setPlayerAlive(player: Player, alive: boolean): void {
@@ -422,23 +458,6 @@ export function getPhaseString(phaseId: number): string {
 		entries.find(([_, id]) => id === phaseId)?.[0].toLowerCase() ??
 		"preparation"
 	);
-}
-
-/**
- * 全プレイヤーの状態をコンソールに出力（デバッグ用）
- */
-export function debugPlayerStates(): void {
-	console.log("=== MDMS Player States ===");
-	for (const player of world.getAllPlayers()) {
-		const role = getPlayerRole(player);
-		const job = getPlayerJob(player);
-		const score = getPlayerScore(player);
-		const evidence = getEvidenceCount(player);
-
-		console.log(
-			`${player.name}: Role=${getRoleString(roleTypeToNumber(role))}, Job=${getJobString(job)}, Score=${score}, Evidence=${evidence}`,
-		);
-	}
 }
 
 /**

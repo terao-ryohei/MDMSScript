@@ -7,12 +7,15 @@
  */
 
 import type { Player } from "@minecraft/server";
-import { SKILL_DEFINITIONS } from "../data/SkillDefinitions";
-import { SKILL_EXECUTORS } from "../executors/SkillExecutors";
+import {
+	getSkillDefinition,
+	getSkillExecutor,
+	SKILLS,
+} from "../../data/Skills";
 import type {
 	SkillDefinition,
 	SkillExecutionResult,
-} from "../types/SkillTypes";
+} from "../../types/SkillTypes";
 
 /**
  * スキル実行可能情報
@@ -26,13 +29,10 @@ export interface ExecutableSkill {
 	targetType: string;
 	cooldownTime: number;
 	usesPerGame: number;
-	usesPerPhase: number;
 	requiresTarget: boolean;
 	duration: number;
 	range: number;
-	detectRange: number;
 	allowedPhases: string[];
-	requiresAlive: boolean;
 
 	// Skillインターフェースとの互換性のため
 	cooldown: number;
@@ -55,9 +55,14 @@ let skillMap: Map<string, ExecutableSkill> | null = null;
 function initializeSkills(): Map<string, ExecutableSkill> {
 	const map = new Map<string, ExecutableSkill>();
 
-	for (const [skillId, skillDef] of Object.entries(SKILL_DEFINITIONS)) {
-		const executor = SKILL_EXECUTORS[skillId];
-		if (executor) {
+	// 統合Skillsファイルから全スキルを取得
+	const allSkillIds = Object.keys(SKILLS);
+
+	for (const skillId of allSkillIds) {
+		const skillDef = getSkillDefinition(skillId);
+		const executor = getSkillExecutor(skillId);
+
+		if (skillDef && executor) {
 			map.set(skillId, {
 				...skillDef,
 				// Skillインターフェース互換性のための追加プロパティ
@@ -66,7 +71,7 @@ function initializeSkills(): Map<string, ExecutableSkill> {
 				executeSkill: executor,
 			});
 		} else {
-			console.warn(`No executor found for skill: ${skillId}`);
+			console.warn(`No definition or executor found for skill: ${skillId}`);
 		}
 	}
 
@@ -91,15 +96,6 @@ export function getSkill(skillId: string): ExecutableSkill | undefined {
 }
 
 /**
- * スキルの設定データを取得
- */
-export function getSkillDefinition(
-	skillId: string,
-): SkillDefinition | undefined {
-	return SKILL_DEFINITIONS[skillId];
-}
-
-/**
  * 利用可能なスキル一覧を取得
  */
 export function getAllSkills(): ExecutableSkill[] {
@@ -111,42 +107,6 @@ export function getAllSkills(): ExecutableSkill[] {
  */
 export function getSkillsByType(type: string): ExecutableSkill[] {
 	return getAllSkills().filter((skill) => skill.type === type);
-}
-
-/**
- * プレイヤーの生存状態チェック
- */
-function isPlayerAlive(player: Player): boolean {
-	// 生存状態チェックのロジック
-	// TODO: 実際の生存状態管理システムと連携
-	return true;
-}
-
-/**
- * スキルが実行可能かチェック
- */
-export function canExecuteSkill(
-	skillId: string,
-	player: Player,
-	currentPhase: string,
-): boolean {
-	const skill = getSkill(skillId);
-	if (!skill) return false;
-
-	// フェーズ制限チェック
-	if (skill.allowedPhases && skill.allowedPhases.length > 0) {
-		if (!skill.allowedPhases.includes(currentPhase as any)) {
-			return false;
-		}
-	}
-
-	// 生存状態チェック
-	if (skill.requiresAlive && !isPlayerAlive(player)) {
-		return false;
-	}
-
-	// その他の条件チェックは SkillManager に委譲
-	return true;
 }
 
 /**
@@ -182,10 +142,8 @@ export function resetSkillRegistry(): void {
  */
 export const skillRegistry = {
 	getSkill,
-	getSkillDefinition,
 	getAllSkills,
 	getSkillsByType,
-	canExecuteSkill,
 	registerSkill,
 	resetSkillRegistry,
 };

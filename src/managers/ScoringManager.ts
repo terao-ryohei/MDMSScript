@@ -1,4 +1,6 @@
 import { type Player, world } from "@minecraft/server";
+import { JOB_DEFINITIONS } from "src/data/JobDefinitions";
+import type { JobType } from "src/types/JobTypes";
 import { ActionType } from "../types/ActionTypes";
 import { GamePhase } from "../types/PhaseTypes";
 import { RoleType } from "../types/RoleTypes";
@@ -15,7 +17,6 @@ import {
 import { getActionStatistics } from "./ActionTrackingManager";
 import { getCurrentPhase } from "./PhaseManager";
 import {
-	getJobString,
 	getPlayerJob,
 	getPlayerRole,
 	getRoleString,
@@ -126,7 +127,7 @@ export function checkVictoryConditions(): VictoryCheckResult {
 			}
 		}
 
-		// 生存者の役職分析
+		// 生存者のロール分析
 		const aliveRoles = alivePlayers.map((p) => getPlayerRole(p));
 		const aliveMurderers = aliveRoles.filter(
 			(role) => role === RoleType.MURDERER,
@@ -266,7 +267,7 @@ export function calculatePlayerScore(player: Player): PlayerScore | null {
 		const jobId = getPlayerJob(player);
 
 		const roleString = getRoleString(roleTypeToNumber(role));
-		const jobString = getJobString(jobId);
+		const jobString = JOB_DEFINITIONS[getPlayerJob(player)].name;
 
 		// 3点満点評価システム
 		const jobGoalAchieved = checkJobGoal(player, jobId);
@@ -305,12 +306,11 @@ export function calculatePlayerScore(player: Player): PlayerScore | null {
 /**
  * 職業目標の達成をチェック
  */
-function checkJobGoal(player: Player, jobId: number): boolean {
-	const jobString = getJobString(jobId);
+function checkJobGoal(player: Player, jobId: JobType): boolean {
 	const actionRecords = getActionStatistics();
 	const playerActions = actionRecords.actionsByPlayer.get(player.id) || 0;
 
-	switch (jobString.toLowerCase()) {
+	switch (jobId) {
 		case "lord": // 領主: 会議で発言し、秩序を保つ
 			return playerActions >= 10;
 
@@ -493,7 +493,7 @@ export function checkEvidenceCollector(playerId: string): boolean {
 export function calculateTeamScores(playerScores: PlayerScore[]): TeamScore[] {
 	const teams: { [key: string]: PlayerScore[] } = {};
 
-	// 役職別にチーム分け
+	// ロール別にチーム分け
 	for (const playerScore of playerScores) {
 		const teamName = getTeamName(playerScore.role);
 		if (!teams[teamName]) {

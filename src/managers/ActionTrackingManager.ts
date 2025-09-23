@@ -687,7 +687,7 @@ function generateDetailedEvidenceData(
 	// 記録条件を判定
 	const recordCondition = determineRecordCondition(actionType, data);
 
-	// 信頼度を計算（目撃者数、プレイヤーの役職、行動タイプに基づく）
+	// 信頼度を計算（目撃者数、プレイヤーのロール、行動タイプに基づく）
 	const reliability = calculateEvidenceReliability(player, actionType, data);
 
 	return {
@@ -782,7 +782,7 @@ function calculateEvidenceReliability(
 	const witnessCount = data.witnessCount || 0;
 	baseReliability += Math.min(witnessCount * 5, 20); // 最大+20
 
-	// プレイヤーの役職による調整
+	// プレイヤーのロールによる調整
 	const role = getPlayerRole(player);
 	if (role === RoleType.MURDERER) {
 		baseReliability -= 10; // 犯人の証拠は信頼度下がる

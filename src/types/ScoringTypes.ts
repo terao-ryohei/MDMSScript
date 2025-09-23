@@ -19,7 +19,7 @@ export interface ScoreWeights {
 	incorrectVote: number; // 間違った投票
 	evidenceFound: number; // 証拠発見
 	accurateDeduction: number; // 的確な推理
-	rolePerformance: number; // 役職パフォーマンス
+	rolePerformance: number; // ロールパフォーマンス
 	survivalBonus: number; // 生存ボーナス
 	speedBonus: number; // 速度ボーナス
 }

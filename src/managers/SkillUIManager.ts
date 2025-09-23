@@ -4,7 +4,8 @@
 
 import { type Player, world } from "@minecraft/server";
 import { MessageFormData } from "@minecraft/server-ui";
-import { SKILL_DEFINITIONS } from "../data/SkillDefinitions";
+import { JOB_DEFINITIONS } from "src/data/JobDefinitions";
+import { getSkillDefinition } from "../data/Skills";
 import {
 	type SkillDefinition,
 	type SkillInstanceState,
@@ -14,7 +15,6 @@ import {
 import { calculateDistance } from "../utils/CommonUtils";
 import { createActionForm, handleUIError } from "../utils/UIHelpers";
 import {
-	getJobString,
 	getPlayerJob,
 	getPlayerRole,
 	getRoleString,
@@ -106,7 +106,7 @@ export async function showAbilitySelection(player: Player): Promise<void> {
 		);
 
 		for (const [skillId, state] of availableSkills) {
-			const definition = SKILL_DEFINITIONS[skillId];
+			const definition = getSkillDefinition(skillId);
 			if (definition) {
 				const statusIcon = getSkillStatusIcon(state);
 				const usesText = `(${state.usesRemaining}/${definition.usesPerGame})`;
@@ -141,7 +141,7 @@ async function showAbilityConfirmation(
 	skillId: string,
 ): Promise<void> {
 	try {
-		const definition = SKILL_DEFINITIONS[skillId];
+		const definition = getSkillDefinition(skillId);
 		if (!definition) {
 			player.sendMessage("§c能力定義が見つかりません");
 			return;
@@ -343,7 +343,7 @@ export async function showAbilityList(player: Player): Promise<void> {
 		let listText = "§6=== 所持能力一覧 ===\n\n";
 
 		for (const [skillId, state] of playerSkills.entries()) {
-			const definition = SKILL_DEFINITIONS[skillId];
+			const definition = getSkillDefinition(skillId);
 			if (definition) {
 				const statusIcon = getSkillStatusIcon(state);
 				const statusText = getSkillStatusText(state);
@@ -403,7 +403,7 @@ export async function showAbilityHistory(player: Player): Promise<void> {
 
 		const playerSkills = getPlayerSkills(player.id);
 		for (const [skillId, state] of playerSkills.entries()) {
-			const definition = SKILL_DEFINITIONS[skillId];
+			const definition = getSkillDefinition(skillId);
 			if (definition) {
 				const usedCount = definition.usesPerGame - state.usesRemaining;
 				if (usedCount > 0) {
@@ -431,14 +431,14 @@ export async function showAbilityHistory(player: Player): Promise<void> {
 export async function showAbilityHelp(player: Player): Promise<void> {
 	try {
 		const role = getRoleString(roleTypeToNumber(getPlayerRole(player)));
-		const job = getJobString(getPlayerJob(player));
+		const job = JOB_DEFINITIONS[getPlayerJob(player)].name;
 
 		let helpText = `§6=== 特殊能力システム ===\n\n`;
-		helpText += `§7あなたの役職: §j${role}\n`;
+		helpText += `§7あなたのロール: §j${role}\n`;
 		helpText += `§7あなたの職業: §j${job}\n\n`;
 
 		helpText += "§6能力について:\n";
-		helpText += "§7• 役職と職業に応じて特殊能力が付与されます\n";
+		helpText += "§7• ロールと職業に応じて特殊能力が付与されます\n";
 		helpText += "§7• 各能力には使用回数制限があります\n";
 		helpText += "§7• クールダウン時間が設定されています\n";
 		helpText += "§7• フェーズによって使用可能な能力が制限されます\n\n";

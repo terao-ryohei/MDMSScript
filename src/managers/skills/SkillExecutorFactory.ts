@@ -1,12 +1,6 @@
 import type { SkillEffect } from "../../types/SkillTypes";
 import { SkillType } from "../../types/SkillTypes";
 import type { SkillExecutorFunction } from "./BaseSkillExecutor";
-import {
-	createAssistExecutor,
-	createGuardExecutor,
-	createMurderExecutor,
-	createSabotageExecutor,
-} from "./CombatExecutors";
 // Import executor functions
 import {
 	createSearchEvidenceExecutor,
@@ -15,7 +9,6 @@ import {
 } from "./InvestigationExecutors";
 import {
 	createDistractExecutor,
-	createPatrolExecutor,
 	executeBroadcast,
 	executeHeal,
 	executeInterview,
@@ -37,17 +30,10 @@ export const createSkillExecutorFactory = (
 	);
 	executors.set(SkillType.AUTOPSY, executeAutopsy);
 
-	// Combat executors
-	executors.set(SkillType.MURDER, createMurderExecutor(activeEffects));
-	executors.set(SkillType.GUARD, createGuardExecutor(activeEffects));
-	executors.set(SkillType.SABOTAGE, createSabotageExecutor(activeEffects));
-	executors.set(SkillType.ASSIST, createAssistExecutor(activeEffects));
-
 	// Utility executors
 	executors.set(SkillType.HEAL, executeHeal);
 	executors.set(SkillType.INTERVIEW, executeInterview);
 	executors.set(SkillType.BROADCAST, executeBroadcast);
-	executors.set(SkillType.PATROL, createPatrolExecutor(activeEffects));
 	executors.set(SkillType.DISTRACT, createDistractExecutor(activeEffects));
 
 	return {

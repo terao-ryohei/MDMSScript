@@ -18,6 +18,7 @@ import {
 import { initialize } from "./EvidenceDiscoveryManager";
 import {
 	getCrimeTime,
+	getDailyLifeStartTime,
 	getPhaseTimer,
 	setAbilityUses,
 	setCooldownTimer,
@@ -31,6 +32,7 @@ import {
 	setPlayerVotes,
 } from "./ScoreboardManager";
 import { startAutomaticMurderVoting } from "./VotingManager";
+import { spawnTargetNPC as spawnNPC } from "./NPCManager";
 
 /**
  * ゲームフェーズ管理システム
@@ -363,7 +365,12 @@ async function initializePlayers(): Promise<void> {
  */
 async function spawnTargetNPC(): Promise<void> {
 	try {
-		const success = await spawnTargetNPC();
+		const success = await spawnNPC();
+		if (success) {
+			console.log("Target NPC spawned successfully");
+		} else {
+			console.warn("Failed to spawn target NPC");
+		}
 	} catch (error) {
 		console.error("Failed to spawn NPC:", error);
 	}
@@ -421,46 +428,82 @@ function selectEvidenceForPlayer(
 ): ActionRecord[] {
 	// 事件発生時刻を取得
 	const crimeTime = getCrimeTime();
-	const timeWindow = 600; // 事件前後10分
+	const dailyLifeStartTime = getDailyLifeStartTime();
 
-	// 時間範囲内の証拠を抽出
-	const relevantEvidence = allEvidence.filter((record) => {
-		const timeDiff = Math.abs(record.timestamp - crimeTime);
-		return timeDiff <= timeWindow;
-	});
-
-	// プレイヤー自身の行動を含める（高確率）
-	const playerActions = relevantEvidence.filter(
-		(record) => record.playerId === playerId,
-	);
-	const otherActions = relevantEvidence.filter(
-		(record) => record.playerId !== playerId,
-	);
-
-	// 選択する証拠数（3-7個をランダム）
-	const evidenceCount = Math.floor(Math.random() * 5) + 3;
-	const selectedEvidence: ActionRecord[] = [];
-
-	// 自分の行動を50%の確率で含める
-	playerActions.forEach((action) => {
-		if (Math.random() < 0.5 && selectedEvidence.length < evidenceCount) {
-			selectedEvidence.push(action);
+	// プレイヤー自身の生活フェーズ全体の行動を抽出
+	const playerEvidence = allEvidence.filter((record) => {
+		// プレイヤー自身の行動であることを確認
+		if (record.playerId !== playerId) {
+			return false;
 		}
+
+		// 生活フェーズ中の行動であることを確認
+		return record.timestamp >= dailyLifeStartTime;
 	});
 
-	// 残りを他プレイヤーの行動から選択
-	const shuffledOthers = [...otherActions].sort(() => Math.random() - 0.5);
-	for (
-		let i = 0;
-		i < shuffledOthers.length && selectedEvidence.length < evidenceCount;
-		i++
-	) {
-		selectedEvidence.push(shuffledOthers[i]);
+	// 事件時刻からの距離に基づいて重みを計算し、証拠に重み付けを行う
+	const weightedEvidence = playerEvidence.map((record) => {
+		const timeDiff = Math.abs(record.timestamp - crimeTime);
+
+		// 事件時刻に近いほど重みが高くなる（指数関数的減衰）
+		// 事件時刻ちょうどで重み1.0、時間が離れるほど重みが減少
+		const maxTimeDiff = Math.max(
+			crimeTime - dailyLifeStartTime,
+			record.timestamp - crimeTime,
+		);
+		const normalizedTimeDiff = timeDiff / Math.max(maxTimeDiff, 1);
+		const weight = Math.exp(-normalizedTimeDiff * 3); // 指数関数的減衰（係数3で調整）
+
+		return {
+			record,
+			weight,
+			timeDiff,
+		};
+	});
+
+	// 重みに基づいて証拠を選択（重みが高いほど選ばれやすい）
+	const selectedEvidence: ActionRecord[] = [];
+	const maxEvidenceCount = Math.min(20, playerEvidence.length); // 最大20個
+
+	// 重み付き確率で証拠を選択
+	const availableEvidence = [...weightedEvidence];
+
+	for (let i = 0; i < maxEvidenceCount && availableEvidence.length > 0; i++) {
+		// 累積重みを計算
+		const totalWeight = availableEvidence.reduce(
+			(sum, item) => sum + item.weight,
+			0,
+		);
+
+		if (totalWeight === 0) break;
+
+		// ランダム値を生成して重み付き選択
+		let randomValue = Math.random() * totalWeight;
+		let selectedIndex = 0;
+
+		for (let j = 0; j < availableEvidence.length; j++) {
+			randomValue -= availableEvidence[j].weight;
+			if (randomValue <= 0) {
+				selectedIndex = j;
+				break;
+			}
+		}
+
+		// 選択された証拠を追加し、利用可能リストから削除
+		selectedEvidence.push(availableEvidence[selectedIndex].record);
+		availableEvidence.splice(selectedIndex, 1);
 	}
 
 	console.log(
-		`Selected ${selectedEvidence.length} evidence pieces for player ${playerId}`,
+		`Selected ${selectedEvidence.length} weighted evidence pieces for player ${playerId} (crime time: ${crimeTime}, daily life start: ${dailyLifeStartTime})`,
 	);
+
+	// 事件時刻に近い順でソート（デバッグ用）
+	selectedEvidence.sort(
+		(a, b) =>
+			Math.abs(a.timestamp - crimeTime) - Math.abs(b.timestamp - crimeTime),
+	);
+
 	return selectedEvidence;
 }
 

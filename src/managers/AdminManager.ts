@@ -12,7 +12,6 @@ import { forcePhaseChange, getCurrentPhase } from "./PhaseManager";
 import { debugRoleAssignments } from "./RoleAssignmentManager";
 import {
 	debugGameState,
-	debugPlayerStates,
 	getJobString,
 	getRoleString,
 	setPlayerAlive,
@@ -437,14 +436,14 @@ async function executeForcePhase(phase: GamePhase): Promise<AdminResult> {
 }
 
 /**
- * 役職設定
+ * ロール設定
  */
 function executeSetRole(targetId: string, role: number): AdminResult {
 	try {
 		if (!targetId || role === undefined) {
 			return {
 				success: false,
-				message: "対象プレイヤーまたは役職が指定されていません",
+				message: "対象プレイヤーまたはロールが指定されていません",
 				error: "Missing parameters",
 			};
 		}
@@ -461,16 +460,18 @@ function executeSetRole(targetId: string, role: number): AdminResult {
 		setPlayerRole(target, role);
 
 		const roleString = getRoleString(role);
-		target.sendMessage(`§6管理者によって役職が ${roleString} に設定されました`);
+		target.sendMessage(
+			`§6管理者によってロールが ${roleString} に設定されました`,
+		);
 
 		return {
 			success: true,
-			message: `${target.name}の役職を ${roleString} に設定しました`,
+			message: `${target.name}のロールを ${roleString} に設定しました`,
 		};
 	} catch (error) {
 		return {
 			success: false,
-			message: "役職設定に失敗しました",
+			message: "ロール設定に失敗しました",
 			error: error instanceof Error ? error.message : "Unknown error",
 		};
 	}
@@ -642,7 +643,6 @@ function executeShowDebug(): AdminResult {
 	try {
 		// 全システムのデバッグ情報を出力
 		debugGameState();
-		debugPlayerStates();
 		debugRoleAssignments();
 		debugJobAssignments();
 		debugActionRecords();

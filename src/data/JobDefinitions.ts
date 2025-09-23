@@ -7,7 +7,7 @@ import {
 	ObjectiveCategory,
 	OBJECTIVES_BY_CATEGORY,
 } from "./ObjectiveDefinitions";
-import { JOB_BASE_SKILLS, SKILL_DEFINITIONS } from "./SkillDefinitions";
+import { JOB_BASE_SKILLS, getSkillDefinition, getSkillExecutor } from "./Skills";
 
 /**
  * ゲーム状態の型定義
@@ -30,33 +30,35 @@ interface GameState {
  * SkillDefinitionをSkillインターフェースに変換するアダプター
  */
 function skillDefinitionToSkill(skillId: string): Skill {
-	const skill = SKILL_DEFINITIONS[skillId];
-	if (!skill) {
-		throw new Error(`Skill ${skillId} not found in SKILL_DEFINITIONS`);
+	const skillDefinition = getSkillDefinition(skillId);
+	const skillExecutor = getSkillExecutor(skillId);
+	
+	if (!skillDefinition || !skillExecutor) {
+		throw new Error(`Skill ${skillId} not found in Skills`);
 	}
 
 	return {
-		id: skill.id,
-		name: skill.name,
-		description: skill.description,
-		cooldown: skill.cooldownTime,
-		usageCount: skill.usesPerGame,
+		id: skillDefinition.id,
+		name: skillDefinition.name,
+		description: skillDefinition.description,
+		cooldown: skillDefinition.cooldownTime,
+		usageCount: skillDefinition.usesPerGame,
 		executeSkill: async (
 			player: Player,
 			target?: Player,
 			args?: Record<string, unknown>,
 		) => {
-			// SkillManagerを使用した適切な実装
+			// 統合されたSkillExecutorを直接使用
 			try {
-				const result = await useSkill(player, skill.id);
+				const result = await skillExecutor(player, target, args);
 				return {
 					success: result.success,
-					message: result.message || `${skill.name}の使用に成功しました`,
+					message: result.message || `${skillDefinition.name}の使用に成功しました`,
 				};
 			} catch (error) {
 				return {
 					success: false,
-					message: `${skill.name}の使用に失敗しました`,
+					message: `${skillDefinition.name}の使用に失敗しました`,
 					error: String(error),
 				};
 			}
@@ -184,7 +186,7 @@ function objectiveToJobObjective(objectiveId: string): JobObjective {
  */
 const JOB_OBJECTIVE_MAPPING: Record<JobType, string> = {
 	[JobType.LORD]: "judge_criminal", // 犯罪者を裁く
-	[JobType.CAPTAIN]: "find_criminal_roles", // 犯罪者役職の発見
+	[JobType.CAPTAIN]: "find_criminal_roles", // 犯罪者ロールの発見
 	[JobType.HOMUNCULUS]: "assassinate_cariostro", // カリオストロの暗殺
 	[JobType.COURT_ALCHEMIST]: "create_philosophers_stone", // 賢者の石の創造
 	[JobType.ROGUE_ALCHEMIST]: "create_immortality_elixir", // 不老不死の薬の完成
@@ -302,7 +304,7 @@ export const JOB_DEFINITIONS: Record<JobType, Job> = {
 			"薬草の採取と調合", // 薬師のタスク
 			"図書館での学習", // 学生のタスク
 			"館の運営管理", // 執事のタスク
-			"秘密の錬金術研究", // ホムンクルス固有（混ざる別役職のタスク）
+			"秘密の錬金術研究", // ホムンクルス固有（混ざる別ロールのタスク）
 		],
 		skill: JOB_SKILLS.teleportation,
 		objective: JOB_OBJECTIVES.complete_research,

@@ -1,5 +1,5 @@
 import { type Player, system, type Vector3, world } from "@minecraft/server";
-import { SKILL_DEFINITIONS } from "../data/SkillDefinitions";
+import { getSkillDefinition, getSkillExecutor, SKILLS } from "../data/Skills";
 import { ActionType } from "../types/ActionTypes";
 import { GamePhase } from "../types/PhaseTypes";
 import {
@@ -16,14 +16,6 @@ import {
 import { calculateDistance } from "../utils/CommonUtils";
 import { getPlayerActions, recordAction } from "./ActionTrackingManager";
 import { getCurrentPhase } from "./PhaseManager";
-import {
-	getJobString,
-	getPlayerJob,
-	getPlayerRole,
-	getRoleString,
-	roleTypeToNumber,
-} from "./ScoreboardManager";
-import { createSkillExecutorFactory } from "./skills/SkillExecutorFactory";
 
 /**
  * 能力システム管理マネージャー
@@ -33,13 +25,11 @@ const playerStates: Map<string, PlayerSkillState> = new Map();
 let skillUsages: SkillUsage[] = [];
 const activeEffects: Map<string, SkillEffect> = new Map();
 let usageCounter: number = 0;
-let executorFactory: ReturnType<typeof createSkillExecutorFactory>;
 
 export function initialize(): void {
 	if (isInitialized) return;
 
 	isInitialized = true;
-	executorFactory = createSkillExecutorFactory(activeEffects);
 	setupEventListeners();
 	console.log("SkillManager initialized");
 }
@@ -49,9 +39,6 @@ export function initialize(): void {
  */
 export function initializePlayerSkills(player: Player): void {
 	try {
-		const role = getRoleString(roleTypeToNumber(getPlayerRole(player)));
-		const job = getJobString(getPlayerJob(player));
-
 		const playerState: PlayerSkillState = {
 			playerId: player.id,
 			skills: new Map(),
@@ -60,8 +47,19 @@ export function initializePlayerSkills(player: Player): void {
 			usageCount: new Map(),
 		};
 
-		// 役職・職業に応じた能力を付与
-		for (const [skillId, definition] of Object.entries(SKILL_DEFINITIONS)) {
+		// ロール・職業に応じた能力を付与
+		// 利用可能なスキルIDのリストを取得
+		const availableSkills = [
+			"deduction_boost",
+			"murder",
+			"investigation",
+			"royal_summon",
+			"prison_escort",
+		];
+		// 基本的なスキルのみ
+		for (const skillId of Object.keys(SKILLS)) {
+			const definition = getSkillDefinition(skillId);
+			if (!definition) continue;
 			const skillState: SkillInstanceState = {
 				skillId,
 				status: SkillStatus.AVAILABLE,
@@ -92,7 +90,7 @@ export async function useSkill(
 ): Promise<SkillResult> {
 	try {
 		const playerState = playerStates.get(player.id);
-		const definition = SKILL_DEFINITIONS[skillId];
+		const definition = getSkillDefinition(skillId);
 
 		if (!playerState || !definition) {
 			return {
@@ -181,7 +179,7 @@ export async function useSkill(
  */
 export function canUseSkill(player: Player, skillId: string): SkillResult {
 	try {
-		const definition = SKILL_DEFINITIONS[skillId];
+		const definition = getSkillDefinition(skillId);
 		if (!definition) {
 			return {
 				success: false,
@@ -246,14 +244,6 @@ export function canUseSkill(player: Player, skillId: string): SkillResult {
 			};
 		}
 
-		if (skillState.usesThisPhase >= definition.usesPerPhase) {
-			return {
-				success: false,
-				message: "このフェーズでの使用回数制限に達しています",
-				error: "Phase limit reached",
-			};
-		}
-
 		return {
 			success: true,
 			message: "使用可能です",
@@ -281,19 +271,27 @@ async function executeAbility(
 	location?: Vector3,
 ): Promise<SkillResult> {
 	try {
-		const executor = executorFactory.getExecutor(definition.type);
+		// 統合Skillsから直接実行関数を取得
+		const executor = getSkillExecutor(definition.id);
 
 		if (!executor) {
 			return {
 				success: false,
 				message: "未実装の能力です",
-				error: "Ability not implemented",
+				error: "Skill executor not found",
 			};
 		}
 
-		return await executor(player, definition, target, location);
+		// 実行関数を直接呼び出し
+		const result = await executor(player, target, { location });
+
+		return {
+			success: result.success,
+			message: result.message,
+			error: result.error,
+		};
 	} catch (error) {
-		console.error(`Failed to execute skill ${definition.type}:`, error);
+		console.error(`Failed to execute skill ${definition.id}:`, error);
 		return {
 			success: false,
 			message: "能力実行エラーが発生しました",

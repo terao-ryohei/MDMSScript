@@ -1,5 +1,6 @@
 import type { Player } from "@minecraft/server";
 import { world } from "@minecraft/server";
+import { JOB_DEFINITIONS } from "src/data/JobDefinitions";
 import type {
 	SkillDefinition,
 	SkillEffect,
@@ -7,7 +8,6 @@ import type {
 } from "../../types/SkillTypes";
 import { getPlayerActions } from "../ActionTrackingManager";
 import {
-	getJobString,
 	getPlayerJob,
 	getPlayerRole,
 	getRoleString,
@@ -48,7 +48,7 @@ export const executeInvestigate: SkillExecutorFunction = async (
 	}
 
 	const role = getRoleString(roleTypeToNumber(getPlayerRole(target)));
-	const job = getJobString(getPlayerJob(target));
+	const job = JOB_DEFINITIONS[getPlayerJob(target)].name;
 
 	const playerActions = getPlayerActions(target.id, 10);
 	const recentActions = playerActions

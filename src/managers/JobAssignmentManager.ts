@@ -76,7 +76,7 @@ export function getPlayerJob(player: Player): JobType | null {
 		if (jobId === null || jobId === undefined) {
 			return null;
 		}
-		return convertIdToJob(jobId);
+		return jobId;
 	} catch (error) {
 		console.error(`Failed to get job for player ${player.name}:`, error);
 		return null;
@@ -205,40 +205,6 @@ function convertJobToId(job: JobType): number {
 			return 11;
 		default:
 			return 0; // デフォルトは領主
-	}
-}
-
-/**
- * IDをジョブタイプに変換
- */
-function convertIdToJob(id: number): JobType | null {
-	switch (id) {
-		case 0:
-			return JobType.LORD;
-		case 1:
-			return JobType.CAPTAIN;
-		case 2:
-			return JobType.HOMUNCULUS;
-		case 3:
-			return JobType.COURT_ALCHEMIST;
-		case 4:
-			return JobType.ROGUE_ALCHEMIST;
-		case 5:
-			return JobType.THIEF;
-		case 6:
-			return JobType.PHARMACIST;
-		case 7:
-			return JobType.MAID;
-		case 8:
-			return JobType.BUTLER;
-		case 9:
-			return JobType.SOLDIER;
-		case 10:
-			return JobType.STUDENT;
-		case 11:
-			return JobType.ADVENTURER;
-		default:
-			return null;
 	}
 }
 

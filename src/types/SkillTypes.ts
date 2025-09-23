@@ -16,7 +16,6 @@ export enum SkillType {
 
 	// 警備員専用能力
 	GUARD = "guard", // 護衛
-	PATROL = "patrol", // 巡回
 	ALERT = "alert", // 警戒
 	DETAIN = "detain", // 拘束
 
@@ -81,17 +80,14 @@ export interface SkillDefinition {
 	// 制限
 	cooldownTime: number; // クールダウン時間（秒）
 	usesPerGame: number; // ゲーム中の使用回数制限
-	usesPerPhase: number; // フェーズ中の使用回数制限
 	requiresTarget: boolean; // 対象が必要か
 
 	// 効果
 	duration: number; // 効果持続時間（秒）
 	range: number; // 効果範囲（ブロック）
-	detectRange: number; // 検出範囲（ブロック）
 
 	// 条件
 	allowedPhases: string[]; // 使用可能フェーズ
-	requiresAlive: boolean; // 生存が必要か
 }
 
 /**

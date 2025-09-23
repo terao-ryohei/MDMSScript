@@ -16,7 +16,6 @@ import { forcePhaseChange, getCurrentPhase } from "./PhaseManager";
 import { debugRoleAssignments } from "./RoleAssignmentManager";
 import {
 	debugGameState,
-	debugPlayerStates,
 	dispose,
 	getEvidenceCount,
 	getMurderOccurred,
@@ -290,7 +289,7 @@ async function showResetConfirmation(player: Player): Promise<void> {
 			.body(
 				"§cゲームをリセットしますか？\n\n" +
 					"§7この操作により以下がリセットされます:\n" +
-					"§7- 全プレイヤーの役職・職業\n" +
+					"§7- 全プレイヤーのロール・職業\n" +
 					"§7- ゲームフェーズ\n" +
 					"§7- 証拠・スコア\n" +
 					"§7- その他全てのゲーム状態",
@@ -323,7 +322,6 @@ async function showResetConfirmation(player: Player): Promise<void> {
  */
 function outputDebugInfo(): void {
 	debugGameState();
-	debugPlayerStates();
 	debugRoleAssignments();
 	debugJobAssignments();
 }
@@ -334,7 +332,7 @@ function outputDebugInfo(): void {
 function getRoleDisplayName(role: RoleType): string {
 	switch (role) {
 		case RoleType.VILLAGER:
-			return "一般人";
+			return "村人";
 		case RoleType.MURDERER:
 			return "犯人";
 		case RoleType.ACCOMPLICE:

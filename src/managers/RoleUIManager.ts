@@ -27,21 +27,21 @@ export async function showRoleDetails(player: Player): Promise<void> {
 		const role = getPlayerRole(player);
 
 		if (!role) {
-			player.sendMessage("§c役職が設定されていません");
-			player.sendMessage("ゲーム管理者に役職の割り当てを依頼してください");
+			player.sendMessage("§cロールが設定されていません");
+			player.sendMessage("ゲーム管理者にロールの割り当てを依頼してください");
 			return;
 		}
 
 		const roleConfig = ROLES[role];
 
 		if (!roleConfig) {
-			player.sendMessage("§c役職の設定情報が見つかりません");
+			player.sendMessage("§cロールの設定情報が見つかりません");
 			console.error(`Role config not found for role: ${role}`);
 			return;
 		}
 
 		const form = new MessageFormData()
-			.title(`§6あなたの役職: ${roleConfig.name}`)
+			.title(`§6あなたのロール: ${roleConfig.name}`)
 			.body(
 				`§6${roleConfig.name}\n\n` +
 					`§9説明: ${roleConfig.description}\n\n` +
@@ -57,7 +57,7 @@ export async function showRoleDetails(player: Player): Promise<void> {
 		await form.show(player);
 	} catch (error) {
 		console.error(`Failed to show role details for ${player.name}:`, error);
-		player.sendMessage("§c役職詳細の表示に失敗しました");
+		player.sendMessage("§cロール詳細の表示に失敗しました");
 		handleUIError(player, error as Error);
 	}
 }
@@ -73,12 +73,12 @@ export async function showRoleStatistics(player: Player): Promise<void> {
 		const citizens = getVillagers().concat(getDetectives());
 
 		const form = new MessageFormData()
-			.title("§6役職統計")
+			.title("§6ロール統計")
 			.body(
-				`§9現在の役職構成:\n\n` +
+				`§9現在のロール構成:\n\n` +
 					`§c犯人: §6${composition.murderers}人\n` +
 					`§6共犯者: §6${composition.accomplices}人\n` +
-					`§3一般人: §6${composition.villagers + composition.detectives}人\n\n` +
+					`§3村人: §6${composition.villagers + composition.detectives}人\n\n` +
 					`※詳細な情報は管理者のみ表示されます`,
 			)
 			.button1("了解")
@@ -87,7 +87,7 @@ export async function showRoleStatistics(player: Player): Promise<void> {
 		await form.show(player);
 	} catch (error) {
 		console.error(`Failed to show role statistics for ${player.name}:`, error);
-		player.sendMessage("§c役職統計の表示に失敗しました");
+		player.sendMessage("§cロール統計の表示に失敗しました");
 	}
 }
 
@@ -99,13 +99,13 @@ export async function showRoleAbilities(player: Player): Promise<void> {
 		const role = getPlayerRole(player);
 
 		if (!role) {
-			player.sendMessage("§c役職が設定されていません");
-			player.sendMessage("ゲーム管理者に役職の割り当てを依頼してください");
+			player.sendMessage("§cロールが設定されていません");
+			player.sendMessage("ゲーム管理者にロールの割り当てを依頼してください");
 			// 管理者に自動割り当てを促すメニューを提案
 			const form = new MessageFormData()
-				.title("§c役職未設定")
+				.title("§cロール未設定")
 				.body(
-					"役職が設定されていません。\n管理者にゲームの初期化を依頼するか、\n管理者権限があるならば役職を割り当ててください。",
+					"ロールが設定されていません。\n管理者にゲームの初期化を依頼するか、\n管理者権限があるならばロールを割り当ててください。",
 				)
 				.button1("§a了解")
 				.button2("閉じる");
@@ -146,11 +146,11 @@ export async function showRoleAbilities(player: Player): Promise<void> {
 				break;
 
 			default:
-				skillDescription = `未知の役職です\n役職: ${role}`;
+				skillDescription = `未知のロールです\nロール: ${role}`;
 		}
 
 		const form = new MessageFormData()
-			.title("§e役職能力")
+			.title("§eロール能力")
 			.body(skillDescription)
 			.button1("§a了解")
 			.button2("閉じる");
@@ -158,7 +158,7 @@ export async function showRoleAbilities(player: Player): Promise<void> {
 		await form.show(player);
 	} catch (error) {
 		console.error(`Failed to show role skills for ${player.name}:`, error);
-		player.sendMessage("§c役職能力の表示に失敗しました");
+		player.sendMessage("§cロール能力の表示に失敗しました");
 	}
 }
 
@@ -168,12 +168,12 @@ export async function showRoleAbilities(player: Player): Promise<void> {
 export async function showRoleHelpMenu(player: Player): Promise<void> {
 	try {
 		const form = createActionForm(
-			"§6役職ヘルプ",
-			"役職に関する情報を表示します",
+			"§6ロールヘルプ",
+			"ロールに関する情報を表示します",
 		)
-			.button("あなたの役職詳細", "textures/ui/person")
-			.button("役職能力説明", "textures/ui/absorption_effect")
-			.button("役職統計", "textures/ui/friend_glyph")
+			.button("あなたのロール詳細", "textures/ui/person")
+			.button("ロール能力説明", "textures/ui/absorption_effect")
+			.button("ロール統計", "textures/ui/friend_glyph")
 			.button("閉じる", "textures/ui/cancel");
 
 		const response = await form.show(player);
@@ -193,7 +193,7 @@ export async function showRoleHelpMenu(player: Player): Promise<void> {
 		}
 	} catch (error) {
 		console.error(`Failed to show role help menu for ${player.name}:`, error);
-		player.sendMessage("§c役職ヘルプメニューの表示に失敗しました");
+		player.sendMessage("§cロールヘルプメニューの表示に失敗しました");
 	}
 }
 
@@ -295,7 +295,7 @@ async function showDetailedRoleComposition(player: Player): Promise<void> {
 			.body(
 				`§c犯人 (${murderers.length}人):\n§j${murdererNames}\n\n` +
 					`§6共犯者 (${accomplices.length}人):\n§j${accompliceNames}\n\n` +
-					`§3一般人 (${citizens.length}人):\n§j${citizenNames}`,
+					`§3村人 (${citizens.length}人):\n§j${citizenNames}`,
 			)
 			.button1("了解")
 			.button2("閉じる");

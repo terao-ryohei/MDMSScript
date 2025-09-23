@@ -1,57 +1,37 @@
 import type { ItemUseAfterEvent, Player } from "@minecraft/server";
 import { system, world } from "@minecraft/server";
 import { ActionFormData, MessageFormData } from "@minecraft/server-ui";
+import { PHASE_CONFIGS } from "./constants/PhaseConfigs";
+import { JOB_DEFINITIONS } from "./data/JobDefinitions";
 import { BGM_TRACKS } from "./data/MusicDefinitions";
 import {
 	clearAllRecords,
-	debugActionRecords,
 	getActionStatistics,
 	startTracking,
 	stopTracking,
 } from "./managers/ActionTrackingManager";
-import {
-	addAdmin,
-	debugAdminSystem,
-	getSystemStatistics,
-} from "./managers/AdminManager";
-import { showAdminMenu } from "./managers/AdminUIManager";
-import {
-	getCurrentBGM,
-	playBGM,
-	playBGMEvent,
-	stopBGM,
-} from "./managers/BGMManager";
+import { addAdmin } from "./managers/AdminManager";
+import { getCurrentBGM, playBGM, stopBGM } from "./managers/BGMManager";
 import {
 	showEvidenceList,
 	showEvidenceMenu,
 } from "./managers/EvidenceUIManager";
 import {
 	assignJobsToAllPlayers,
-	debugJobAssignments,
 	notifyAllPlayersJobs,
-	notifyPlayerJob,
 } from "./managers/JobAssignmentManager";
-import { clearAllNPCs, debugNPCStatus } from "./managers/NPCManager";
+import { clearAllNPCs } from "./managers/NPCManager";
 import { showJobHelpMenu } from "./managers/OccupationUIManager";
-import {
-	forcePhaseChange,
-	getCurrentPhase,
-	startPhase,
-} from "./managers/PhaseManager";
+import { getCurrentPhase, startPhase } from "./managers/PhaseManager";
 import {
 	assignRolesToAllPlayers,
-	debugRoleAssignments,
 	notifyAllPlayersRoles,
-	notifyPlayerRole,
 } from "./managers/RoleAssignmentManager";
 import { showRoleHelpMenu } from "./managers/RoleUIManager";
 import {
-	debugGameState,
-	debugPlayerStates,
 	dispose,
 	getEvidenceCount,
 	getGamePhase,
-	getJobString,
 	getMurderOccurred,
 	getPhaseString,
 	getPhaseTimer,
@@ -74,30 +54,19 @@ import {
 } from "./managers/ScoreboardManager";
 import {
 	calculateAllPlayerScores,
-	calculateTeamScores,
 	checkVictoryConditions,
-	debugScoring,
 	getCurrentGameResult,
 } from "./managers/ScoringManager";
 import {
 	clearAllData,
-	debugSkillSystem,
 	initializePlayerSkills,
+	initialize as initializeSkillManager,
 } from "./managers/SkillManager";
 import { showSkillMenu } from "./managers/SkillUIManager";
-
-import {
-	showGameState,
-	showPhaseInfo,
-	showPlayerInfo,
-} from "./managers/UIManager";
-import {
-	clearAllVotes,
-	debugVotingStatus,
-	getVotingStatistics,
-} from "./managers/VotingManager";
+import { showGameState, showPhaseInfo } from "./managers/UIManager";
+import { clearAllVotes, getVotingStatistics } from "./managers/VotingManager";
 import { showVotingMenu } from "./managers/VotingUIManager";
-import { BGMEvent, type BGMTrack } from "./types/AudioTypes";
+import type { BGMTrack } from "./types/AudioTypes";
 import { GamePhase } from "./types/PhaseTypes";
 import { RoleType } from "./types/RoleTypes";
 
@@ -110,6 +79,8 @@ function initializeGame(): void {
 	try {
 		// Scoreboardオブジェクト初期化
 		initializeObjectives();
+		// スキルシステム初期化
+		initializeSkillManager();
 		console.log("Game systems initialized successfully");
 	} catch (error) {
 		console.error("Failed to initialize game systems:", error);
@@ -143,9 +114,18 @@ async function startGame(): Promise<void> {
 		// 現在のフェーズをチェック（すでにゲームが開始されているか）
 		const currentPhase = getGamePhase();
 		if (currentPhase !== 0) {
-			// 0 = PREPARATION
-			world.sendMessage("§cゲームはすでに開始されています");
-			return;
+			// 全システムを停止
+			stopTracking();
+			clearAllRecords();
+			clearAllVotes();
+			clearAllData();
+			clearAllNPCs();
+			dispose();
+
+			console.log("MDMS systems shut down successfully");
+
+			// フォース終了処理を実行
+			await forceEndGame("System Reset");
 		}
 
 		// ゲーム開始
@@ -197,7 +177,7 @@ async function startGame(): Promise<void> {
 			world.sendMessage("§6ロール・ジョブの確認とマップ散策を行ってください");
 
 			// ゲーム開始BGMを再生
-			playBGMEvent(BGMEvent.GAME_START);
+			// playBGMEvent(BGMEvent.GAME_START);
 
 			// 全プレイヤーにロール・ジョブ情報を通知
 			system.runTimeout(() => {
@@ -316,7 +296,7 @@ async function showGameResults(player: Player): Promise<void> {
 		const form = new ActionFormData()
 			.title("§lゲーム結果")
 			.body("§7結果表示メニューを選択してください")
-			.button("スコアランキング", "textures/ui/creative_icon")
+			.button("スコアランキング", "textures/ui/friends")
 			.button("チーム結果", "textures/ui/friend_glyph")
 			.button("詳細統計", "textures/ui/book_edit_default")
 			.button("MVP発表", "textures/ui/trophy")
@@ -331,16 +311,10 @@ async function showGameResults(player: Player): Promise<void> {
 			case 0: // スコアランキング
 				await showScoreRanking(player);
 				break;
-			case 1: // チーム結果
-				await showTeamResults(player);
-				break;
-			case 2: // 詳細統計
+			case 1: // 詳細統計
 				await showDetailedStats(player);
 				break;
-			case 3: // MVP発表
-				await showMVPResults(player);
-				break;
-			case 4: // 勝利条件チェック
+			case 2: // 勝利条件チェック
 				await showVictoryStatus(player);
 				break;
 		}
@@ -369,12 +343,7 @@ async function showScoreRanking(player: Player): Promise<void> {
 
 		const form = new MessageFormData()
 			.title("§lスコアランキング")
-			.body(
-				`§6=== プレイヤースコア Top 10 ===\n\n` +
-					rankingText +
-					`\n\n` +
-					`§7※ §2§7生存 §c§7死亡`,
-			)
+			.body(`§6=== プレイヤースコア Top 10 ===\n\n` + rankingText)
 			.button1("了解")
 			.button2("閉じる");
 
@@ -382,42 +351,6 @@ async function showScoreRanking(player: Player): Promise<void> {
 	} catch (error) {
 		console.error(`Failed to show score ranking for ${player.name}:`, error);
 		player.sendMessage("§cスコアランキングの表示に失敗しました");
-	}
-}
-
-// チーム結果表示
-async function showTeamResults(player: Player): Promise<void> {
-	try {
-		const playerScores = calculateAllPlayerScores();
-		const teamScores = calculateTeamScores(playerScores);
-
-		if (teamScores.length === 0) {
-			player.sendMessage("§cチームデータがありません");
-			return;
-		}
-
-		const teamText = teamScores
-			.map((team, index) => {
-				const winnerIcon = team.isWinner ? "§2👑" : "§7";
-				return `§6${index + 1}位 ${winnerIcon} §j${team.teamName}\n§7メンバー: ${team.memberCount}人 - §6${team.totalScore}点\n§7平均: ${Math.round(team.averageScore)}点`;
-			})
-			.join("\n\n");
-
-		const form = new MessageFormData()
-			.title("§lチーム結果")
-			.body(
-				`§6=== チーム別結果 ===\n\n` +
-					teamText +
-					`\n\n` +
-					`§7※ §2👑§7勝利チーム`,
-			)
-			.button1("了解")
-			.button2("閉じる");
-
-		await form.show(player);
-	} catch (error) {
-		console.error(`Failed to show team results for ${player.name}:`, error);
-		player.sendMessage("§cチーム結果の表示に失敗しました");
 	}
 }
 
@@ -474,45 +407,12 @@ async function showDetailedStats(player: Player): Promise<void> {
 	}
 }
 
-// MVP結果表示
-async function showMVPResults(player: Player): Promise<void> {
-	try {
-		const gameResult = getCurrentGameResult();
-
-		if (!gameResult) {
-			player.sendMessage("§cゲーム結果がまだ生成されていません");
-			return;
-		}
-
-		let mvpText = "";
-
-		if (gameResult.mvpPlayer) {
-			mvpText += `§6🏆 MVP: §j${gameResult.mvpPlayer.playerName}\n§7スコア: ${gameResult.mvpPlayer.totalScore}点 (${gameResult.mvpPlayer.role})\n\n`;
-		}
-
-		if (mvpText === "") {
-			mvpText = "§7該当者なし";
-		}
-
-		const form = new MessageFormData()
-			.title("§lMVP発表")
-			.body(`§6=== 特別賞発表 ===\n\n` + mvpText)
-			.button1("了解")
-			.button2("閉じる");
-
-		await form.show(player);
-	} catch (error) {
-		console.error(`Failed to show MVP results for ${player.name}:`, error);
-		player.sendMessage("§cMVP結果の表示に失敗しました");
-	}
-}
-
 // 勝利状況表示
 async function showVictoryStatus(player: Player): Promise<void> {
 	try {
 		const victoryResult = checkVictoryConditions();
 
-		// 役職分析
+		// ロール分析
 		const aliveRoles = world.getAllPlayers().map((p) => {
 			const role = getPlayerRole(p);
 			return {
@@ -568,13 +468,15 @@ async function showMainUIMenu(player: Player): Promise<void> {
 		const roleDisplayName = playerRole
 			? getRoleDisplayName(playerRole)
 			: "未設定";
-		const jobDisplayName = playerJob ? playerJob.toString() : "未設定";
-		const phaseDisplayName = getPhaseDisplayName(currentPhase);
+		const jobDisplayName = playerJob
+			? JOB_DEFINITIONS[playerJob].name
+			: "未設定";
+		const phaseDisplayName = PHASE_CONFIGS[currentPhase].name;
 		const phaseTimer = getPhaseTimer();
 
 		const bodyText =
 			`§6現在: §j${phaseDisplayName} §7(残り§6${formatTime(phaseTimer)}§7)\n` +
-			`§6役職: §j${roleDisplayName} §8| §6職業: §j${jobDisplayName}\n\n` +
+			`§6ロール: §j${roleDisplayName} §8| §6職業: §j${jobDisplayName}\n\n` +
 			`§7必要な機能を選択してください`;
 
 		const form = new ActionFormData()
@@ -619,19 +521,19 @@ async function showIntegratedPlayerInfo(player: Player): Promise<void> {
 		const evidenceCount = getEvidenceCount(player);
 
 		const roleDisplayName = role ? getRoleDisplayName(role) : "未設定";
-		const jobDisplayName = job ? job.toString() : "未設定";
+		const jobDisplayName = job ? JOB_DEFINITIONS[job].name : "未設定";
 
 		const form = new MessageFormData()
 			.title("§lあなたの情報")
 			.body(
 				`§6プレイヤー: §j${player.name}\n\n` +
-					`§c 役職情報\n` +
-					`§6役職: §j${roleDisplayName}\n` +
+					`§c 役割情報\n` +
+					`§6ロール: §j${roleDisplayName}\n` +
 					`§6職業: §j${jobDisplayName}\n` +
-					`§6 ゲーム状況\n` +
+					`§c ゲーム状況\n` +
 					`§6スコア: §j${score}pt\n` +
 					`§6証拠数: §j${evidenceCount}個\n\n` +
-					`§7詳細な役職・職業説明は「詳細メニュー」から確認できます`,
+					`§7詳細なロール・職業説明は「詳細メニュー」から確認できます`,
 			)
 			.button1("了解")
 			.button2("戻る");
@@ -774,206 +676,31 @@ world.afterEvents.itemUse.subscribe(async (event: ItemUseAfterEvent) => {
 		await startGame();
 	}
 
-	// プリズマリンの欠片でプレイヤー状態表示（デバッグ用）
-	if (itemStack.typeId === "minecraft:prismarine_shard") {
-		try {
-			const role = getPlayerRole(player);
-			const job = getPlayerJob(player);
-			const phase = getGamePhase();
-
-			player.sendMessage("§6=== プレイヤー状態 ===");
-			player.sendMessage(`§7Role: ${getRoleString(roleTypeToNumber(role))}`);
-			player.sendMessage(`§7Job: ${getJobString(job)}`);
-			player.sendMessage(`§7Phase: ${getPhaseString(phase)}`);
-		} catch (error) {
-			player.sendMessage(`§cエラー: ${error}`);
-		}
-	}
-
-	// エメラルドでデバッグ情報表示
-	if (itemStack.typeId === "minecraft:emerald") {
-		debugGameState();
-		debugPlayerStates();
-		debugRoleAssignments();
-		debugJobAssignments();
-		debugActionRecords();
-		debugVotingStatus();
-		debugScoring();
-		debugSkillSystem();
-		debugNPCStatus();
-		debugAdminSystem();
-		player.sendMessage("§2デバッグ情報をコンソールに出力しました");
-	}
-
-	// 虫眼鏡（スパイグラス）で証拠メニュー表示
-	if (itemStack.typeId === "minecraft:spyglass") {
-		await showEvidenceMenu(player);
-	}
-
-	// グロウストーンで推理レポート表示
-	if (itemStack.typeId === "minecraft:glowstone") {
-		await showEvidenceMenu(player);
-	}
-
-	// ネザライトの欠片でロール・ジョブ再通知（デバッグ用）
-	if (itemStack.typeId === "minecraft:netherite_scrap") {
-		notifyPlayerRole(player);
-		notifyPlayerJob(player);
-	}
-
 	// コンパスでメインUIメニュー表示
 	if (itemStack.typeId === "minecraft:compass") {
 		await showMainUIMenu(player);
 	}
 
-	// 地図でプレイヤー情報表示
-	if (itemStack.typeId === "minecraft:map") {
-		await showPlayerInfo(player);
-	}
+	// 殺人の斧で被害者NPCを殺害
+	if (itemStack.typeId === "minecraft:iron_axe" && 
+		itemStack.nameTag === "§c殺人の斧") {
+		try {
+			// 血痕を設置
+			const setBlood = `execute as @e[type=npc,name="被害者",r=10] at @s run setblock ~ ~ ~ redstone_wire`;
+			player.runCommand(setBlood);
+			
+			// 被害者NPCを殺害
+			const killCommand = `execute as @e[type=npc,name="被害者",r=10] at @s run kill @s`;
+			const commandResult = player.runCommand(killCommand);
 
-	// 本でロールヘルプ表示
-	if (itemStack.typeId === "minecraft:book") {
-		await showRoleHelpMenu(player);
-	}
-
-	// レンガで職業ヘルプ表示
-	if (itemStack.typeId === "minecraft:brick") {
-		await showJobHelpMenu(player);
-	}
-
-	// エンダーアイで管理者メニュー表示
-	if (itemStack.typeId === "minecraft:ender_eye") {
-		await showAdminMenu(player);
-	}
-
-	// レッドストーンでテスト殺人事件（デバッグ用）
-	if (itemStack.typeId === "minecraft:redstone") {
-		const players = world.getAllPlayers();
-		if (players.length >= 2) {
-			const victim = players.find((p) => p.id !== player.id);
-			if (victim) {
-				// 殺人イベントをトリガー
-				system.run(() => {
-					world
-						.getDimension("overworld")
-						.runCommand(
-							`scriptevent mdms:murder {"murdererId":"${player.id}","victimId":"${victim.id}","method":"test"}`,
-						);
-				});
-				player.sendMessage(`§cテスト殺人事件: ${victim.name}が犠牲に`);
-				world.sendMessage(`§c${victim.name}が殺害されました！`);
+			if (commandResult.successCount > 0) {
+				player.sendMessage("§c被害者を殺害しました");
+			} else {
+				player.sendMessage("§7近くに被害者が見つかりません");
 			}
-		} else {
-			player.sendMessage("§cテストには最低2人のプレイヤーが必要です");
-		}
-	}
-
-	// 投票用紙（紙）で投票画面表示
-	if (itemStack.typeId === "minecraft:paper") {
-		await showVotingMenu(player);
-	}
-
-	// ブレイズロッド（杖）で能力メニュー表示
-	if (itemStack.typeId === "minecraft:blaze_rod") {
-		await showSkillMenu(player);
-	}
-
-	// 金のリンゴでゲーム結果表示
-	if (itemStack.typeId === "minecraft:golden_apple") {
-		await showGameResults(player);
-	}
-
-	// 音符ブロック（note_block）でBGM制御メニュー表示
-	if (itemStack.typeId === "minecraft:note_block") {
-		await showBGMControlMenu(player);
-	}
-
-	// レコード（music_disc）でBGM停止
-	if (itemStack.typeId.startsWith("minecraft:music_disc")) {
-		stopBGM(); // BGM停止
-		player.sendMessage("§6BGMを停止しました");
-	}
-
-	// ジュークボックスでBGM再生
-	if (itemStack.typeId === "minecraft:jukebox") {
-		playBGM("detective_theme");
-		player.sendMessage("§2探偵テーマを再生開始");
-	}
-
-	// ネザースターで勝利条件チェック（管理者用）
-	if (itemStack.typeId === "minecraft:nether_star") {
-		const victoryResult = checkVictoryConditions();
-		player.sendMessage(`§6勝利条件チェック: ${victoryResult.reason}`);
-		if (victoryResult.isGameOver) {
-			player.sendMessage(`§c勝利条件: ${victoryResult.victoryCondition}`);
-			if (victoryResult.winningTeam) {
-				player.sendMessage(`§2勝利チーム: ${victoryResult.winningTeam}`);
-			}
-		}
-	}
-
-	// コマンドブロックでシステム統計表示（管理者用）
-	if (itemStack.typeId === "minecraft:command_block") {
-		const stats = getSystemStatistics();
-		const statusIcon =
-			stats.health.systemStatus === "healthy"
-				? "§2"
-				: stats.health.systemStatus === "warning"
-					? "§6"
-					: "§c";
-
-		player.sendMessage(
-			`${statusIcon} §6システム状態: §j${stats.health.systemStatus}`,
-		);
-		player.sendMessage(`§6プレイヤー: §j${stats.gameInfo.playerCount}人`);
-		player.sendMessage(
-			`§6システム負荷: §j${stats.performance.systemLoad} ops/h`,
-		);
-		player.sendMessage(`§6エラー数: §j${stats.health.errorCount}`);
-	}
-
-	// バリアブロックでゲーム強制終了（管理者用）
-	if (itemStack.typeId === "minecraft:barrier") {
-		await showForceEndConfirmation(player);
-	}
-
-	// ダイヤモンドでフェーズ強制変更（テスト用）
-	if (itemStack.typeId === "minecraft:diamond") {
-		const currentPhase = getCurrentPhase();
-		let nextPhase: GamePhase;
-
-		switch (currentPhase) {
-			case GamePhase.PREPARATION:
-				nextPhase = GamePhase.DAILY_LIFE;
-				break;
-			case GamePhase.DAILY_LIFE:
-				nextPhase = GamePhase.INVESTIGATION;
-				break;
-			case GamePhase.INVESTIGATION:
-				nextPhase = GamePhase.DISCUSSION;
-				break;
-			case GamePhase.DISCUSSION:
-				nextPhase = GamePhase.REINVESTIGATION;
-				break;
-			case GamePhase.REINVESTIGATION:
-				nextPhase = GamePhase.DEDUCTION;
-				break;
-			case GamePhase.DEDUCTION:
-				nextPhase = GamePhase.VOTING;
-				break;
-			case GamePhase.VOTING:
-				nextPhase = GamePhase.ENDING;
-				break;
-			default:
-				nextPhase = GamePhase.PREPARATION;
-				break;
-		}
-
-		const result = await forcePhaseChange(nextPhase);
-		if (result.success) {
-			player.sendMessage(`§2フェーズを ${nextPhase} に変更しました`);
-		} else {
-			player.sendMessage(`§cフェーズ変更エラー: ${result.error}`);
+		} catch (error) {
+			console.warn("Failed to execute murder axe:", error);
+			player.sendMessage("§c斧の使用に失敗しました");
 		}
 	}
 });
@@ -982,36 +709,13 @@ world.afterEvents.itemUse.subscribe(async (event: ItemUseAfterEvent) => {
 function getRoleDisplayName(role: RoleType): string {
 	switch (role) {
 		case RoleType.VILLAGER:
-			return "一般人";
+			return "村人";
 		case RoleType.MURDERER:
 			return "犯人";
 		case RoleType.ACCOMPLICE:
 			return "共犯者";
 		default:
 			return "不明";
-	}
-}
-
-function getPhaseDisplayName(phase: GamePhase): string {
-	switch (phase) {
-		case GamePhase.PREPARATION:
-			return "準備フェーズ";
-		case GamePhase.DAILY_LIFE:
-			return "生活フェーズ";
-		case GamePhase.INVESTIGATION:
-			return "調査フェーズ";
-		case GamePhase.DISCUSSION:
-			return "会議フェーズ";
-		case GamePhase.REINVESTIGATION:
-			return "再調査フェーズ";
-		case GamePhase.DEDUCTION:
-			return "推理フェーズ";
-		case GamePhase.VOTING:
-			return "投票フェーズ";
-		case GamePhase.ENDING:
-			return "エンディング";
-		default:
-			return "不明フェーズ";
 	}
 }
 
@@ -1305,27 +1009,33 @@ async function showRandomBGMMenu(player: Player): Promise<void> {
 }
 
 // ScriptEvent処理
-system.afterEvents.scriptEventReceive.subscribe((event) => {
+system.afterEvents.scriptEventReceive.subscribe(async (event) => {
 	if (event.id === "mdms:shutdown") {
-		dispose();
-		dispose();
-		dispose();
-		console.log("MDMS systems shut down");
-	}
-
-	if (event.id === "mdms:reset") {
 		try {
-			dispose();
+			// 全システムを停止
 			stopTracking();
 			clearAllRecords();
 			clearAllVotes();
 			clearAllData();
-			clearAllData();
 			clearAllNPCs();
-			initializeObjectives();
-			world.sendMessage("§2ゲームがリセットされました");
+			dispose();
+
+			// PhaseManagerのdispose()でタイマーがクリアされる
+
+			// 全プレイヤーに終了通知
+			world.sendMessage("§c============================");
+			world.sendMessage("§l§cMDMSシステムが停止されました");
+			world.sendMessage("§c============================");
+
+			console.log("MDMS systems shut down successfully");
+
+			// フォース終了処理を実行
+			await forceEndGame("System Reset");
+
+			console.log("MDMS system reset completed");
 		} catch (error) {
-			world.sendMessage(`§cリセットエラー: ${error}`);
+			console.error("Error during shutdown:", error);
+			world.sendMessage(`§cシャットダウンエラー: ${error}`);
 		}
 	}
 

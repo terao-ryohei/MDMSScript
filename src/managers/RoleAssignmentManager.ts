@@ -27,7 +27,7 @@ export {
 
 /**
  * プレイヤーロール割り当てマネージャー
- * マダミス役職（犯人・共犯者・一般人）の割り当てを管理
+ * マダミスロール（犯人・共犯者・村人）の割り当てを管理
  */
 
 /**
@@ -93,7 +93,7 @@ export function assignRolesToAllPlayers(): RoleAssignmentResult {
 			roles.push(RoleType.ACCOMPLICE);
 		}
 
-		// 一般人を追加
+		// 村人を追加
 		for (let i = 0; i < composition.villagers + composition.detectives; i++) {
 			roles.push(RoleType.VILLAGER);
 		}
@@ -173,7 +173,7 @@ export function getAccomplices(): Player[] {
 }
 
 /**
- * 一般人プレイヤーリストを取得
+ * 村人プレイヤーリストを取得
  */
 export function getVillagers(): Player[] {
 	return getPlayersByRole(RoleType.VILLAGER);
