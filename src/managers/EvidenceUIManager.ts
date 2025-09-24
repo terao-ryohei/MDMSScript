@@ -3,15 +3,12 @@
  */
 import { type Player, world } from "@minecraft/server";
 import { MessageFormData } from "@minecraft/server-ui";
-import { GamePhase } from "../types/PhaseTypes";
 import { createActionForm } from "../utils/UIHelpers";
 import {
-	getAllPlayers,
 	getEvidenceData,
 	getPlayerActions,
 	getPlayerAlibi,
 } from "./EvidenceAnalyzer";
-import { getCurrentPhase } from "./PhaseManager";
 
 /**
  * 証拠メインメニューを表示
@@ -96,7 +93,7 @@ export async function showEvidenceList(player: Player): Promise<void> {
  */
 export async function showPlayerActionHistory(player: Player): Promise<void> {
 	try {
-		const allPlayers = getAllPlayers();
+		const allPlayers = world.getAllPlayers();
 
 		const form = createActionForm("$1", "$2");
 
@@ -168,7 +165,7 @@ export async function showPlayerActionHistory(player: Player): Promise<void> {
  */
 export async function showAlibiList(player: Player): Promise<void> {
 	try {
-		const allPlayers = getAllPlayers();
+		const allPlayers = world.getAllPlayers();
 
 		const form = createActionForm("$1", "$2");
 
@@ -249,18 +246,4 @@ export async function showAlibiList(player: Player): Promise<void> {
 function getPlayerName(playerId: string): string {
 	const player = world.getAllPlayers().find((p) => p.id === playerId);
 	return player ? player.name : "不明";
-}
-
-/**
- * 証拠システムへのアクセス権限をチェック
- */
-export function canAccessEvidenceSystem(): boolean {
-	const currentPhase = getCurrentPhase();
-	return [
-		GamePhase.INVESTIGATION,
-		GamePhase.DISCUSSION,
-		GamePhase.REINVESTIGATION,
-		GamePhase.DEDUCTION,
-		GamePhase.VOTING,
-	].includes(currentPhase);
 }

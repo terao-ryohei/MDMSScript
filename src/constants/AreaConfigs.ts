@@ -1,4 +1,5 @@
 import type { Vector3 } from "@minecraft/server";
+import { calculateDistance } from "src/utils/CommonUtils";
 
 /**
  * エリア境界定義
@@ -329,46 +330,4 @@ export function getNearestLandmark(location: Vector3): string | null {
 	}
 
 	return nearestLandmark;
-}
-
-/**
- * 指定範囲内のランドマークを全て取得する関数
- */
-export function getLandmarksInRange(
-	location: Vector3,
-	maxDistance: number,
-): Landmark[] {
-	return LANDMARKS.filter((landmark) => {
-		const distance = calculateDistance(location, landmark);
-		return distance <= Math.min(landmark.detectionRadius, maxDistance);
-	});
-}
-
-/**
- * エリアの説明を取得する関数
- */
-export function getAreaDescription(areaName: string): string | null {
-	const area = AREA_BOUNDS.find((a) => a.name === areaName);
-	return area?.description || null;
-}
-
-/**
- * ランドマークの説明を取得する関数
- */
-export function getLandmarkDescription(landmarkName: string): string | null {
-	const landmark = LANDMARKS.find((l) => l.name === landmarkName);
-	return landmark?.description || null;
-}
-
-/**
- * 距離計算のヘルパー関数
- */
-function calculateDistance(
-	pos1: Vector3 | { x: number; y: number; z: number },
-	pos2: { x: number; y: number; z: number },
-): number {
-	const dx = pos1.x - pos2.x;
-	const dy = pos1.y - pos2.y;
-	const dz = pos1.z - pos2.z;
-	return Math.sqrt(dx * dx + dy * dy + dz * dz);
 }

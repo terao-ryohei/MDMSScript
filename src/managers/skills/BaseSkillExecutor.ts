@@ -52,7 +52,6 @@ export const createEffect = (
 	skillId: definition.id,
 	targetId,
 	startTime: Date.now(),
-	endTime: Date.now() + definition.duration * 1000,
 	effectType,
 	data,
 	isActive: true,

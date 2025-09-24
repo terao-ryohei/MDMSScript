@@ -196,22 +196,6 @@ function updatePlayerEvidenceCount(player: Player): void {
 }
 
 /**
- * プレイヤーが発見した証拠一覧を取得
- */
-export function getPlayerDiscoveredEvidence(playerId: string): string[] {
-	return playerDiscoveredEvidence.get(playerId) || [];
-}
-
-/**
- * 全プレイヤーの発見済み証拠をクリア
- */
-export function clearAllDiscoveredEvidence(): void {
-	playerDiscoveredEvidence.clear();
-	discoveryLastTime.clear();
-	console.log("All discovered evidence cleared");
-}
-
-/**
  * 証拠詳細を取得（ActionTrackingManagerから）
  */
 function getEvidenceDetails(evidenceId: string): ActionRecord | null {

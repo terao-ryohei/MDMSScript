@@ -204,12 +204,6 @@ export function getDailyLifeStartTime(): number {
 	);
 }
 
-export function setCrimeTime(timestamp: number): void {
-	world.scoreboard
-		.getObjective(GAME_OBJECTIVES.CRIME_TIME)
-		?.setScore("global", timestamp);
-}
-
 export function getCrimeTime(): number {
 	return (
 		world.scoreboard
@@ -365,26 +359,10 @@ export function setAbilityUses(player: Player, uses: number): void {
 		?.setScore(player, uses);
 }
 
-export function getAbilityUses(player: Player): number {
-	return (
-		world.scoreboard
-			.getObjective(GAME_OBJECTIVES.SKILL_USES)
-			?.getScore(player) ?? 0
-	);
-}
-
 export function setCooldownTimer(player: Player, seconds: number): void {
 	world.scoreboard
 		.getObjective(GAME_OBJECTIVES.COOLDOWN_TIMER)
 		?.setScore(player, seconds);
-}
-
-export function getCooldownTimer(player: Player): number {
-	return (
-		world.scoreboard
-			.getObjective(GAME_OBJECTIVES.COOLDOWN_TIMER)
-			?.getScore(player) ?? 0
-	);
 }
 
 export function setPlayerScore(player: Player, score: number): void {
@@ -407,26 +385,10 @@ export function setBaseScore(player: Player, score: number): void {
 		?.setScore(player, score);
 }
 
-export function getBaseScore(player: Player): number {
-	return (
-		world.scoreboard
-			.getObjective(GAME_OBJECTIVES.BASE_SCORE)
-			?.getScore(player) ?? 0
-	);
-}
-
 export function setObjectiveScore(player: Player, score: number): void {
 	world.scoreboard
 		.getObjective(GAME_OBJECTIVES.OBJECTIVE_SCORE)
 		?.setScore(player, score);
-}
-
-export function getObjectiveScore(player: Player): number {
-	return (
-		world.scoreboard
-			.getObjective(GAME_OBJECTIVES.OBJECTIVE_SCORE)
-			?.getScore(player) ?? 0
-	);
 }
 
 // === ユーティリティメソッド ===
@@ -458,24 +420,4 @@ export function getPhaseString(phaseId: number): string {
 		entries.find(([_, id]) => id === phaseId)?.[0].toLowerCase() ??
 		"preparation"
 	);
-}
-
-/**
- * ゲーム状態をコンソールに出力（デバッグ用）
- */
-export function debugGameState(): void {
-	console.log("=== MDMS Game State ===");
-	console.log(`Phase: ${getPhaseString(getGamePhase())}`);
-	console.log(`Day: ${getGameDay()}`);
-	console.log(`Timer: ${getPhaseTimer()}s`);
-	console.log(`Murder Occurred: ${getMurderOccurred()}`);
-	console.log(`Daily Life Start: ${getDailyLifeStartTime()}`);
-	console.log(`Crime Time: ${getCrimeTime()}`);
-}
-
-/**
- * リソースの解放
- */
-export function dispose(): void {
-	console.log("ScoreboardManager disposed");
 }

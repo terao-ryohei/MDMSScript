@@ -441,13 +441,6 @@ export function getAreaRiskLevel(areaName: string): string {
 }
 
 /**
- * 利用可能な全エリア名を取得
- */
-export function getAvailableAreas(): string[] {
-	return Object.values(SPAWN_AREAS).map((area) => area.name);
-}
-
-/**
  * プレイヤーから十分離れた場所かチェック
  */
 export function isValidSpawnDistance(

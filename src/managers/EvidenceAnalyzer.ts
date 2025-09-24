@@ -1,4 +1,3 @@
-import { type Player, world } from "@minecraft/server";
 import type { ActionRecord } from "../types/ActionTypes";
 import {
 	extractEvidenceFromDailyLife,
@@ -67,11 +66,4 @@ export function getPlayerActions(
 		console.error("Failed to get player actions:", error);
 		return [];
 	}
-}
-
-/**
- * 全プレイヤーのリストを取得
- */
-export function getAllPlayers(): Player[] {
-	return Array.from(world.getAllPlayers());
 }

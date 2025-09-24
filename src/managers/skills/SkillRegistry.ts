@@ -30,7 +30,6 @@ export interface ExecutableSkill {
 	cooldownTime: number;
 	usesPerGame: number;
 	requiresTarget: boolean;
-	duration: number;
 	range: number;
 	allowedPhases: string[];
 
@@ -147,13 +146,6 @@ export const skillRegistry = {
 	registerSkill,
 	resetSkillRegistry,
 };
-
-/**
- * 後方互換性のためのラッパー関数
- */
-export function getSkillRegistry() {
-	return skillRegistry;
-}
 
 /**
  * 【使用方法】

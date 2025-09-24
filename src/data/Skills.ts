@@ -10,7 +10,6 @@
 import { ItemStack, type Player, system, world } from "@minecraft/server";
 import { JobType } from "../types/JobTypes";
 import { GamePhase } from "../types/PhaseTypes";
-import { RoleType } from "../types/RoleTypes";
 import {
 	type SkillDefinition,
 	type SkillExecutionResult,
@@ -53,7 +52,6 @@ export const SKILLS: Record<string, SkillEntry> = {
 			cooldownTime: 0,
 			usesPerGame: 1,
 			requiresTarget: false,
-			duration: 0,
 			range: 0,
 			allowedPhases: [GamePhase.INVESTIGATION, GamePhase.REINVESTIGATION],
 		},
@@ -75,8 +73,7 @@ export const SKILLS: Record<string, SkillEntry> = {
 			type: SkillType.PASSIVE,
 			targetType: SkillTargetType.SELF,
 			cooldownTime: 0,
-			usesPerGame: -1, // 常時効果requiresTarget: false,
-			duration: -1, // 永続効果
+			usesPerGame: 1,
 			range: 0,
 			requiresTarget: false,
 			allowedPhases: [
@@ -119,7 +116,6 @@ export const SKILLS: Record<string, SkillEntry> = {
 			cooldownTime: 0,
 			usesPerGame: 1,
 			requiresTarget: false,
-			duration: 0,
 			range: 0,
 			allowedPhases: [GamePhase.INVESTIGATION, GamePhase.REINVESTIGATION],
 		},
@@ -147,7 +143,6 @@ export const SKILLS: Record<string, SkillEntry> = {
 			cooldownTime: 0,
 			usesPerGame: 1,
 			requiresTarget: true,
-			duration: 180, // 3分
 			range: 5,
 			allowedPhases: [
 				GamePhase.DAILY_LIFE,
@@ -190,8 +185,7 @@ export const SKILLS: Record<string, SkillEntry> = {
 			targetType: SkillTargetType.LOCATION,
 			cooldownTime: 0,
 			usesPerGame: 3,
-			requiresTarget: true,
-			duration: 0, // 瞬間効果
+			requiresTarget: true, // 瞬間効果
 			range: 5,
 			allowedPhases: [
 				GamePhase.DAILY_LIFE,
@@ -223,7 +217,6 @@ export const SKILLS: Record<string, SkillEntry> = {
 			cooldownTime: 300, // 5分
 			usesPerGame: -1, // 無制限
 			requiresTarget: false,
-			duration: 60, // 1分間の作業時間
 			range: 0,
 			allowedPhases: [GamePhase.DAILY_LIFE, GamePhase.INVESTIGATION],
 		},
@@ -252,7 +245,6 @@ export const SKILLS: Record<string, SkillEntry> = {
 			cooldownTime: 300,
 			usesPerGame: 3,
 			requiresTarget: true,
-			duration: 0,
 			range: 99999999,
 			allowedPhases: [GamePhase.DAILY_LIFE, GamePhase.DISCUSSION],
 		},
@@ -266,7 +258,7 @@ export const SKILLS: Record<string, SkillEntry> = {
 			}
 			target?.teleport({ x: 697, y: 114, z: -3675 });
 			player.runCommand(
-				`tellraw @s {"rawtext":[{"text":"王命を発し${target.name}を召喚しました"}]}`,
+				`tellraw "${target.name}" {"rawtext":[{"text":"王命をにより${target.name}は召喚されました"}]}`,
 			);
 			return {
 				success: true,
@@ -285,7 +277,6 @@ export const SKILLS: Record<string, SkillEntry> = {
 			cooldownTime: 0,
 			usesPerGame: 1,
 			requiresTarget: false,
-			duration: 0,
 			range: 0,
 			allowedPhases: [GamePhase.INVESTIGATION, GamePhase.REINVESTIGATION],
 		},
@@ -308,9 +299,8 @@ export const SKILLS: Record<string, SkillEntry> = {
 			targetType: SkillTargetType.PLAYER,
 			cooldownTime: 0,
 			usesPerGame: 2,
-			requiresTarget: true,
-			duration: 0, // 瞬間効果
-			range: 3,
+			requiresTarget: true, // 瞬間効果
+			range: 5,
 			allowedPhases: [
 				GamePhase.DAILY_LIFE,
 				GamePhase.INVESTIGATION,
@@ -405,8 +395,7 @@ export const SKILLS: Record<string, SkillEntry> = {
 			type: SkillType.GATHER_INFO, // 経済系として分類
 			targetType: SkillTargetType.SELF,
 			cooldownTime: 1440, // 24時間（1日1回）
-			usesPerGame: -1, // 毎日使用可能requiresTarget: false,
-			duration: 0, // 瞬間効果
+			usesPerGame: -1, // 毎日使用可能requiresTarget: false, // 瞬間効果
 			range: 0,
 			requiresTarget: false,
 			allowedPhases: [
@@ -436,7 +425,6 @@ export const SKILLS: Record<string, SkillEntry> = {
 			cooldownTime: 0,
 			requiresTarget: false,
 			usesPerGame: -1, // 常時効果requiresTarget: false,
-			duration: -1, // 永続効果
 			range: 0,
 			allowedPhases: [GamePhase.DAILY_LIFE],
 		},
@@ -460,7 +448,6 @@ export const SKILLS: Record<string, SkillEntry> = {
 			cooldownTime: 0,
 			requiresTarget: false,
 			usesPerGame: -1, // 常時効果requiresTarget: false,
-			duration: -1, // 永続効果
 			range: 0,
 			allowedPhases: [GamePhase.INVESTIGATION, GamePhase.REINVESTIGATION],
 		},
@@ -485,7 +472,6 @@ export const SKILLS: Record<string, SkillEntry> = {
 			cooldownTime: 300,
 			usesPerGame: 1,
 			requiresTarget: false,
-			duration: 0,
 			range: 0,
 			allowedPhases: [GamePhase.DAILY_LIFE, GamePhase.INVESTIGATION],
 		},
@@ -522,7 +508,6 @@ export const SKILLS: Record<string, SkillEntry> = {
 			cooldownTime: 0,
 			usesPerGame: 2,
 			requiresTarget: false,
-			duration: 0,
 			range: 0,
 			allowedPhases: [
 				GamePhase.DAILY_LIFE,
@@ -554,13 +539,17 @@ export const SKILLS: Record<string, SkillEntry> = {
 			cooldownTime: 600,
 			usesPerGame: 2,
 			requiresTarget: false,
-			duration: 300,
 			range: 0,
 			allowedPhases: [GamePhase.DAILY_LIFE, GamePhase.INVESTIGATION],
 		},
 		executor: async (player: Player) => {
 			// 広場に集まるように呼び掛けるロジック
-			world.getDimension("overworld").runCommand("say 広場に集まれ！");
+			world
+				.getDimension("overworld")
+				.runCommand(
+					'tellraw @a {"rawtext":[{"text":"広場に集まれ！と世界が呼び掛けています"}]}',
+				);
+
 			return {
 				success: true,
 				message: "広場に集まるように呼び掛けました",
@@ -578,7 +567,6 @@ export const SKILLS: Record<string, SkillEntry> = {
 			cooldownTime: 300,
 			usesPerGame: 2,
 			requiresTarget: false,
-			duration: 300,
 			range: 0,
 			allowedPhases: [GamePhase.DAILY_LIFE, GamePhase.DISCUSSION],
 		},
@@ -647,7 +635,6 @@ export const SKILLS: Record<string, SkillEntry> = {
 			cooldownTime: 0,
 			usesPerGame: 1,
 			requiresTarget: false,
-			duration: 0,
 			range: 0,
 			allowedPhases: [
 				GamePhase.DAILY_LIFE,
@@ -691,110 +678,6 @@ export function getSkillDefinition(
 export function getSkillExecutor(skillId: string): SkillExecutor | undefined {
 	return SKILLS[skillId]?.executor;
 }
-
-// 全スキルIDのリストを取得
-export function getAllSkillIds(): string[] {
-	return Object.keys(SKILLS);
-}
-
-/**
- * 能力カテゴリ分類
- */
-export const SKILLS_BY_CATEGORY = {
-	ROLE_BASIC: ["deduction_boost", "murder", "insider_info"],
-	JOB_SPECIFIC: [
-		"royal_summon",
-		"protection",
-		"divination",
-		"negotiation",
-		"information_network",
-		"appraisal",
-		"eavesdrop",
-		"concealment",
-		"surveillance",
-		"teleportation",
-	],
-	COMMON_RANDOM: [
-		"investigate",
-		"search_evidence",
-		"observe",
-		"communicate",
-		"hide",
-	],
-	SPECIAL_EVIL: ["sabotage", "disguise", "assist", "distract", "cover_up"],
-};
-
-/**
- * フェーズ別使用可能能力
- */
-export const ABILITIES_BY_PHASE: Record<GamePhase, string[]> = {
-	[GamePhase.PREPARATION]: ["insider_info"],
-	[GamePhase.DAILY_LIFE]: [
-		"murder",
-		"royal_summon",
-		"protection",
-		"negotiation",
-		"eavesdrop",
-		"concealment",
-		"surveillance",
-		"teleportation",
-		"observe",
-		"communicate",
-		"hide",
-		"disguise",
-		"assist",
-		"cover_up",
-	],
-	[GamePhase.INVESTIGATION]: [
-		"deduction_boost",
-		"protection",
-		"divination",
-		"information_network",
-		"appraisal",
-		"concealment",
-		"surveillance",
-		"teleportation",
-		"investigate",
-		"search_evidence",
-		"observe",
-		"sabotage",
-		"assist",
-		"distract",
-		"cover_up",
-	],
-	[GamePhase.DISCUSSION]: [
-		"deduction_boost",
-		"royal_summon",
-		"negotiation",
-		"eavesdrop",
-		"observe",
-		"communicate",
-		"distract",
-	],
-	[GamePhase.REINVESTIGATION]: [
-		"deduction_boost",
-		"divination",
-		"information_network",
-		"appraisal",
-		"teleportation",
-		"investigate",
-		"search_evidence",
-		"sabotage",
-	],
-	[GamePhase.DEDUCTION]: [],
-	[GamePhase.VOTING]: [],
-	[GamePhase.ENDING]: [],
-};
-
-/**
- * ロール別基本能力マッピング
- */
-export const ROLE_BASE_SKILLS: Record<RoleType, string> = {
-	[RoleType.MURDERER]: "murder",
-	[RoleType.VILLAGER]: "deduction_boost",
-	[RoleType.DETECTIVE]: "investigation_boost",
-	[RoleType.ACCOMPLICE]: "insider_info",
-};
 
 /**
  * 職業別基本能力マッピング

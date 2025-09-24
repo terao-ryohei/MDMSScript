@@ -256,7 +256,6 @@ export function getCurrentVotingStatus(): VotingSession | null {
 export function calculateVotingResult(session: VotingSession): VotingResult {
 	try {
 		const validVotes = session.votes;
-		const abstentions = 0;
 
 		// 候補者別得票数を計算
 		const voteCounts = new Map<string, VoteCount>();
@@ -468,22 +467,6 @@ function announceVotingResult(result: VotingResult): void {
 		world.sendMessage("§6同票のため犯人を決定できませんでした");
 	} else {
 		world.sendMessage("§7有効な投票がありませんでした");
-	}
-}
-
-/**
- * 投票タイプの表示名を取得
- */
-function getVoteTypeDisplayName(voteType: VoteType): string {
-	switch (voteType) {
-		case VoteType.MURDER_SUSPECT:
-			return "犯人投票";
-		case VoteType.EXILE:
-			return "追放投票";
-		case VoteType.FINAL_JUDGMENT:
-			return "最終審判";
-		default:
-			return "投票";
 	}
 }
 

@@ -2,33 +2,21 @@ import { system, world } from "@minecraft/server";
 import { GamePhase } from "../types/PhaseTypes";
 import {
 	clearAllRecords,
-	debugActionRecords,
 	getActionStatistics,
 	startTracking,
 	stopTracking,
 } from "./ActionTrackingManager";
-import { debugJobAssignments } from "./JobAssignmentManager";
 import { forcePhaseChange, getCurrentPhase } from "./PhaseManager";
-import { debugRoleAssignments } from "./RoleAssignmentManager";
 import {
-	debugGameState,
 	getJobString,
 	getRoleString,
 	setPlayerAlive,
 	setPlayerJob,
 	setPlayerRole,
 } from "./ScoreboardManager";
-import { debugScoring, generateGameResult } from "./ScoringManager";
-import {
-	clearAllData,
-	debugSkillSystem,
-	getSkillStatistics,
-} from "./SkillManager";
-import {
-	clearAllVotes,
-	debugVotingStatus,
-	getVotingStatistics,
-} from "./VotingManager";
+import { generateGameResult } from "./ScoringManager";
+import { clearAllData, getSkillStatistics } from "./SkillManager";
+import { clearAllVotes, getVotingStatistics } from "./VotingManager";
 
 /**
  * 管理者権限
@@ -67,38 +55,6 @@ export enum AdminAction {
 	SHOW_DEBUG = "show_debug",
 	TOGGLE_TRACKING = "toggle_tracking",
 	INJECT_EVENT = "inject_event",
-}
-
-/**
- * 管理者システム結果
- */
-/**
- * 管理者アクションのパラメータ型
- */
-export interface AdminActionParameters {
-	// ゲーム制御
-	[AdminAction.FORCE_PHASE]?: { phaseId: number; duration?: number };
-
-	// プレイヤー管理
-	[AdminAction.SET_ROLE]?: { playerId: string; roleId: number };
-	[AdminAction.SET_JOB]?: { playerId: string; jobId: number };
-	[AdminAction.KILL_PLAYER]?: { playerId: string };
-	[AdminAction.REVIVE_PLAYER]?: { playerId: string };
-	[AdminAction.TELEPORT_PLAYER]?: {
-		playerId: string;
-		x: number;
-		y: number;
-		z: number;
-	};
-
-	// システム制御
-	[AdminAction.RESTORE_DATA]?: { backupId: string };
-
-	// デバッグ
-	[AdminAction.INJECT_EVENT]?: {
-		eventType: string;
-		eventData: Record<string, unknown>;
-	};
 }
 
 /**
@@ -197,34 +153,6 @@ export function addAdmin(
 }
 
 /**
- * 管理者権限を削除
- */
-export function removeAdmin(playerId: string): AdminResult {
-	try {
-		admins.delete(playerId);
-		adminPermissions.delete(playerId);
-
-		const player = world.getAllPlayers().find((p) => p.id === playerId);
-		if (player) {
-			player.sendMessage("§c管理者権限が削除されました");
-		}
-
-		console.log(`Admin privileges removed from player ${playerId}`);
-		return {
-			success: true,
-			message: "管理者権限を削除しました",
-		};
-	} catch (error) {
-		console.error(`Failed to remove admin ${playerId}:`, error);
-		return {
-			success: false,
-			message: "管理者権限の削除に失敗しました",
-			error: error instanceof Error ? error.message : "Unknown error",
-		};
-	}
-}
-
-/**
  * 管理者権限チェック
  */
 export function hasPermission(
@@ -290,9 +218,6 @@ export async function executeAdminAction(
 
 			case AdminAction.CLEAR_DATA:
 				return executeClearData((parameters as any)?.dataType);
-
-			case AdminAction.SHOW_DEBUG:
-				return executeShowDebug();
 
 			case AdminAction.TOGGLE_TRACKING:
 				return executeToggleTracking();
@@ -637,33 +562,6 @@ function executeClearData(dataType: string): AdminResult {
 }
 
 /**
- * デバッグ表示
- */
-function executeShowDebug(): AdminResult {
-	try {
-		// 全システムのデバッグ情報を出力
-		debugGameState();
-		debugRoleAssignments();
-		debugJobAssignments();
-		debugActionRecords();
-		debugVotingStatus();
-		debugScoring();
-		debugSkillSystem();
-
-		return {
-			success: true,
-			message: "デバッグ情報をコンソールに出力しました",
-		};
-	} catch (error) {
-		return {
-			success: false,
-			message: "デバッグ表示に失敗しました",
-			error: error instanceof Error ? error.message : "Unknown error",
-		};
-	}
-}
-
-/**
  * 追跡切り替え
  */
 function executeToggleTracking(): AdminResult {
@@ -816,30 +714,4 @@ function getSystemStatus(): "healthy" | "warning" | "error" {
 	if (errorCount > 10) return "error";
 	if (errorCount > 5) return "warning";
 	return "healthy";
-}
-
-/**
- * 管理者一覧取得
- */
-export function getAdminList(): string[] {
-	return Array.from(admins);
-}
-
-/**
- * デバッグ用：管理者システム状況出力
- */
-export function debugAdminSystem(): void {
-	console.log("=== Admin System Debug ===");
-	console.log(`Total admins: ${admins.size}`);
-	console.log(
-		`System uptime: ${Math.round((Date.now() - systemStartTime) / 1000 / 60)} minutes`,
-	);
-	console.log(`Error count: ${errorCount}`);
-	console.log(`Last error: ${lastError || "None"}`);
-
-	const stats = getSystemStatistics();
-	console.log(`System status: ${stats.health.systemStatus}`);
-	console.log(`System load: ${stats.performance.systemLoad} ops/hour`);
-
-	console.log("=== End Admin System Debug ===");
 }

@@ -10,7 +10,6 @@ import {
 	type PlayerScore,
 	RANDOM_OBJECTIVES,
 	type RandomObjective,
-	type TeamScore,
 	type VictoryCheckResult,
 	VictoryCondition,
 } from "../types/ScoringTypes";
@@ -32,7 +31,6 @@ import {
  * スコアリング・勝利判定管理マネージャー
  */
 
-// let config: ScoringConfig = DEFAULT_SCORING_CONFIG; // 3点満点システムでは未使用
 let gameStartTime: number = 0;
 let currentGameResult: GameResult | null = null;
 const playerRandomObjectives: Map<string, RandomObjective> = new Map();
@@ -43,11 +41,8 @@ export function initialize(): void {
 
 	// 汎用目標チェッカー関数を初期化
 	initializeObjectiveCheckers({
-		checkFirstEvidence,
 		checkMostActive,
 		checkCorrectVote,
-		checkSurvival,
-		checkEvidenceCollector,
 	});
 
 	isInitialized = true;
@@ -358,9 +353,6 @@ function checkJobGoal(player: Player, jobId: JobType): boolean {
  * ロール目標の達成をチェック
  */
 function checkRoleGoal(player: Player, role: RoleType): boolean {
-	const votingStats = getVotingStatistics();
-	const playerVotes = getPlayerVoteHistory(player.id);
-
 	switch (role) {
 		case RoleType.MURDERER: {
 			// 殺人者: 投票で発覚しなかった場合に達成
@@ -419,27 +411,7 @@ function checkIfVotedForMurderer(playerId: string): boolean {
 	return false;
 }
 
-/**
- * プレイヤーの汎用目標を取得
- */
-export function getPlayerRandomObjective(
-	playerId: string,
-): RandomObjective | null {
-	return playerRandomObjectives.get(playerId) || null;
-}
-
 // 汎用目標チェック関数の実装
-/**
- * 最初に証拠を発見したかをチェック
- */
-export function checkFirstEvidence(playerId: string): boolean {
-	// TODO: 実際の証拠発見時刻データから判定
-	// 現在は行動統計から推定
-	const actionStats = getActionStatistics();
-	const playerActions = actionStats.actionsByPlayer.get(playerId) || 0;
-	return playerActions >= 3; // 仮実装: 行動数が多い場合に達成とする
-}
-
 /**
  * 最も多くの行動を起こしたかをチェック
  */
@@ -465,85 +437,13 @@ export function checkCorrectVote(playerId: string): boolean {
 }
 
 /**
- * ゲーム終了まで生存したかをチェック
- */
-export function checkSurvival(playerId: string): boolean {
-	// 現在のところ、全員生存している前提
-	// TODO: 実際の生存データから判定
-	const player = world.getAllPlayers().find((p) => p.id === playerId);
-	return player !== undefined; // プレイヤーが存在する場合は生存とする
-}
-
-/**
- * 3つ以上の証拠を発見したかをチェック
- */
-export function checkEvidenceCollector(playerId: string): boolean {
-	const actionStats = getActionStatistics();
-	const playerActions = actionStats.actionsByPlayer.get(playerId) || 0;
-
-	// TODO: 実際の証拠発見データから判定
-	// 現在は行動数から推定 (行動数の1/3が証拠発見と仮定)
-	const estimatedEvidenceCount = Math.floor(playerActions / 3);
-	return estimatedEvidenceCount >= 3;
-}
-
-/**
- * チームスコアを計算
- */
-export function calculateTeamScores(playerScores: PlayerScore[]): TeamScore[] {
-	const teams: { [key: string]: PlayerScore[] } = {};
-
-	// ロール別にチーム分け
-	for (const playerScore of playerScores) {
-		const teamName = getTeamName(playerScore.role);
-		if (!teams[teamName]) {
-			teams[teamName] = [];
-		}
-		teams[teamName].push(playerScore);
-	}
-
-	const teamScores: TeamScore[] = [];
-
-	for (const [teamName, members] of Object.entries(teams)) {
-		const totalScore = members.reduce(
-			(sum, member) => sum + member.totalScore,
-			0,
-		);
-		const averageScore = members.length > 0 ? totalScore / members.length : 0;
-		const teamBonus = calculateTeamBonus(members);
-
-		teamScores.push({
-			teamName,
-			memberCount: members.length,
-			memberIds: members.map((m) => m.playerId),
-			totalScore: totalScore + teamBonus,
-			averageScore,
-			teamBonus,
-			isWinner: false, // 後で設定
-		});
-	}
-
-	return teamScores.sort((a, b) => b.totalScore - a.totalScore);
-}
-
-/**
  * ゲーム結果を生成
  */
 export function generateGameResult(): GameResult {
 	try {
 		const endTime = Date.now();
 		const playerScores = calculateAllPlayerScores();
-		const teamScores = calculateTeamScores(playerScores);
 		const victoryResult = checkVictoryConditions();
-
-		// 勝利チーム設定
-		if (victoryResult.winnerIds) {
-			for (const teamScore of teamScores) {
-				teamScore.isWinner = teamScore.memberIds.some((id) =>
-					victoryResult.winnerIds!.includes(id),
-				);
-			}
-		}
 
 		// MVP選出
 		const mvpPlayer = selectMVP(playerScores);
@@ -558,7 +458,6 @@ export function generateGameResult(): GameResult {
 			winningTeam: victoryResult.winningTeam || "なし",
 			winnerIds: victoryResult.winnerIds || [],
 			playerScores,
-			teamScores,
 			totalVotingSessions: getVotingStatistics().completedSessions,
 			evidenceCollected: getActionStatistics().totalActions,
 			murdersCommitted: getMurderCount(),
@@ -571,29 +470,6 @@ export function generateGameResult(): GameResult {
 		console.error("Failed to generate game result:", error);
 		throw error;
 	}
-}
-
-/**
- * チーム名取得
- */
-function getTeamName(role: string): string {
-	switch (role.toLowerCase()) {
-		case "murderer":
-		case "accomplice":
-			return "犯人チーム";
-		case "citizen":
-			return "市民チーム";
-		default:
-			return "不明";
-	}
-}
-
-/**
- * チームボーナス計算（3点満点システム用）
- */
-function calculateTeamBonus(members: PlayerScore[]): number {
-	// 3点満点システムではボーナスなし
-	return 0;
 }
 
 /**
@@ -617,28 +493,4 @@ function getMurderCount(): number {
  */
 export function getCurrentGameResult(): GameResult | null {
 	return currentGameResult;
-}
-
-/**
- * デバッグ用：スコア情報出力
- */
-export function debugScoring(): void {
-	console.log("=== Scoring System Debug ===");
-
-	if (currentGameResult) {
-		console.log(`Game ID: ${currentGameResult.gameId}`);
-		console.log(`Victory: ${currentGameResult.victoryCondition}`);
-		console.log(`Winner: ${currentGameResult.winningTeam}`);
-
-		console.log("Top 3 Players:");
-		currentGameResult.playerScores.slice(0, 3).forEach((player, index) => {
-			console.log(
-				`${index + 1}. ${player.playerName}: ${player.totalScore} points (${player.role})`,
-			);
-		});
-	} else {
-		console.log("No game result available");
-	}
-
-	console.log("=== End Scoring Debug ===");
 }

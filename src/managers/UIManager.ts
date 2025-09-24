@@ -11,49 +11,14 @@ import { GamePhase } from "../types/PhaseTypes";
 import { RoleType } from "../types/RoleTypes";
 import { createActionForm } from "../utils/UIHelpers";
 import { getCurrentBGM, playBGM, stopBGM } from "./BGMManager";
-import { debugJobAssignments } from "./JobAssignmentManager";
 import { forcePhaseChange, getCurrentPhase } from "./PhaseManager";
-import { debugRoleAssignments } from "./RoleAssignmentManager";
 import {
-	debugGameState,
-	dispose,
 	getEvidenceCount,
 	getMurderOccurred,
 	getPhaseTimer,
-	getPlayerJob,
-	getPlayerRole,
 	getPlayerScore,
 	initializeObjectives,
 } from "./ScoreboardManager";
-
-/**
- * プレイヤー情報UIを表示
- */
-export async function showPlayerInfo(player: Player): Promise<void> {
-	try {
-		const role = getPlayerRole(player);
-		const job = getPlayerJob(player);
-		const score = getPlayerScore(player);
-		const evidenceCount = getEvidenceCount(player);
-
-		const form = new MessageFormData()
-			.title("§lプレイヤー情報")
-			.body(
-				`§6プレイヤー名: §j${player.name}\n\n` +
-					`§6ロール: §j${role ? getRoleDisplayName(role) : "未設定"}\n\n` +
-					`§6ジョブ: §j${job ? job.toString() : "未設定"}\n\n` +
-					`§6スコア: §j${score}pt\n\n` +
-					`§6証拠数: §j${evidenceCount}個`,
-			)
-			.button1("了解")
-			.button2("閉じる");
-
-		await form.show(player);
-	} catch (error) {
-		console.error(`Failed to show player info for ${player.name}:`, error);
-		player.sendMessage("§cプレイヤー情報の表示に失敗しました");
-	}
-}
 
 /**
  * ゲーム状態UIを表示
@@ -168,11 +133,7 @@ export async function showAdminMenu(player: Player): Promise<void> {
 			case 3: // BGMコントロール
 				await showBGMControlMenu(player);
 				break;
-			case 4: // デバッグ情報出力
-				outputDebugInfo();
-				player.sendMessage("§2デバッグ情報をコンソールに出力しました");
-				break;
-			case 5: // ゲームリセット
+			case 4: // ゲームリセット
 				await showResetConfirmation(player);
 				break;
 		}
@@ -305,7 +266,6 @@ async function showResetConfirmation(player: Player): Promise<void> {
 		}
 
 		// リセット実行
-		dispose();
 		initializeObjectives();
 		world.sendMessage(`§c${player.name} によってゲームがリセットされました`);
 	} catch (error) {
@@ -315,15 +275,6 @@ async function showResetConfirmation(player: Player): Promise<void> {
 		);
 		player.sendMessage("§cリセット確認の表示に失敗しました");
 	}
-}
-
-/**
- * デバッグ情報をコンソールに出力
- */
-function outputDebugInfo(): void {
-	debugGameState();
-	debugRoleAssignments();
-	debugJobAssignments();
 }
 
 /**

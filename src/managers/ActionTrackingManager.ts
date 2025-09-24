@@ -3,13 +3,7 @@
  * ScriptEventベースで全プレイヤーの行動を記録・管理
  */
 
-import {
-	type Player,
-	type PlayerBreakBlockBeforeEvent,
-	system,
-	type Vector3,
-	world,
-} from "@minecraft/server";
+import { type Player, system, type Vector3, world } from "@minecraft/server";
 import {
 	getAreaFromCoordinates,
 	getNearestLandmark,
@@ -36,17 +30,7 @@ let isTracking: boolean = false;
 let recordCounter: number = 0;
 
 // 初期化フラグ
-let isInitialized = false;
-
-/**
- * ActionTrackingシステムを初期化
- */
-export function initializeActionTracking(): void {
-	if (!isInitialized) {
-		setupEventListeners();
-		isInitialized = true;
-	}
-}
+const isInitialized = false;
 
 /**
  * 行動追跡を開始
@@ -300,171 +284,6 @@ export function getActionStatistics(): ActionStatistics {
 }
 
 /**
- * 特定行動の目撃者を取得
- */
-export function getActionWitnesses(actionId: string): Player[] {
-	const record = actionRecords.find((r) => r.id === actionId);
-	if (!record) return [];
-
-	return record.witnessIds
-		.map((id) => world.getAllPlayers().find((p) => p.id === id))
-		.filter((p) => p !== undefined) as Player[];
-}
-
-/**
- * イベントリスナーを設定
- */
-function setupEventListeners(): void {
-	// チャットイベント（APIに存在しない場合はコメントアウト）
-	// world.beforeEvents.chatSend.subscribe((event: ChatSendBeforeEvent) => {
-	//   if (isTracking) {
-	//     recordAction(event.sender, ActionType.CHAT, {
-	//       message: event.message
-	//     });
-	//   }
-	// });
-
-	// ブロック破壊イベント
-	world.beforeEvents.playerBreakBlock.subscribe(
-		(event: PlayerBreakBlockBeforeEvent) => {
-			if (isTracking) {
-				recordAction(event.player, ActionType.BLOCK_BREAK, {
-					blockType: event.block.typeId,
-					location: event.block.location,
-				});
-			}
-		},
-	);
-
-	// ブロック設置イベント（イベントが存在しない場合はコメントアウト）
-	// world.beforeEvents.playerPlaceBlock.subscribe((event: PlayerPlaceBlockBeforeEvent) => {
-	//   if (isTracking) {
-	//     recordAction(event.player, ActionType.BLOCK_PLACE, {
-	//       blockType: event.block.typeId,
-	//       location: event.block.location
-	//     });
-	//   }
-	// });
-
-	// アイテム使用イベント
-	world.afterEvents.itemUse.subscribe((event) => {
-		if (isTracking) {
-			recordAction(event.source, ActionType.ITEM_USE, {
-				itemType: event.itemStack.typeId,
-				amount: event.itemStack.amount,
-			});
-		}
-	});
-
-	// ブロックとの相互作用イベント（チェスト、竈等）
-	world.afterEvents.playerInteractWithBlock.subscribe((event) => {
-		if (isTracking) {
-			const blockType = event.block.typeId;
-			const isContainer =
-				blockType.includes("chest") ||
-				blockType.includes("furnace") ||
-				blockType.includes("barrel") ||
-				blockType.includes("shulker_box") ||
-				blockType.includes("hopper");
-
-			if (isContainer) {
-				recordAction(event.player, ActionType.BLOCK_INTERACT, {
-					blockType: blockType,
-					location: event.block.location,
-					interactionType: "container_access",
-					containerType: getContainerType(blockType),
-				});
-			}
-		}
-	});
-
-	// エンティティヒットイベント（攻撃）
-	world.afterEvents.entityHitEntity.subscribe((event) => {
-		if (
-			isTracking &&
-			event.damagingEntity?.typeId === "minecraft:player" &&
-			event.hitEntity?.typeId === "minecraft:player"
-		) {
-			const attacker = event.damagingEntity as Player;
-			const victim = event.hitEntity as Player;
-
-			recordAction(attacker, ActionType.ENTITY_INTERACT, {
-				targetId: victim.id,
-				targetName: victim.name,
-				interactionType: "attack",
-			});
-		}
-	});
-
-	// プレイヤー死亡イベント
-	world.afterEvents.entityDie.subscribe((event) => {
-		if (isTracking && event.deadEntity?.typeId === "minecraft:player") {
-			const player = event.deadEntity as Player;
-			recordAction(player, ActionType.DEATH, {
-				cause: event.damageSource.cause,
-			});
-		}
-	});
-
-	// カスタムScriptEvent処理
-	system.afterEvents.scriptEventReceive.subscribe((event) => {
-		if (!isTracking) return;
-
-		if (event.id === "mdms:murder") {
-			const data = JSON.parse(event.message || "{}");
-			const murderer = world
-				.getAllPlayers()
-				.find((p) => p.id === data.murdererId);
-			const victim = world.getAllPlayers().find((p) => p.id === data.victimId);
-
-			if (murderer && victim) {
-				recordAction(
-					murderer,
-					ActionType.MURDER,
-					{
-						victimId: victim.id,
-						victimName: victim.name,
-						method: data.method || "unknown",
-					},
-					true,
-				);
-			}
-		}
-
-		if (event.id === "mdms:skill_use") {
-			const data = JSON.parse(event.message || "{}");
-			const player = world.getAllPlayers().find((p) => p.id === data.playerId);
-
-			if (player) {
-				recordAction(
-					player,
-					ActionType.SKILL_USE,
-					{
-						skillId: data.skillId,
-						targetId: data.targetId,
-						result: data.result,
-					},
-					true,
-				);
-			}
-		}
-
-		if (event.id === "mdms:task_complete") {
-			const data = JSON.parse(event.message || "{}");
-			const player = world.getAllPlayers().find((p) => p.id === data.playerId);
-
-			if (player) {
-				recordAction(player, ActionType.TASK_COMPLETE, {
-					taskId: data.taskId,
-					taskName: data.taskName,
-					duration: data.duration,
-				});
-			}
-		}
-	});
-}
-
-/**
  * 目撃者を検索
  */
 function findWitnesses(
@@ -558,49 +377,11 @@ function convertPhaseToId(phase: GamePhase): number {
 }
 
 /**
- * デバッグ用：記録統計を出力
- */
-export function debugActionRecords(): void {
-	console.log("=== Action Records Debug ===");
-	const stats = getActionStatistics();
-
-	console.log(`Total actions: ${stats.totalActions}`);
-	console.log(`Evidence count: ${stats.evidenceCount}`);
-	console.log(`Time range: ${stats.timeRange.start} - ${stats.timeRange.end}`);
-
-	console.log("Actions by type:");
-	for (const [type, count] of stats.actionsByType.entries()) {
-		console.log(`  ${type}: ${count}`);
-	}
-
-	console.log("Actions by player:");
-	for (const [playerId, count] of stats.actionsByPlayer.entries()) {
-		const player = world.getAllPlayers().find((p) => p.id === playerId);
-		const playerName = player ? player.name : "Unknown";
-		console.log(`  ${playerName} (${playerId}): ${count}`);
-	}
-
-	console.log("=== End Action Records Debug ===");
-}
-
-/**
  * 現在が生活フェーズかどうかをチェック
  */
 function isInDailyLifePhase(): boolean {
 	const currentPhase = getCurrentPhase();
 	return currentPhase === GamePhase.DAILY_LIFE;
-}
-
-/**
- * コンテナタイプを判定
- */
-function getContainerType(blockType: string): string {
-	if (blockType.includes("chest")) return "chest";
-	if (blockType.includes("furnace")) return "furnace";
-	if (blockType.includes("barrel")) return "barrel";
-	if (blockType.includes("shulker_box")) return "shulker_box";
-	if (blockType.includes("hopper")) return "hopper";
-	return "unknown_container";
 }
 
 /**
@@ -874,7 +655,3 @@ function generateActionDescription(
 			return `${actionType}を実行した`;
 	}
 }
-
-/**
- * 距離計算（Vector3 | {x, y, z}両方に対応）
- */

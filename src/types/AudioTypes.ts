@@ -312,45 +312,6 @@ export function transposeNote(note: Note, targetKey: Key): Note {
 	};
 }
 
-// C調のパートを指定調性に変換
-export function transposePart(
-	part: InstrumentPart,
-	targetKey: Key,
-): InstrumentPart {
-	return {
-		...part,
-		notes: part.notes.map((noteOrChord) => {
-			return transposeNote(noteOrChord, targetKey);
-		}),
-	};
-}
-
-// C調のメロディを指定調性に変換
-export function transposeMelody(melody: Melody, targetKey: Key): Melody {
-	const transposedMelody: Melody = {
-		...melody,
-		parts: melody.parts.map((part) => transposePart(part, targetKey)),
-	};
-
-	return transposedMelody;
-}
-
-// 調性名の表示
-export function getKeyDisplayName(key: Key): string {
-	const displayNames: Record<Key, string> = {
-		[Key.C]: "ハ長調（C）",
-		[Key.Eb]: "変ホ長調（E♭）",
-		[Key.E]: "ホ長調（E）",
-		[Key.Bb]: "変ロ長調（B♭）",
-		[Key.F]: "ヘ長調（F）",
-	};
-	return displayNames[key];
-}
-
-/**
- * 楽譜記述用ヘルパー関数群
- */
-
 /**
  * 音符作成
  */

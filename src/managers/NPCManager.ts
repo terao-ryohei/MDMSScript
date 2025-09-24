@@ -1,4 +1,3 @@
-import type { Player } from "@minecraft/server";
 import { type Entity, system, world } from "@minecraft/server";
 import {
 	getAreaInfo,
@@ -218,20 +217,6 @@ export function canPlayerKillNPC(playerId: string, npcId: string): boolean {
 }
 
 /**
- * 現在のターゲットNPCを取得
- */
-export function getTargetNPC(): SpawnedNPC | null {
-	return targetNPC;
-}
-
-/**
- * 全NPCの情報を取得
- */
-export function getAllNPCs(): Map<string, SpawnedNPC> {
-	return new Map(spawnedNPCs);
-}
-
-/**
  * NPCを削除
  */
 export function removeNPC(npcId: string): boolean {
@@ -408,57 +393,4 @@ function generateEvidenceAtLocation(npc: SpawnedNPC): void {
 	} catch (error) {
 		console.error("Failed to generate evidence:", error);
 	}
-}
-
-/**
- * 距離計算
- */
-
-/**
- * イベントリスナーを設定
- */
-function setupEventListeners(): void {
-	// プレイヤーがNPCをクリックした場合の処理
-	world.afterEvents.entityHitEntity.subscribe((event) => {
-		try {
-			if (
-				event.damagingEntity?.typeId === "minecraft:player" &&
-				event.hitEntity?.typeId === "minecraft:villager"
-			) {
-				const player = event.damagingEntity as Player; // Player型にキャスト
-				const targetEntity = event.hitEntity;
-
-				// NPCかどうかチェック
-				const npc = Array.from(spawnedNPCs.values()).find(
-					(n) => n.entity.id === targetEntity.id && n.isAlive,
-				);
-
-				if (npc && canPlayerKillNPC(player.id, npc.id)) {
-					killNPC(npc.id, player.id);
-				} else if (npc && getPlayerRole(player) === RoleType.MURDERER) {
-					player.sendMessage("§c生活フェーズ中のみ殺害可能です");
-				}
-			}
-		} catch (error) {
-			console.error("Error in NPC hit event:", error);
-		}
-	});
-}
-
-/**
- * デバッグ情報を出力
- */
-export function debugNPCStatus(): void {
-	console.log("=== NPC Manager Debug ===");
-	console.log(`Spawned NPCs: ${spawnedNPCs.size}`);
-	console.log(`Target NPC: ${targetNPC?.definition.name || "None"}`);
-	console.log(`Murderer notified: ${murdererNotified}`);
-
-	for (const [id, npc] of spawnedNPCs) {
-		console.log(
-			`NPC ${id}: ${npc.definition.name}, alive: ${npc.isAlive}, killed: ${npc.isKilled}`,
-		);
-	}
-
-	console.log("=== End NPC Debug ===");
 }

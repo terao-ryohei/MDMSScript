@@ -501,7 +501,3 @@ function getSkillStatusText(state: SkillInstanceState): string {
 			return "§7不明";
 	}
 }
-
-/**
- * 距離計算
- */

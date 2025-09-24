@@ -83,7 +83,6 @@ export interface SkillDefinition {
 	requiresTarget: boolean; // 対象が必要か
 
 	// 効果
-	duration: number; // 効果持続時間（秒）
 	range: number; // 効果範囲（ブロック）
 
 	// 条件
@@ -155,20 +154,9 @@ export interface SkillEffect {
 	skillId: string;
 	targetId: string;
 	startTime: number;
-	endTime: number;
 	effectType: string;
 	data: Record<string, unknown>;
 	isActive: boolean;
-}
-
-/**
- * 能力システム結果
- */
-export interface SkillSystemResult {
-	success: boolean;
-	message?: string;
-	data?: Record<string, unknown>;
-	error?: string;
 }
 
 /**
@@ -228,19 +216,4 @@ export interface PlayerSkills {
 	jobSkillCooldown: number;
 	roleSkillCooldown: number;
 	randomSkillCooldown: number;
-}
-
-/**
- * スキル使用履歴（SkillTypes.tsから移行）
- */
-export interface SkillUsageRecord {
-	playerId: string;
-	playerName: string;
-	skillId: string;
-	skillName: string;
-	targetId?: string;
-	targetName?: string;
-	timestamp: number;
-	success: boolean;
-	result: string;
 }

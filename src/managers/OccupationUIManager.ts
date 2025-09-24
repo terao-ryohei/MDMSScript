@@ -2,16 +2,11 @@
  * 職業専用UI管理関数群（関数ベース版）
  */
 
-import { type Player, world } from "@minecraft/server";
+import { type Player } from "@minecraft/server";
 import { ActionFormData, MessageFormData } from "@minecraft/server-ui";
 import { JOB_DEFINITIONS as JOBS } from "../data/JobDefinitions";
 import { JobType } from "../types/JobTypes";
-import {
-	assignJobsToAllPlayers,
-	debugJobAssignments,
-	getPlayerJob,
-	notifyAllPlayersJobs,
-} from "./JobAssignmentManager";
+import { getPlayerJob } from "./JobAssignmentManager";
 
 /**
  * プレイヤーの職業詳細情報を表示
@@ -137,108 +132,6 @@ export async function showJobHelpMenu(player: Player): Promise<void> {
 	} catch (error) {
 		console.error(`Failed to show job help menu for ${player.name}:`, error);
 		player.sendMessage("§c職業ヘルプメニューの表示に失敗しました");
-	}
-}
-
-/**
- * 管理者向け職業管理メニュー
- */
-export async function showAdminJobMenu(player: Player): Promise<void> {
-	try {
-		const form = new ActionFormData()
-			.title("§l職業管理")
-			.body("§7管理者向けの職業管理機能です")
-			.button("職業再割り当て", "textures/ui/refresh")
-			.button("職業構成確認", "textures/ui/book_edit_default")
-			.button("デバッグ情報", "textures/ui/debug_glyph")
-			.button("閉じる", "textures/ui/cancel");
-
-		const response = await form.show(player);
-
-		if (response.canceled) return;
-
-		switch (response.selection) {
-			case 0: // 職業再割り当て
-				await confirmJobReassignment(player);
-				break;
-			case 1: // 職業構成確認
-				await showDetailedJobComposition(player);
-				break;
-			case 2: // デバッグ情報
-				debugJobAssignments();
-				player.sendMessage("§2職業デバッグ情報をコンソールに出力しました");
-				break;
-		}
-	} catch (error) {
-		console.error(`Failed to show admin job menu for ${player.name}:`, error);
-		player.sendMessage("§c職業管理メニューの表示に失敗しました");
-	}
-}
-
-/**
- * 職業再割り当て確認
- */
-async function confirmJobReassignment(player: Player): Promise<void> {
-	try {
-		const form = new MessageFormData()
-			.title("§l職業再割り当て確認")
-			.body(
-				"§c職業を再割り当てしますか？\n\n" +
-					"§7この操作により全プレイヤーの職業が\n" +
-					"§7ランダムに再設定されます。",
-			)
-			.button1("実行")
-			.button2("キャンセル");
-
-		const response = await form.show(player);
-
-		if (response.canceled || response.selection === 1) {
-			player.sendMessage("§2職業再割り当てをキャンセルしました");
-			return;
-		}
-
-		// 職業再割り当て実行
-		const result = assignJobsToAllPlayers();
-		if (result.success) {
-			player.sendMessage("§2職業の再割り当てが完了しました");
-			notifyAllPlayersJobs();
-		} else {
-			player.sendMessage(`§c職業再割り当てエラー: ${result.error}`);
-		}
-	} catch (error) {
-		console.error(
-			`Failed to confirm job reassignment for ${player.name}:`,
-			error,
-		);
-		player.sendMessage("§c職業再割り当て確認の表示に失敗しました");
-	}
-}
-
-/**
- * 詳細な職業構成を表示（管理者向け）
- */
-async function showDetailedJobComposition(player: Player): Promise<void> {
-	try {
-		const players = world.getAllPlayers();
-		const jobInfo = players.map((p) => {
-			const job = getPlayerJob(p);
-			const jobName = job ? JOBS[job].name : "未設定";
-			return `${p.name}: §6${jobName}`;
-		});
-
-		const form = new MessageFormData()
-			.title("§6詳細職業構成")
-			.body(jobInfo.join("\n"))
-			.button1("了解")
-			.button2("閉じる");
-
-		await form.show(player);
-	} catch (error) {
-		console.error(
-			`Failed to show detailed job composition for ${player.name}:`,
-			error,
-		);
-		player.sendMessage("§c詳細職業構成の表示に失敗しました");
 	}
 }
 

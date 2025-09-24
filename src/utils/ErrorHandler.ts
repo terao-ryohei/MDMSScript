@@ -102,23 +102,6 @@ export const handleGameError = (
 };
 
 /**
- * 非同期操作のエラーハンドリング
- */
-export const safeAsync = async <T>(
-	operation: () => Promise<T>,
-	fallback: T,
-	errorMessage: string,
-	context?: ErrorContext,
-): Promise<T> => {
-	try {
-		return await operation();
-	} catch (error) {
-		handleGameError(errorMessage, error as Error, context);
-		return fallback;
-	}
-};
-
-/**
  * Function-based error creators (recommended approach)
  */
 
@@ -131,15 +114,6 @@ export interface ValidationErrorData {
 	name: "ValidationError";
 }
 
-export const createValidationError = (
-	message: string,
-	field: string,
-): ValidationErrorData => ({
-	message,
-	field,
-	name: "ValidationError" as const,
-});
-
 /**
  * ゲーム状態エラーの作成
  */
@@ -148,15 +122,6 @@ export interface GameStateErrorData {
 	state: string;
 	name: "GameStateError";
 }
-
-export const createGameStateError = (
-	message: string,
-	state: string,
-): GameStateErrorData => ({
-	message,
-	state,
-	name: "GameStateError" as const,
-});
 
 /**
  * プレイヤー操作エラーの作成
@@ -167,39 +132,3 @@ export interface PlayerActionErrorData {
 	action: string;
 	name: "PlayerActionError";
 }
-
-export const createPlayerActionError = (
-	message: string,
-	playerId: string,
-	action: string,
-): PlayerActionErrorData => ({
-	message,
-	playerId,
-	action,
-	name: "PlayerActionError" as const,
-});
-
-/**
- * エラーデータの判定関数
- */
-export const isValidationError = (error: any): error is ValidationErrorData =>
-	error && error.name === "ValidationError";
-
-export const isGameStateError = (error: any): error is GameStateErrorData =>
-	error && error.name === "GameStateError";
-
-export const isPlayerActionError = (
-	error: any,
-): error is PlayerActionErrorData =>
-	error && error.name === "PlayerActionError";
-
-/**
- * エラーのログ出力（function-based errors用）
- */
-export const logErrorData = (
-	errorData: ValidationErrorData | GameStateErrorData | PlayerActionErrorData,
-	severity: ErrorSeverity = ErrorSeverity.ERROR,
-	context?: ErrorContext,
-): void => {
-	logError(errorData.message, undefined, severity, context);
-};

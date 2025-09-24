@@ -112,7 +112,7 @@ export function assignRolesToAllPlayers(): RoleAssignmentResult {
 			setPlayerRole(player, convertRoleToId(role));
 			assignments.set(player.id, role);
 
-			console.log(
+			world.sendMessage(
 				`Assigned role ${role} to player ${player.name} (${player.id})`,
 			);
 		}
@@ -268,50 +268,11 @@ function convertRoleToId(role: RoleType): number {
 }
 
 /**
- * IDをロールタイプに変換
- */
-function convertIdToRole(id: number): RoleType | null {
-	switch (id) {
-		case 0:
-			return RoleType.VILLAGER;
-		case 1:
-			return RoleType.MURDERER;
-		case 2:
-			return RoleType.ACCOMPLICE;
-		default:
-			return null;
-	}
-}
-
-/**
  * 配列をシャッフル（Fisher-Yates shuffle）
  */
 function shuffleArray<T>(array: T[]): void {
 	for (let i = array.length - 1; i > 0; i--) {
 		const j = Math.floor(Math.random() * (i + 1));
 		[array[i], array[j]] = [array[j], array[i]];
-	}
-}
-
-/**
- * デバッグ用：ロール割り当て状況を出力
- */
-export function debugRoleAssignments(): void {
-	try {
-		console.log("=== Role Assignment Debug ===");
-
-		const composition = getCurrentRoleComposition();
-		console.log(`Total composition: ${JSON.stringify(composition)}`);
-
-		const players = world.getAllPlayers();
-		for (const player of players) {
-			const role = getPlayerRole(player);
-			const roleString = role ? getRoleString(convertRoleToId(role)) : "未設定";
-			console.log(`Player ${player.name} (${player.id}): ${roleString}`);
-		}
-
-		console.log("=== End Role Assignment Debug ===");
-	} catch (error) {
-		console.error("Failed to debug role assignments:", error);
 	}
 }

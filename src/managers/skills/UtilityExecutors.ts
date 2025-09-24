@@ -73,7 +73,6 @@ export const executeInterview: SkillExecutorFunction = async (
 	}
 
 	// 対象プレイヤーの最近の証言や行動から情報を抽出
-	const recentActions = getPlayerActions(target.id, 5);
 	const suspicionLevel = 0; // 疑惑スコア計算機能を削除
 
 	const interviewResult =
@@ -155,7 +154,6 @@ export const createDistractExecutor =
 		);
 
 		return createSuccessResult("注意逸らしを発動しました", {
-			effectDuration: definition.duration,
 			affectedPlayers: nearbyPlayers.map((p) => p.id),
 		});
 	};

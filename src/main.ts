@@ -29,7 +29,6 @@ import {
 } from "./managers/RoleAssignmentManager";
 import { showRoleHelpMenu } from "./managers/RoleUIManager";
 import {
-	dispose,
 	getEvidenceCount,
 	getGamePhase,
 	getMurderOccurred,
@@ -120,7 +119,6 @@ async function startGame(): Promise<void> {
 			clearAllVotes();
 			clearAllData();
 			clearAllNPCs();
-			dispose();
 
 			console.log("MDMS systems shut down successfully");
 
@@ -218,7 +216,6 @@ async function forceEndGame(playerName: string): Promise<void> {
 		world.sendMessage("§c============================");
 
 		// 各システムを停止・リセット
-		dispose();
 		stopTracking();
 		clearAllRecords();
 		clearAllVotes();
@@ -252,41 +249,6 @@ async function forceEndGame(playerName: string): Promise<void> {
 			error instanceof Error ? error.message : "不明なエラーが発生しました";
 		world.sendMessage(`§cリセットエラー: ${message}`);
 		console.error("Force end game error:", error);
-	}
-}
-
-// ゲーム強制終了確認UI
-async function showForceEndConfirmation(player: Player): Promise<void> {
-	try {
-		const form = new MessageFormData()
-			.title("§lゲーム強制終了")
-			.body(
-				"§c警告: ゲームを強制終了してすべてをリセットします。\n\n" +
-					"§7• 進行中のゲームが中断されます\n" +
-					"§7• すべてのプレイヤーデータがリセットされます\n" +
-					"§7• 行動記録・証拠がクリアされます\n" +
-					"§7• この操作は取り消せません\n\n" +
-					"§6本当に実行しますか？",
-			)
-			.button1("強制終了")
-			.button2("キャンセル");
-
-		const response = await form.show(player);
-
-		if (response.canceled || response.selection === 1) {
-			player.sendMessage("§7ゲーム強制終了をキャンセルしました");
-			return;
-		}
-
-		if (response.selection === 0) {
-			await forceEndGame(player.name);
-		}
-	} catch (error) {
-		console.error(
-			`Failed to show force end confirmation for ${player.name}:`,
-			error,
-		);
-		player.sendMessage("§c強制終了確認画面の表示に失敗しました");
 	}
 }
 
@@ -682,13 +644,15 @@ world.afterEvents.itemUse.subscribe(async (event: ItemUseAfterEvent) => {
 	}
 
 	// 殺人の斧で被害者NPCを殺害
-	if (itemStack.typeId === "minecraft:iron_axe" && 
-		itemStack.nameTag === "§c殺人の斧") {
+	if (
+		itemStack.typeId === "minecraft:iron_axe" &&
+		itemStack.nameTag === "§c殺人の斧"
+	) {
 		try {
 			// 血痕を設置
 			const setBlood = `execute as @e[type=npc,name="被害者",r=10] at @s run setblock ~ ~ ~ redstone_wire`;
 			player.runCommand(setBlood);
-			
+
 			// 被害者NPCを殺害
 			const killCommand = `execute as @e[type=npc,name="被害者",r=10] at @s run kill @s`;
 			const commandResult = player.runCommand(killCommand);
@@ -899,115 +863,6 @@ async function showBGMControlMenu(player: Player): Promise<void> {
 	}
 }
 
-// BGM選択メニュー
-async function showBGMSelectionMenu(player: Player): Promise<void> {
-	try {
-		const form = new ActionFormData()
-			.title("§lBGM選択")
-			.body("§7再生したいBGMを選択してください")
-			.button("平和な日常", "textures/ui/heart")
-			.button("緊張の調査", "textures/ui/magnifyingGlass")
-			.button("不穏な気配", "textures/ui/warning")
-			.button("運命の投票", "textures/ui/vote")
-			.button("勝利ファンファーレ", "textures/ui/check")
-			.button("敗北テーマ", "textures/ui/redX1")
-			.button("戻る", "textures/ui/arrow_left");
-
-		const response = await form.show(player);
-
-		if (response.canceled) return;
-
-		const bgmIds = [
-			"preparation_phase",
-			"investigation_phase",
-			"murder_occurred",
-			"voting_phase",
-			"victory",
-			"defeat",
-		];
-
-		if (response.selection! < bgmIds.length) {
-			const bgmId = bgmIds[response.selection!];
-			playBGM(bgmId); // BGM再生
-			player.sendMessage(`§2BGMを再生開始: ${bgmId}`);
-		} else {
-			await showBGMControlMenu(player);
-		}
-	} catch (error) {
-		console.error(
-			`Failed to show BGM selection menu for ${player.name}:`,
-			error,
-		);
-		player.sendMessage("§cBGM選択メニューの表示に失敗しました");
-	}
-}
-
-// 簡単作曲メニュー
-async function showComposerMenu(player: Player): Promise<void> {
-	try {
-		const form = new ActionFormData()
-			.title("§l簡単作曲システム")
-			.body("§7自動でメロディーを生成します")
-			.button("平和なメロディー", "textures/ui/heart")
-			.button("緊張メロディー", "textures/ui/warning")
-			.button("ドラマチック", "textures/ui/book_edit_default")
-			.button("勝利の歌", "textures/ui/check")
-			.button("悲哀の歌", "textures/ui/redX1")
-			.button("戻る", "textures/ui/arrow_left");
-
-		const response = await form.show(player);
-
-		if (response.canceled) return;
-
-		const styles: Array<
-			"peaceful" | "tense" | "dramatic" | "victory" | "defeat"
-		> = ["peaceful", "tense", "dramatic", "victory", "defeat"];
-
-		if (response.selection! < styles.length) {
-			player.sendMessage("§cカスタム作曲機能は現在無効です");
-		} else {
-			await showBGMControlMenu(player);
-		}
-	} catch (error) {
-		console.error(`Failed to show composer menu for ${player.name}:`, error);
-		player.sendMessage("§c作曲メニューの表示に失敗しました");
-	}
-}
-
-// ランダムBGMメニュー
-async function showRandomBGMMenu(player: Player): Promise<void> {
-	try {
-		const form = new ActionFormData()
-			.title("§lランダムBGM生成")
-			.body("§7完全にランダムなBGMを生成します")
-			.button("平和テーマ", "textures/ui/heart")
-			.button("緊張テーマ", "textures/ui/warning")
-			.button("ドラマテーマ", "textures/ui/book_edit_default")
-			.button("ミックステーマ", "textures/ui/gear")
-			.button("戻る", "textures/ui/arrow_left");
-
-		const response = await form.show(player);
-
-		if (response.canceled) return;
-
-		const themes: Array<"peaceful" | "tense" | "dramatic" | "mixed"> = [
-			"peaceful",
-			"tense",
-			"dramatic",
-			"mixed",
-		];
-
-		if (response.selection! < themes.length) {
-			player.sendMessage("§cランダムBGM機能は現在無効です");
-		} else {
-			await showBGMControlMenu(player);
-		}
-	} catch (error) {
-		console.error(`Failed to show random BGM menu for ${player.name}:`, error);
-		player.sendMessage("§cランダムBGMメニューの表示に失敗しました");
-	}
-}
-
 // ScriptEvent処理
 system.afterEvents.scriptEventReceive.subscribe(async (event) => {
 	if (event.id === "mdms:shutdown") {
@@ -1018,9 +873,6 @@ system.afterEvents.scriptEventReceive.subscribe(async (event) => {
 			clearAllVotes();
 			clearAllData();
 			clearAllNPCs();
-			dispose();
-
-			// PhaseManagerのdispose()でタイマーがクリアされる
 
 			// 全プレイヤーに終了通知
 			world.sendMessage("§c============================");

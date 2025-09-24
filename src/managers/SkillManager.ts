@@ -14,7 +14,7 @@ import {
 	type SkillUsage,
 } from "../types/SkillTypes";
 import { calculateDistance } from "../utils/CommonUtils";
-import { getPlayerActions, recordAction } from "./ActionTrackingManager";
+import { recordAction } from "./ActionTrackingManager";
 import { getCurrentPhase } from "./PhaseManager";
 
 /**
@@ -512,32 +512,6 @@ function convertPhaseToId(phase: GamePhase): number {
 	}
 }
 
-function analyzePlayerBehavior(player: Player): string {
-	const actions = getPlayerActions(player.id, 20);
-	if (actions.length === 0) return "行動データなし";
-
-	const actionTypes = actions.map((a) => a.actionType);
-	const uniqueTypes = new Set(actionTypes);
-
-	if (uniqueTypes.has(ActionType.MURDER)) return "極めて危険";
-	if (uniqueTypes.size > 5) return "活発";
-	if (uniqueTypes.size > 3) return "普通";
-	return "静観";
-}
-
-function calculateTestimonyReliability(player: Player): number {
-	// 簡易的な信頼性計算（分析機能を削除したため固定値）
-	return 75; // デフォルト75%
-}
-
-function generateInterviewInfo(player: Player): string {
-	const recentActions = getPlayerActions(player.id, 3);
-	if (recentActions.length === 0) return "特になし";
-
-	const lastAction = recentActions[0];
-	return `${lastAction.actionType}に関する証言を得た`;
-}
-
 /**
  * 全記録をクリア
  */
@@ -547,21 +521,4 @@ export function clearAllData(): void {
 	activeEffects.clear();
 	usageCounter = 0;
 	console.log("All skill data cleared");
-}
-
-/**
- * デバッグ用：能力システム状況出力
- */
-export function debugSkillSystem(): void {
-	console.log("=== Ability System Debug ===");
-	console.log(`Active players: ${playerStates.size}`);
-	console.log(`Total usages: ${skillUsages.length}`);
-	console.log(`Active effects: ${activeEffects.size}`);
-
-	const stats = getSkillStatistics();
-	console.log(`Success rate: ${Math.round(stats.successRate)}%`);
-	console.log(`Most used skill: ${stats.mostUsedSkill}`);
-	console.log(`Most active player: ${stats.mostActivePlayer}`);
-
-	console.log("=== End Ability System Debug ===");
 }

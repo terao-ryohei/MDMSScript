@@ -22,20 +22,7 @@ export function assignJobsToAllPlayers(): JobAssignmentResult {
 	try {
 		const players = world.getAllPlayers();
 		const playerCount = players.length; // プレイヤー数チェック（テスト用に1人から可能に変更）
-		if (playerCount < 1) {
-			return {
-				success: false,
-				assignments: new Map(),
-				error: "最低1人のプレイヤーが必要です",
-			};
-		}
-		if (playerCount > 20) {
-			return {
-				success: false,
-				assignments: new Map(),
-				error: "プレイヤー数が多すぎます（最大20人）",
-			};
-		} // バランスの取れたジョブ配布を生成
+		// バランスの取れたジョブ配布を生成
 		const jobDistribution = generateBalancedJobDistribution(playerCount);
 		if (jobDistribution.length !== playerCount) {
 			return {
@@ -84,22 +71,6 @@ export function getPlayerJob(player: Player): JobType | null {
 }
 
 /**
- * ジョブタイプに該当する全プレイヤーを取得
- */
-export function getPlayersByJob(jobType: JobType): Player[] {
-	try {
-		const players = world.getAllPlayers();
-		return players.filter((player) => {
-			const job = getPlayerJob(player);
-			return job === jobType;
-		});
-	} catch (error) {
-		console.error(`Failed to get players by job ${jobType}:`, error);
-		return [];
-	}
-}
-
-/**
  * プレイヤーにジョブ情報を通知
  */
 export function notifyPlayerJob(player: Player): boolean {
@@ -144,37 +115,6 @@ export function notifyAllPlayersJobs(): void {
 }
 
 /**
- * プレイヤーのジョブ能力を取得
- */
-export function getPlayerJobAbility(player: Player): string | null {
-	try {
-		const job = getPlayerJob(player);
-		if (!job) return null;
-		return JOBS[job].skill.id;
-	} catch (error) {
-		console.error(`Failed to get job skill for player ${player.name}:`, error);
-		return null;
-	}
-}
-
-/**
- * プレイヤーのジョブ目的を取得
- */
-export function getPlayerJobObjective(player: Player): string | null {
-	try {
-		const job = getPlayerJob(player);
-		if (!job) return null;
-		return JOBS[job].objective.id;
-	} catch (error) {
-		console.error(
-			`Failed to get job objective for player ${player.name}:`,
-			error,
-		);
-		return null;
-	}
-}
-
-/**
  * ジョブタイプをIDに変換
  */
 function convertJobToId(job: JobType): number {
@@ -215,25 +155,5 @@ function shuffleArray<T>(array: T[]): void {
 	for (let i = array.length - 1; i > 0; i--) {
 		const j = Math.floor(Math.random() * (i + 1));
 		[array[i], array[j]] = [array[j], array[i]];
-	}
-}
-
-/**
- * デバッグ用：ジョブ割り当て状況を出力
- */
-export function debugJobAssignments(): void {
-	try {
-		console.log("=== Job Assignment Debug ===");
-		const players = world.getAllPlayers();
-		for (const player of players) {
-			const job = getPlayerJob(player);
-			const jobString = job ? getJobString(convertJobToId(job)) : "未設定";
-			console.log(
-				`Player ${player.name} (${player.id}): ${jobString} (${status})`,
-			);
-		}
-		console.log("=== End Job Assignment Debug ===");
-	} catch (error) {
-		console.error("Failed to debug job assignments:", error);
 	}
 }

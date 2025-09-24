@@ -16,6 +16,7 @@ import {
 	getAreaName,
 } from "./ActionTrackingManager";
 import { initialize } from "./EvidenceDiscoveryManager";
+import { spawnTargetNPC as spawnNPC } from "./NPCManager";
 import {
 	getCrimeTime,
 	getDailyLifeStartTime,
@@ -32,7 +33,6 @@ import {
 	setPlayerVotes,
 } from "./ScoreboardManager";
 import { startAutomaticMurderVoting } from "./VotingManager";
-import { spawnTargetNPC as spawnNPC } from "./NPCManager";
 
 /**
  * ゲームフェーズ管理システム
@@ -67,17 +67,6 @@ function setEvidencePlacements(placements: EvidencePlacement[]): void {
  */
 export function getEvidencePlacements(): EvidencePlacement[] {
 	return evidencePlacements;
-}
-
-/**
- * PhaseManagerを初期化
- */
-export function initializePhaseManager(): void {
-	if (isInitialized) return;
-
-	currentPhaseConfig = PHASE_CONFIGS[GamePhase.PREPARATION];
-	isInitialized = true;
-	console.log("PhaseManager initialized");
 }
 
 /**
@@ -145,13 +134,6 @@ export function getCurrentPhase(): GamePhase {
 }
 
 /**
- * 現在のフェーズ設定を取得
- */
-export function getCurrentPhaseConfig(): PhaseConfig {
-	return currentPhaseConfig;
-}
-
-/**
  * 次のフェーズに自動遷移
  */
 export async function advanceToNextPhase(): Promise<PhaseTransitionResult> {
@@ -168,13 +150,6 @@ export async function advanceToNextPhase(): Promise<PhaseTransitionResult> {
 	}
 
 	return await startPhase(nextPhase);
-}
-
-/**
- * アクションが現在のフェーズで許可されているかチェック
- */
-export function isActionAllowed(action: string): boolean {
-	return currentPhaseConfig.allowedActions.includes(action);
 }
 
 /**
@@ -708,21 +683,6 @@ export async function forcePhaseChange(
 ): Promise<PhaseTransitionResult> {
 	console.log(`Force phase change to: ${phase}`);
 	return await startPhase(phase);
-}
-
-/**
- * 残り時間を取得
- */
-export function getRemainingTime(): number {
-	return getPhaseTimer();
-}
-
-/**
- * 残り時間を設定（管理者用）
- */
-export function setRemainingTime(seconds: number): void {
-	setPhaseTimer(seconds);
-	console.log(`Phase timer set to: ${seconds}s`);
 }
 
 /**

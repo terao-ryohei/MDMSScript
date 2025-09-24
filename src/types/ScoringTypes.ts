@@ -12,19 +12,6 @@ export enum VictoryCondition {
 }
 
 /**
- * スコア計算基準
- */
-export interface ScoreWeights {
-	correctVote: number; // 正しい投票
-	incorrectVote: number; // 間違った投票
-	evidenceFound: number; // 証拠発見
-	accurateDeduction: number; // 的確な推理
-	rolePerformance: number; // ロールパフォーマンス
-	survivalBonus: number; // 生存ボーナス
-	speedBonus: number; // 速度ボーナス
-}
-
-/**
  * 汎用目標
  */
 export interface RandomObjective {
@@ -53,19 +40,6 @@ export interface PlayerScore {
 }
 
 /**
- * チームスコア
- */
-export interface TeamScore {
-	teamName: string;
-	memberCount: number;
-	memberIds: string[];
-	totalScore: number;
-	averageScore: number;
-	teamBonus: number;
-	isWinner: boolean;
-}
-
-/**
  * ゲーム結果
  */
 export interface GameResult extends Record<string, unknown> {
@@ -82,7 +56,6 @@ export interface GameResult extends Record<string, unknown> {
 
 	// スコア情報
 	playerScores: PlayerScore[];
-	teamScores: TeamScore[];
 
 	// 統計情報
 	totalVotingSessions: number;
@@ -91,17 +64,6 @@ export interface GameResult extends Record<string, unknown> {
 
 	// MVP
 	mvpPlayer?: PlayerScore;
-}
-
-/**
- * スコアリング設定
- */
-export interface ScoringConfig {
-	weights: ScoreWeights;
-	enableBonuses: boolean;
-	penalizeIncorrectVotes: boolean;
-	rewardTeamwork: boolean;
-	mvpThreshold: number; // MVP認定閾値
 }
 
 /**

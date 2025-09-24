@@ -697,23 +697,3 @@ export const OBJECTIVES_BY_DIFFICULTY: Record<ObjectiveDifficulty, string[]> = {
 		"surpass_master",
 	],
 };
-
-/**
- * ランダムな個人目標を取得
- */
-export function getRandomPersonalObjective(): string {
-	const personalObjectives = OBJECTIVES_BY_CATEGORY[ObjectiveCategory.PERSONAL];
-	return personalObjectives[
-		Math.floor(Math.random() * personalObjectives.length)
-	];
-}
-
-/**
- * 難易度別ランダム目標を取得
- */
-export function getRandomObjectiveByDifficulty(
-	difficulty: ObjectiveDifficulty,
-): string {
-	const objectives = OBJECTIVES_BY_DIFFICULTY[difficulty];
-	return objectives[Math.floor(Math.random() * objectives.length)];
-}

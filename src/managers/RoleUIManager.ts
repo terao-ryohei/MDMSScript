@@ -8,14 +8,11 @@ import { ROLE_DEFINITIONS as ROLES } from "../data/RoleDefinitions";
 import { RoleType } from "../types/RoleTypes";
 import { createActionForm, handleUIError } from "../utils/UIHelpers";
 import {
-	assignRolesToAllPlayers,
-	debugRoleAssignments,
 	getAccomplices,
 	getCurrentRoleComposition,
 	getDetectives,
 	getMurderers,
 	getVillagers,
-	notifyAllPlayersRoles,
 } from "./RoleAssignmentManager";
 import { getPlayerRole } from "./ScoreboardManager";
 
@@ -194,118 +191,5 @@ export async function showRoleHelpMenu(player: Player): Promise<void> {
 	} catch (error) {
 		console.error(`Failed to show role help menu for ${player.name}:`, error);
 		player.sendMessage("§cロールヘルプメニューの表示に失敗しました");
-	}
-}
-
-/**
- * 管理者向けロール管理メニュー
- */
-export async function showAdminRoleMenu(player: Player): Promise<void> {
-	try {
-		const form = createActionForm(
-			"§lロール管理",
-			"§7管理者向けのロール管理機能です",
-		)
-			.button("ロール再割り当て", "textures/ui/refresh")
-			.button("ロール構成確認", "textures/ui/book_edit_default")
-			.button("ロール統計", "textures/ui/friend_glyph")
-			.button("デバッグ情報", "textures/ui/debug_glyph")
-			.button("閉じる", "textures/ui/cancel");
-
-		const response = await form.show(player);
-
-		if (response.canceled) return;
-
-		switch (response.selection) {
-			case 0: // ロール再割り当て
-				await confirmRoleReassignment(player);
-				break;
-			case 1: // ロール構成確認
-				await showDetailedRoleComposition(player);
-				break;
-			case 2: // ロール統計
-				await showRoleStatistics(player);
-				break;
-			case 3: // デバッグ情報
-				debugRoleAssignments();
-				player.sendMessage("§2ロールデバッグ情報をコンソールに出力しました");
-				break;
-		}
-	} catch (error) {
-		console.error(`Failed to show admin role menu for ${player.name}:`, error);
-		player.sendMessage("§cロール管理メニューの表示に失敗しました");
-	}
-}
-
-/**
- * ロール再割り当て確認
- */
-async function confirmRoleReassignment(player: Player): Promise<void> {
-	try {
-		const form = new MessageFormData()
-			.title("§lロール再割り当て確認")
-			.body(
-				"§cロールを再割り当てしますか？\n\n" +
-					"§7この操作により全プレイヤーのロールが\n" +
-					"§7ランダムに再設定されます。",
-			)
-			.button1("実行")
-			.button2("キャンセル");
-
-		const response = await form.show(player);
-
-		if (response.canceled || response.selection === 1) {
-			player.sendMessage("§2ロール再割り当てをキャンセルしました");
-			return;
-		}
-
-		// ロール再割り当て実行
-		const result = assignRolesToAllPlayers();
-		if (result.success) {
-			player.sendMessage("§2ロールの再割り当てが完了しました");
-			notifyAllPlayersRoles();
-		} else {
-			player.sendMessage(`§cロール再割り当てエラー: ${result.error}`);
-		}
-	} catch (error) {
-		console.error(
-			`Failed to confirm role reassignment for ${player.name}:`,
-			error,
-		);
-		player.sendMessage("§cロール再割り当て確認の表示に失敗しました");
-	}
-}
-
-/**
- * 詳細なロール構成を表示（管理者向け）
- */
-async function showDetailedRoleComposition(player: Player): Promise<void> {
-	try {
-		const murderers = getMurderers();
-		const accomplices = getAccomplices();
-		const citizens = getVillagers().concat(getDetectives());
-
-		const murdererNames = murderers.map((p) => p.name).join(", ") || "なし";
-		const accompliceNames = accomplices.map((p) => p.name).join(", ") || "なし";
-		const citizenNames =
-			citizens.map((p: Player) => p.name).join(", ") || "なし";
-
-		const form = new MessageFormData()
-			.title("§l詳細ロール構成")
-			.body(
-				`§c犯人 (${murderers.length}人):\n§j${murdererNames}\n\n` +
-					`§6共犯者 (${accomplices.length}人):\n§j${accompliceNames}\n\n` +
-					`§3村人 (${citizens.length}人):\n§j${citizenNames}`,
-			)
-			.button1("了解")
-			.button2("閉じる");
-
-		await form.show(player);
-	} catch (error) {
-		console.error(
-			`Failed to show detailed role composition for ${player.name}:`,
-			error,
-		);
-		player.sendMessage("§c詳細ロール構成の表示に失敗しました");
 	}
 }

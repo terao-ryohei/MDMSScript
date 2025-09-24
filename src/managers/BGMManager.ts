@@ -1,4 +1,4 @@
-import { type Player, system, world } from "@minecraft/server";
+import { system, world } from "@minecraft/server";
 import { BGM_EVENT_MAPPING, BGM_TRACKS } from "../data/MusicDefinitions";
 import type {
 	AudioSettings,
@@ -21,7 +21,7 @@ import { transposeNote } from "../types/AudioTypes";
 let currentBGM: PlayingBGM | null = null;
 const playbackTimers: Map<string, number> = new Map();
 
-let audioSettings: AudioSettings = {
+const audioSettings: AudioSettings = {
 	masterVolume: 1.0,
 	bgmVolume: 0.8,
 	sfxVolume: 0.8,
@@ -190,51 +190,6 @@ function playNote(instrument: Instrument, note: Note, volume: number): void {
 			// プレイヤーが無効な場合は無視
 		}
 	});
-}
-
-/**
- * 効果音を再生
- */
-export function playSFX(
-	sound: string,
-	volume = 1.0,
-	pitch = 1.0,
-	player?: Player,
-): void {
-	if (!audioSettings.enableSFX) return;
-
-	const effectiveVolume =
-		volume * audioSettings.sfxVolume * audioSettings.masterVolume;
-
-	try {
-		if (player) {
-			player.playSound(sound, { volume: effectiveVolume, pitch });
-		} else {
-			world.getAllPlayers().forEach((p) => {
-				p.playSound(sound, { volume: effectiveVolume, pitch });
-			});
-		}
-	} catch (error) {
-		console.warn("Failed to play SFX:", error);
-	}
-}
-
-/**
- * 音響設定を更新
- */
-export function updateAudioSettings(settings: Partial<AudioSettings>): void {
-	audioSettings = { ...audioSettings, ...settings };
-
-	if (currentBGM) {
-		currentBGM.volume = audioSettings.bgmVolume;
-	}
-}
-
-/**
- * 現在の音響設定を取得
- */
-export function getAudioSettings(): AudioSettings {
-	return { ...audioSettings };
 }
 
 /**
